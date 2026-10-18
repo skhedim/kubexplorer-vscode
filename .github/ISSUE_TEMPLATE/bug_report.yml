@@ -1,0 +1,36 @@
+name: Bug report
+description: Something does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Pods list
+        2. ...
+  - type: textarea
+    id: log
+    attributes:
+      label: KubeXplorer log
+      description: 'Output › KubeXplorer (set the level to Trace with "Developer: Set Log Level..."). Remove anything sensitive.'
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: KubeXplorer 0.1.0, VS Code 1.95, kubectl 1.31, OS
+    validations:
+      required: true
+  - type: input
+    id: cluster
+    attributes:
+      label: Cluster
+      placeholder: GKE 1.30, kind, k3s, OpenShift...
