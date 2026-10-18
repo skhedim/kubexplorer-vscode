@@ -7,3 +7,8 @@ dev-cluster/metrics-server.yaml
 dev-cluster/charts/**/templates/
 package-lock.json
 CHANGELOG.md
+
+# Upstream manifests, vendored verbatim
+dev-cluster/addons/flux/install.yaml
+dev-cluster/addons/karpenter/crd-*.yaml
+dev-cluster/addons/karpenter/kwok*.yaml

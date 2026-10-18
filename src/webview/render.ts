@@ -225,34 +225,41 @@ export interface DrawerOptions {
   context: string;
   error?: string;
   loading: boolean;
-  canGoBack: boolean;
-  width: number;
   secrets: Omit<SecretView, "ref">;
 }
 
-export function renderDrawer(d: Details | null, opts: DrawerOptions): string {
-  const actions = d ? DRAWER_ACTIONS.filter((a) => d.actions.includes(a)) : [];
-  const secrets: SecretView | undefined = d ? { ref: d.ref, ...opts.secrets } : undefined;
-  const body = d
-    ? d.sections.map((s) => renderSection(s, opts.context, d.ref, secrets)).join("")
-    : opts.error
-      ? `<div class="empty error">${codicon("error")} ${esc(opts.error)}</div>`
-      : opts.loading
-        ? `<div class="empty"><div class="spinner"></div></div>`
-        : `<div class="empty">This object no longer exists.</div>`;
+/**
+ * The drawer frame, created once when the drawer opens. Its header and content are then updated in
+ * place (renderDrawerHeader, renderDrawerContent): recreating the frame would replay its opening
+ * animation on every refresh.
+ */
+export function renderDrawerFrame(width: number): string {
   return `
-  <aside class="drawer" style="--drawer-width:${opts.width}px" aria-label="Details">
+  <aside class="drawer" style="--drawer-width:${width}px" aria-label="Details">
     <div class="drawer-resizer" data-drag="drawer" title="Resize"></div>
-    <header class="drawer-title">
-      ${opts.canGoBack ? codicon("arrow-left", { action: "details-back", title: "Back" }) : ""}
-      <h2>${esc(d?.title ?? "")}</h2>
-      <div class="toolbar">
-        ${d ? actions.map((a) => codicon(ACTION_META[a].icon, { action: "action", title: ACTION_META[a].title, attrs: { act: a, ref: d.ref } })).join("") : ""}
-        ${codicon("close", { action: "close-drawer", title: "Close (Escape)" })}
-      </div>
-    </header>
-    <div class="drawer-content">${body}</div>
+    <header class="drawer-title" id="r-drawer-header"></header>
+    <div class="drawer-content" id="r-drawer-content"></div>
   </aside>`;
+}
+
+export function renderDrawerHeader(d: Details | null, canGoBack: boolean): string {
+  const actions = d ? DRAWER_ACTIONS.filter((a) => d.actions.includes(a)) : [];
+  return `
+    ${canGoBack ? codicon("arrow-left", { action: "details-back", title: "Back" }) : ""}
+    <h2>${esc(d?.title ?? "")}</h2>
+    <div class="toolbar">
+      ${d ? actions.map((a) => codicon(ACTION_META[a].icon, { action: "action", title: ACTION_META[a].title, attrs: { act: a, ref: d.ref } })).join("") : ""}
+      ${codicon("close", { action: "close-drawer", title: "Close (Escape)" })}
+    </div>`;
+}
+
+export function renderDrawerContent(d: Details | null, opts: DrawerOptions): string {
+  if (!d) {
+    if (opts.error) return `<div class="empty error">${codicon("error")} ${esc(opts.error)}</div>`;
+    return opts.loading ? `<div class="empty"><div class="spinner"></div></div>` : `<div class="empty">This object no longer exists.</div>`;
+  }
+  const secrets: SecretView = { ref: d.ref, ...opts.secrets };
+  return d.sections.map((s) => renderSection(s, opts.context, d.ref, secrets)).join("");
 }
 
 // ---------- Overview ----------

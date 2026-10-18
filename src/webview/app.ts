@@ -4,7 +4,7 @@
 import type { Appearance, HostMessage, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
 import type { ActionId, Details, OverviewData, ResourceRef, Row } from "../shared/view";
 import { checkbox, codicon, data, esc } from "./dom";
-import { renderDrawer, renderOverview, renderTable } from "./render";
+import { renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
 
 export interface VsCodeApi {
   postMessage(msg: WebviewMessage): void;
@@ -233,19 +233,7 @@ export class App {
     const rows = this.visibleRows();
     this.region("r-header", this.header(rows));
     this.region("r-body", this.body(rows));
-    this.region(
-      "r-drawer",
-      this.ui.selected
-        ? renderDrawer(this.details, {
-            context: this.view?.context ?? "",
-            error: this.detailsError,
-            loading: this.detailsLoading,
-            canGoBack: this.history.length > 0,
-            width: this.ui.drawerWidth,
-            secrets: { values: this.secretValues, pending: this.secretPending, errors: this.secretErrors },
-          })
-        : "",
-    );
+    this.renderDrawer();
 
     bodyEl.scrollTop = scroll;
     const drawerContent = document.querySelector(".drawer-content");
@@ -255,6 +243,30 @@ export class App {
       input?.focus();
       if (caret !== null) input?.setSelectionRange(caret, caret);
     }
+  }
+
+  /** Opens or closes the drawer frame, then updates its header and content in place. */
+  private renderDrawer(): void {
+    const container = document.getElementById("r-drawer")!;
+    if (!this.ui.selected) {
+      if (container.firstChild) {
+        container.replaceChildren();
+        this.rendered.delete("r-drawer-header");
+        this.rendered.delete("r-drawer-content");
+      }
+      return;
+    }
+    if (!container.firstChild) container.innerHTML = renderDrawerFrame(this.ui.drawerWidth);
+    this.region("r-drawer-header", renderDrawerHeader(this.details, this.history.length > 0));
+    this.region(
+      "r-drawer-content",
+      renderDrawerContent(this.details, {
+        context: this.view?.context ?? "",
+        error: this.detailsError,
+        loading: this.detailsLoading,
+        secrets: { values: this.secretValues, pending: this.secretPending, errors: this.secretErrors },
+      }),
+    );
   }
 
   // ---------------- Actions ----------------
@@ -269,6 +281,9 @@ export class App {
     this.clearSecrets();
     this.save();
     this.post({ type: "showDetails", ref });
+    // Another object: start the content from the top.
+    this.rendered.delete("r-drawer-content");
+    document.querySelector(".drawer-content")?.scrollTo(0, 0);
     this.render();
   }
 
@@ -335,8 +350,6 @@ export class App {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
       this.save();
-      this.rendered.delete("r-drawer");
-      this.render();
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);

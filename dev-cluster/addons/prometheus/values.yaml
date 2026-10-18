@@ -1,0 +1,11 @@
+# Minimal Prometheus for the development cluster: the server scrapes cAdvisor and kubelets, which is all the
+# KubeXplorer metric charts need. Everything else in the chart is disabled.
+alertmanager: { enabled: false }
+prometheus-pushgateway: { enabled: false }
+kube-state-metrics: { enabled: false }
+prometheus-node-exporter: { enabled: true }
+server:
+  persistentVolume: { enabled: false }
+  retention: 1d
+  global: { scrape_interval: 15s, evaluation_interval: 15s }
+  resources: { requests: { cpu: 50m, memory: 256Mi } }

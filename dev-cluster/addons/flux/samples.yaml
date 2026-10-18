@@ -1,0 +1,146 @@
+# Flux objects of the development cluster, in every state the Flux views render:
+# Ready (podinfo from Git and from an OCI chart), Not Ready (missing path, unreachable bucket), Suspended.
+apiVersion: v1
+kind: Namespace
+metadata: { name: apps }
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  interval: 10m
+  url: https://github.com/stefanprodan/podinfo
+  ref: { tag: "6.9.2" }
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  interval: 10m
+  sourceRef: { kind: GitRepository, name: podinfo }
+  path: ./kustomize
+  targetNamespace: apps
+  prune: true
+  wait: true
+  timeout: 3m
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata: { name: broken-path, namespace: flux-system }
+spec:
+  interval: 10m
+  sourceRef: { kind: GitRepository, name: podinfo }
+  path: ./does-not-exist
+  prune: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata: { name: suspended, namespace: flux-system }
+spec:
+  suspend: true
+  interval: 10m
+  sourceRef: { kind: GitRepository, name: podinfo }
+  path: ./kustomize
+  targetNamespace: apps
+  prune: true
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: { name: podinfo-chart, namespace: flux-system }
+spec:
+  interval: 10m
+  url: oci://ghcr.io/stefanprodan/charts/podinfo
+  ref: { semver: ">=6.0.0" }
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: { name: podinfo-oci, namespace: flux-system }
+spec:
+  interval: 10m
+  chartRef: { kind: OCIRepository, name: podinfo-chart }
+  targetNamespace: apps
+  releaseName: podinfo-oci
+  values:
+    replicaCount: 1
+    resources: { requests: { cpu: 5m, memory: 16Mi } }
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  interval: 10m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: { name: podinfo-https, namespace: flux-system }
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: podinfo
+      version: ">=6.0.0"
+      sourceRef: { kind: HelmRepository, name: podinfo }
+  targetNamespace: apps
+  releaseName: podinfo-https
+  values:
+    replicaCount: 1
+    resources: { requests: { cpu: 5m, memory: 16Mi } }
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: Bucket
+metadata: { name: unreachable, namespace: flux-system }
+spec:
+  interval: 10m
+  provider: generic
+  bucketName: manifests
+  endpoint: minio.invalid:9000
+  insecure: true
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  image: ghcr.io/stefanprodan/podinfo
+  interval: 1h
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  imageRepositoryRef: { name: podinfo }
+  policy:
+    semver: { range: ">=6.0.0" }
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata: { name: webhook, namespace: flux-system }
+spec:
+  type: generic
+  address: https://example.invalid/flux
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata: { name: all-errors, namespace: flux-system }
+spec:
+  providerRef: { name: webhook }
+  eventSeverity: error
+  eventSources:
+    - { kind: Kustomization, name: "*" }
+    - { kind: HelmRelease, name: "*" }
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: webhook-token, namespace: flux-system }
+stringData:
+  token: dev-cluster-only
+---
+apiVersion: notification.toolkit.fluxcd.io/v1
+kind: Receiver
+metadata: { name: github, namespace: flux-system }
+spec:
+  type: github
+  events: [ping, push]
+  secretRef: { name: webhook-token }
+  resources:
+    - { kind: GitRepository, name: podinfo }

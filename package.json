@@ -579,6 +579,7 @@
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
+    "happy-dom": "^21.0.3",
     "knip": "^6.42.0",
     "mocha": "^12.0.3",
     "playwright": "^1.64.1",
