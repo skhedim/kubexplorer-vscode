@@ -1,0 +1,2 @@
+{{ .Release.Name }} is running in the {{ .Release.Namespace }} namespace.
+Access it with: kubectl port-forward svc/{{ .Release.Name }} 8080:{{ .Values.service.port }}

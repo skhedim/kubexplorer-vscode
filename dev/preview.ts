@@ -1,0 +1,55 @@
+// Browser preview: the real webview and the real PanelController, on the demo cluster.
+// The URL picks the tab: ?resource=pods (default), ?resource=overview, ?appearance=freelens, ?theme=light.
+
+import { DEMO_CONTEXT, DemoClient } from "../src/kube/demo";
+import { ResourceStore } from "../src/kube/store";
+import { nullLogger } from "../src/kube/types";
+import { PanelController } from "../src/panel/controller";
+import { ResourceRegistry } from "../src/resources/registry";
+import type { Appearance, HostMessage, WebviewMessage } from "../src/shared/protocol";
+import { startWebview } from "../src/webview/index";
+
+const params = new URLSearchParams(location.search);
+const resource = params.get("resource") ?? "pods";
+const appearance = (params.get("appearance") ?? "vscode") as Appearance;
+document.body.dataset.appearance = appearance;
+document.body.classList.add(params.get("theme") === "light" ? "vscode-light" : "vscode-dark");
+
+const client = new DemoClient();
+const store = new ResourceStore(client, { pollIntervalMs: () => 5000 }, nullLogger);
+const available = ["default", "frontend", "kube-public", "kube-system", "monitoring", "payments"];
+
+/** Shows what VS Code would do (dialog, terminal…) at the bottom of the page. */
+const hostLog = (message: string) => {
+  const el = document.getElementById("host-log");
+  if (el) el.textContent = message;
+};
+
+const controller = new PanelController({
+  context: DEMO_CONTEXT,
+  target: resource === "overview" ? { kind: "overview" } : { kind: "list", resource },
+  registry: new ResourceRegistry(),
+  store,
+  client,
+  log: nullLogger,
+  appearance,
+  namespaces: { available, selected: [] },
+  host: {
+    post: (msg: HostMessage) => window.postMessage(msg, "*"),
+    runAction: (_ctx, action, ref, container) =>
+      hostLog(`action ${action} → ${ref.resource}/${ref.name}${container ? ` (${container})` : ""}`),
+    rowMenu: (_ctx, ref, actions) => hostLog(`native quick pick: ${actions.join(", ")} for ${ref.name}`),
+    deleteMany: (_ctx, refs) => hostLog(`native confirmation: delete ${refs.length} object(s)`),
+    openResource: (_ctx, r) => (location.search = `?resource=${r}&appearance=${appearance}`),
+    setNamespaces: (_ctx, namespaces) => controller.setNamespaceFilter({ available, selected: namespaces }),
+    refresh: () => store.refresh(),
+    copyText: (text) => hostLog(`copied ${text.length} characters`),
+  },
+});
+
+startWebview({
+  postMessage: (msg: WebviewMessage) => controller.onMessage(msg),
+  getState: () => JSON.parse(sessionStorage.getItem(`state:${resource}`) ?? "null"),
+  setState: (state: unknown) => sessionStorage.setItem(`state:${resource}`, JSON.stringify(state)),
+});
+controller.setVisible(true);

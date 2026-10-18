@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/codicons/codicon.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>KubeXplorer preview</title>
+    <style>
+      /* Variables VS Code injects into webviews (subset of the Dark Modern and Light Modern themes), for the preview outside VS Code. */
+      body.vscode-dark {
+        --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif;
+        --vscode-font-size: 13px;
+        --vscode-editor-font-family: Consolas, "Courier New", monospace;
+        --vscode-editor-background: #1f1f1f;
+        --vscode-editor-foreground: #cccccc;
+        --vscode-foreground: #cccccc;
+        --vscode-descriptionForeground: #9d9d9d;
+        --vscode-editorGroup-border: #ffffff17;
+        --vscode-panel-border: #2b2b2b;
+        --vscode-list-hoverBackground: #2a2d2e;
+        --vscode-list-inactiveSelectionBackground: #37373d;
+        --vscode-focusBorder: #0078d4;
+        --vscode-sideBar-background: #181818;
+        --vscode-sideBarSectionHeader-background: #181818;
+        --vscode-sideBarSectionHeader-foreground: #cccccc;
+        --vscode-editorWidget-background: #202020;
+        --vscode-input-background: #313131;
+        --vscode-input-foreground: #cccccc;
+        --vscode-input-border: #3c3c3c;
+        --vscode-input-placeholderForeground: #989898;
+        --vscode-menu-background: #1f1f1f;
+        --vscode-menu-foreground: #cccccc;
+        --vscode-menu-border: #454545;
+        --vscode-widget-shadow: #0000005c;
+        --vscode-textLink-foreground: #4daafc;
+        --vscode-textLink-activeForeground: #4daafc;
+        --vscode-button-background: #0078d4;
+        --vscode-button-foreground: #ffffff;
+        --vscode-statusBarItem-errorBackground: #c72e0f;
+        --vscode-icon-foreground: #cccccc;
+        --vscode-toolbar-hoverBackground: #5a5d5e50;
+        --vscode-charts-green: #89d185;
+        --vscode-charts-blue: #3794ff;
+        --vscode-editorWarning-foreground: #cca700;
+        --vscode-errorForeground: #f85149;
+        --vscode-disabledForeground: #cccccc80;
+        --vscode-checkbox-background: #313131;
+        --vscode-checkbox-border: #3c3c3c;
+        --vscode-checkbox-foreground: #cccccc;
+        --vscode-scrollbarSlider-background: #79797966;
+        --vscode-scrollbarSlider-hoverBackground: #646464b3;
+        --vscode-textCodeBlock-background: #2b2b2b;
+      }
+      body.vscode-light {
+        --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif;
+        --vscode-font-size: 13px;
+        --vscode-editor-font-family: Consolas, "Courier New", monospace;
+        --vscode-editor-background: #ffffff;
+        --vscode-editor-foreground: #3b3b3b;
+        --vscode-foreground: #3b3b3b;
+        --vscode-descriptionForeground: #3b3b3b;
+        --vscode-editorGroup-border: #e5e5e5;
+        --vscode-list-hoverBackground: #f2f2f2;
+        --vscode-list-inactiveSelectionBackground: #e4e6f1;
+        --vscode-focusBorder: #005fb8;
+        --vscode-sideBar-background: #f8f8f8;
+        --vscode-sideBarSectionHeader-background: #f8f8f8;
+        --vscode-input-background: #ffffff;
+        --vscode-input-foreground: #3b3b3b;
+        --vscode-input-border: #cecece;
+        --vscode-menu-background: #ffffff;
+        --vscode-textLink-foreground: #005fb8;
+        --vscode-textLink-activeForeground: #005fb8;
+        --vscode-button-background: #005fb8;
+        --vscode-button-foreground: #ffffff;
+        --vscode-icon-foreground: #3b3b3b;
+        --vscode-charts-green: #388a34;
+        --vscode-charts-blue: #1a85ff;
+        --vscode-editorWarning-foreground: #bf8803;
+        --vscode-errorForeground: #f85149;
+        --vscode-disabledForeground: #61616180;
+        --vscode-scrollbarSlider-background: #64646466;
+      }
+      #host-log {
+        position: fixed;
+        left: 8px;
+        bottom: 6px;
+        font: 11px monospace;
+        opacity: 0.7;
+        color: #9d9d9d;
+        z-index: 100;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="host-log"></div>
+    <script src="/dist/preview.js"></script>
+  </body>
+</html>

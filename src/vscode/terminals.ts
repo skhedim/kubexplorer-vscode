@@ -1,0 +1,136 @@
+// Logs and shells in the VS Code terminal panel.
+// Logs use a Pseudoterminal: colored lines, Ctrl+C to stop following, and it also works on the demo cluster.
+
+import * as vscode from "vscode";
+import type { KubeClient, Stoppable } from "../kube/client";
+import type { LogOptions } from "../kube/types";
+import { colorizeLogLine, DIM, RED, RESET } from "../shared/logFormat";
+
+const CTRL_C = "\x03";
+
+class LogsPseudoterminal implements vscode.Pseudoterminal {
+  private readonly writeEmitter = new vscode.EventEmitter<string>();
+  readonly onDidWrite = this.writeEmitter.event;
+  private stream?: Stoppable;
+  /** Incomplete last line of the previous chunk, colored once complete. */
+  private partial = "";
+
+  constructor(
+    private readonly client: KubeClient,
+    private readonly context: string,
+    private readonly opts: LogOptions,
+  ) {}
+
+  open(): void {
+    this.start();
+  }
+
+  private write(text: string): void {
+    this.writeEmitter.fire(text);
+  }
+
+  private start(): void {
+    const o = this.opts;
+    const target = `${o.namespace}/${o.pod}${o.container ? ` › ${o.container}` : ` (${vscode.l10n.t("all containers")})`}`;
+    const previous = o.previous ? ` · ${vscode.l10n.t("previous container")}` : "";
+    this.write(`${DIM}── ${target} · ${this.context}${previous} ── ${vscode.l10n.t("Ctrl+C: stop · R: restart")}${RESET}\r\n`);
+    this.stream = this.client.streamLogs(
+      this.context,
+      o,
+      (chunk) => this.onChunk(chunk),
+      (error) => {
+        this.flush();
+        this.write(
+          error
+            ? `\r\n${RED}✖ ${error.replace(/\n/g, "\r\n")}${RESET}\r\n`
+            : `\r\n${DIM}── ${vscode.l10n.t("end of stream")} ──${RESET}\r\n`,
+        );
+        this.stream = undefined;
+      },
+    );
+  }
+
+  private onChunk(chunk: string): void {
+    const text = this.partial + chunk;
+    const cut = text.lastIndexOf("\n");
+    if (cut < 0) {
+      this.partial = text;
+      return;
+    }
+    this.partial = text.slice(cut + 1);
+    const lines = text.slice(0, cut).split("\n").map(colorizeLogLine);
+    this.write(`${lines.join("\r\n")}\r\n`);
+  }
+
+  private flush(): void {
+    if (this.partial) this.write(`${colorizeLogLine(this.partial)}\r\n`);
+    this.partial = "";
+  }
+
+  handleInput(data: string): void {
+    if (data === CTRL_C && this.stream) {
+      this.stream.stop();
+      this.stream = undefined;
+      this.flush();
+      this.write(`\r\n${DIM}── ${vscode.l10n.t("stopped (press R to restart)")} ──${RESET}\r\n`);
+    } else if (data.toLowerCase() === "r" && !this.stream) {
+      this.write("\r\n");
+      this.start();
+    }
+  }
+
+  close(): void {
+    this.stream?.stop();
+    this.writeEmitter.dispose();
+  }
+}
+
+export class Terminals implements vscode.Disposable {
+  /** One logs terminal per pod/container: opening the same logs again reveals it. */
+  private readonly logs = new Map<string, vscode.Terminal>();
+  private readonly subscription: vscode.Disposable;
+
+  constructor(private readonly client: KubeClient) {
+    this.subscription = vscode.window.onDidCloseTerminal((t) => {
+      for (const [key, terminal] of this.logs) if (terminal === t) this.logs.delete(key);
+    });
+  }
+
+  showLogs(context: string, opts: LogOptions): void {
+    const key = [context, opts.namespace, opts.pod, opts.container ?? "*", opts.previous].join("|");
+    const existing = this.logs.get(key);
+    if (existing) {
+      existing.show();
+      return;
+    }
+    const container = opts.container ? ` › ${opts.container}` : "";
+    const previous = opts.previous ? ` (${vscode.l10n.t("previous")})` : "";
+    const terminal = vscode.window.createTerminal({
+      name: vscode.l10n.t("Logs: {0}", `${opts.pod}${container}${previous}`),
+      pty: new LogsPseudoterminal(this.client, context, opts),
+      iconPath: new vscode.ThemeIcon("output"),
+      isTransient: true,
+    });
+    this.logs.set(key, terminal);
+    terminal.show();
+  }
+
+  /** Opens `kubectl exec` in a terminal; false when the cluster has no shell (demo). */
+  showShell(context: string, namespace: string, pod: string, container: string): boolean {
+    const spec = this.client.execSpec(context, namespace, pod, container);
+    if (!spec) return false;
+    const terminal = vscode.window.createTerminal({
+      name: vscode.l10n.t("Shell: {0}", `${pod} › ${container}`),
+      shellPath: spec.shellPath,
+      shellArgs: spec.shellArgs,
+      iconPath: new vscode.ThemeIcon("terminal"),
+      isTransient: true,
+    });
+    terminal.show();
+    return true;
+  }
+
+  dispose(): void {
+    this.subscription.dispose();
+  }
+}

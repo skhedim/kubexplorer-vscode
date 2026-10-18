@@ -1,0 +1,5 @@
+apiVersion: v2
+name: demo-app
+description: Local demo chart used to exercise the Helm views of KubeXplorer.
+version: 0.1.0
+appVersion: "1.27"
