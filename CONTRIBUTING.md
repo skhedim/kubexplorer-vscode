@@ -12,7 +12,7 @@ Thanks for your interest! Bug reports, ideas and pull requests are all welcome.
 
 ## Development setup
 
-Prerequisites: Node.js 22 (see `.nvmrc`), `kubectl`, and for the local cluster `docker`, `kind` and `helm`.
+Prerequisites: Node.js 24 (see `.nvmrc`), `kubectl`, and for the local cluster `docker`, `kind` and `helm`.
 
 ```sh
 git clone https://github.com/skhedim/kubexplorer-vscode.git
@@ -32,8 +32,15 @@ and a Helm release, then writes `test/.kubeconfig-kind`, a kubeconfig holding on
 
 ```sh
 ./dev-cluster/setup.sh                 # idempotent: run it again to restore the sample workloads
+./dev-cluster/setup.sh --addons        # also Flux, Karpenter (simulated by kwok) and Prometheus
 kind delete cluster --name kubexplorer # when you are done
 ```
+
+The add-ons (`dev-cluster/addons/`) give the Flux, Karpenter and chart views real data: Flux reconciles podinfo
+from GitHub (with a broken and a suspended Kustomization), kwok simulates the nodes of two Karpenter NodePools
+(there is no Karpenter controller: `addons/karpenter/apply.sh` writes the statuses and events), and Prometheus
+scrapes cAdvisor. Run `./dev-cluster/addons/karpenter/apply.sh` again to refresh its events, which expire after an
+hour.
 
 Integration tests and screenshot scripts only ever use `test/.kubeconfig-kind`: they cannot reach your other
 clusters.

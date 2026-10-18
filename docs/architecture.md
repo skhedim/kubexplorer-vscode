@@ -14,6 +14,8 @@ src/
     routing.ts          Routes to kubectl or the demo, and serves virtual lists.
     store.ts            Shared list cache: watch + list while subscribed, polling as a fallback.
     helm.ts             Helm client (CLI and demo); releases and charts as Kubernetes-shaped objects.
+    crds.ts             Installed CRDs per cluster (cached): optional kinds are shown only when installed.
+    prometheus.ts       Prometheus detection and range queries through the API server proxy; demo metrics.
     portForward.ts      kubectl port-forward processes.
     jsonStream.ts       Splits the JSON stream of kubectl --watch.
     quantity.ts         Kubernetes quantities (CPU, memory).
@@ -23,17 +25,22 @@ src/
     descriptor.ts       defineResource(): columns, details and actions of a kind.
     pods.ts, workloads.ts, cluster.ts, config.ts, network.ts, storage.ts, access.ts, crd.ts, helm.ts,
     portForwards.ts, metrics.ts
-    registry.ts         Built-in kinds plus CRDs registered at runtime.
-    menu.ts             The Freelens side menu, shown by the Resources view.
-    overview.ts         Cluster usage, status donuts and warning events.
+    flux.ts             Flux kinds (optional), their status rules and patch actions, and the Flux overview page.
+    karpenter.ts        Karpenter kinds (optional) and the Karpenter section of nodes.
+    karpenterOverview.ts  The Karpenter dashboard.
+    charts.ts           PromQL queries of a pod, workload or node, and the usage charts built from them.
+    registry.ts         Built-in kinds, CRDs registered at runtime, and the overview pages.
+    menu.ts             The Freelens side menu (with the Flux and Karpenter menus), shown by the Resources view.
+    overview.ts         Overview pages; the cluster one: usage, status donuts and warning events.
     format.ts           Ages, cells and the metadata block shared by every drawer.
   panel/
-    controller.ts       Logic of one tab: subscriptions while visible, rows, details, secret reveal.
+    controller.ts       Logic of one tab: subscriptions while visible, rows, details, charts, secret reveal.
+    metrics.ts          Usage charts: Prometheus, or the metrics-server samples collected in memory.
   shared/             Contracts shared by the extension host and the webview.
     view.ts             Generic view model: columns, typed cells, detail sections.
     protocol.ts         HostMessage / WebviewMessage, persisted webview state.
     logFormat.ts, encoding.ts, clusterNames.ts
-  webview/            UI of the tabs: framework-free HTML rendering by regions.
+  webview/            UI of the tabs: framework-free HTML rendering by regions; SVG charts (chart.ts).
   vscode/             VS Code integration.
     clustersView.ts, resourcesView.ts   Tree views.
     panels.ts           Webview panels: tab reuse, serializer for restoring tabs after a restart.
@@ -70,6 +77,28 @@ are keyed by namespace and name.
 - A **virtual** list is not served by `kubectl get` (Helm releases and charts, port forwards): `RoutingClient`
   delegates it to a `VirtualSource` returning Kubernetes-shaped objects, so lists, details, the store and actions
   work unchanged.
+
+## Usage charts
+
+Descriptors that have charts declare a `metrics` scope: the pod itself, the pods of a workload, or a node.
+The drawer gets a `metrics` placeholder section, and the controller loads the charts separately, after the
+details, then every 20 seconds while the object stays shown (a `metrics` message):
+
+1. `charts.ts` turns the scope into PromQL queries (cAdvisor series, summed over the containers).
+2. `PrometheusClient` runs them as range queries through the API server service proxy
+   (`kubectl get --raw /api/v1/namespaces/<ns>/services/<svc>:<port>/proxy/api/v1/query_range`). The service is
+   detected among the services of the cluster, or set by `kubexplorer.prometheus`.
+3. Without Prometheus, `MetricsHistory` provides the metrics-server samples recorded from every metrics list the
+   tabs receive, for the last hour.
+
+Requests, limits and allocatable capacity are reference lines computed from the pod specs and the node.
+
+## Integrations (Flux, Karpenter)
+
+Their descriptors are built-in, but `optional`: the Resources view shows their menu entries only when
+`CrdCatalog` finds their CRD, and an overview page skips them otherwise. A CRD with a dedicated descriptor opens
+it from the Custom Resources section too. Their actions (Reconcile, Suspend, Resume) are merge patches declared by
+the descriptor (`patches`), so `actions.ts` applies them without knowing Flux.
 
 ## Secrets
 

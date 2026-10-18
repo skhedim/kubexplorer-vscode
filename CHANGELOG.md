@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Usage charts over time (CPU, memory, network, filesystem) in the details of pods, workloads and nodes, with
+  requests, limits and allocatable capacity. Prometheus is detected and queried through the API server proxy
+  (setting `kubexplorer.prometheus`); without it, the charts use metrics-server samples.
+- Flux: lists and details of every Flux kind (Flux Operator, Kustomize, Helm, sources, image automation,
+  notifications), Reconcile / Suspend / Resume actions and a Flux overview.
+- Karpenter: NodePools, NodeClaims, EC2 / AKS / KWOK NodeClasses, a Karpenter dashboard and a Karpenter section in
+  the details of the nodes it manages.
+- The Flux and Karpenter menus show up only when their CRDs are installed.
+- `dev-cluster/setup.sh --addons` installs Flux, a simulated Karpenter (kwok) and Prometheus on the development
+  cluster.
+
+### Fixed
+
+- The details drawer no longer blinks when its content refreshes.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added
