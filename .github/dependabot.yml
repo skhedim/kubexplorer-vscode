@@ -11,6 +11,12 @@ updates:
     ignore:
       # @types/vscode must match the minimum VS Code version in engines.vscode.
       - dependency-name: "@types/vscode"
+      # @types/node follows the Node.js LTS line used by the project (.nvmrc).
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      # typescript-eslint does not support the native TypeScript 7 compiler yet.
+      - dependency-name: typescript
+        versions: [">=7"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
