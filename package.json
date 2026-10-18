@@ -1,0 +1,590 @@
+{
+  "name": "kubexplorer",
+  "displayName": "KubeXplorer",
+  "description": "%extension.description%",
+  "version": "0.1.0",
+  "publisher": "skhedim",
+  "license": "MIT",
+  "author": {
+    "name": "Sébastien Khedim"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skhedim/kubexplorer-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/skhedim/kubexplorer-vscode/issues"
+  },
+  "homepage": "https://github.com/skhedim/kubexplorer-vscode#readme",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e2124",
+    "theme": "dark"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "kubernetes",
+    "k8s",
+    "kubectl",
+    "helm",
+    "cluster",
+    "pods",
+    "logs",
+    "port-forward",
+    "freelens",
+    "lens"
+  ],
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%capabilities.untrustedWorkspaces%",
+      "restrictedConfigurations": [
+        "kubexplorer.kubectlPath",
+        "kubexplorer.helmPath"
+      ]
+    }
+  },
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "activationEvents": [
+    "onWebviewPanel:kubexplorer.resource"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kubexplorer",
+          "title": "KubeXplorer",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "kubexplorer": [
+        {
+          "id": "kubexplorer.clusters",
+          "name": "%view.clusters%",
+          "icon": "media/activity-icon.svg"
+        },
+        {
+          "id": "kubexplorer.resources",
+          "name": "%view.resources%",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "kubexplorer.resources",
+        "contents": "%viewsWelcome.resources%",
+        "when": "!kubexplorer.hasActiveContext"
+      },
+      {
+        "view": "kubexplorer.clusters",
+        "contents": "%viewsWelcome.clusters%"
+      }
+    ],
+    "commands": [
+      {
+        "command": "kubexplorer.refresh",
+        "title": "%command.refresh%",
+        "category": "KubeXplorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kubexplorer.selectContext",
+        "title": "%command.selectContext%",
+        "category": "KubeXplorer",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "kubexplorer.selectNamespaces",
+        "title": "%command.selectNamespaces%",
+        "category": "KubeXplorer",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "kubexplorer.openResourcePicker",
+        "title": "%command.openResourcePicker%",
+        "category": "KubeXplorer",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "kubexplorer.openOverview",
+        "title": "%command.openOverview%",
+        "category": "KubeXplorer",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "kubexplorer.openResource",
+        "title": "%command.openResource%",
+        "category": "KubeXplorer"
+      },
+      {
+        "command": "kubexplorer.openResourceInNewTab",
+        "title": "%command.openResourceInNewTab%",
+        "category": "KubeXplorer",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "kubexplorer.activateContext",
+        "title": "%command.activateContext%",
+        "category": "KubeXplorer"
+      },
+      {
+        "command": "kubexplorer.copyContextName",
+        "title": "%command.copyContextName%",
+        "category": "KubeXplorer"
+      },
+      {
+        "command": "kubexplorer.toggleDemoCluster",
+        "title": "%command.toggleDemoCluster%",
+        "category": "KubeXplorer"
+      },
+      {
+        "command": "kubexplorer.showLog",
+        "title": "%command.showLog%",
+        "category": "KubeXplorer",
+        "icon": "$(output)"
+      },
+      {
+        "command": "kubexplorer.resource.logs",
+        "title": "%action.logs%",
+        "category": "KubeXplorer",
+        "icon": "$(output)"
+      },
+      {
+        "command": "kubexplorer.resource.shell",
+        "title": "%action.shell%",
+        "category": "KubeXplorer",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "kubexplorer.resource.portForward",
+        "title": "%action.portForward%",
+        "category": "KubeXplorer",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "kubexplorer.resource.openBrowser",
+        "title": "%action.openBrowser%",
+        "category": "KubeXplorer",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "kubexplorer.resource.scale",
+        "title": "%action.scale%",
+        "category": "KubeXplorer",
+        "icon": "$(arrow-both)"
+      },
+      {
+        "command": "kubexplorer.resource.restart",
+        "title": "%action.restart%",
+        "category": "KubeXplorer",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "kubexplorer.resource.trigger",
+        "title": "%action.trigger%",
+        "category": "KubeXplorer",
+        "icon": "$(play)"
+      },
+      {
+        "command": "kubexplorer.resource.install",
+        "title": "%action.install%",
+        "category": "KubeXplorer",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "kubexplorer.resource.values",
+        "title": "%action.values%",
+        "category": "KubeXplorer",
+        "icon": "$(symbol-property)"
+      },
+      {
+        "command": "kubexplorer.resource.manifest",
+        "title": "%action.manifest%",
+        "category": "KubeXplorer",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "kubexplorer.resource.rollback",
+        "title": "%action.rollback%",
+        "category": "KubeXplorer",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "kubexplorer.resource.edit",
+        "title": "%action.edit%",
+        "category": "KubeXplorer",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "kubexplorer.resource.describe",
+        "title": "%action.describe%",
+        "category": "KubeXplorer",
+        "icon": "$(info)"
+      },
+      {
+        "command": "kubexplorer.resource.copyName",
+        "title": "%action.copyName%",
+        "category": "KubeXplorer",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "kubexplorer.resource.stop",
+        "title": "%action.stop%",
+        "category": "KubeXplorer",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "kubexplorer.resource.delete",
+        "title": "%action.delete%",
+        "category": "KubeXplorer",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "kubexplorer.openResource",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.openResourceInNewTab",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.activateContext",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.copyContextName",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.logs",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.shell",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.portForward",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.openBrowser",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.scale",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.restart",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.trigger",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.install",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.values",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.manifest",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.rollback",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.edit",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.describe",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.copyName",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.stop",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.delete",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "kubexplorer.openOverview",
+          "when": "view == kubexplorer.resources && kubexplorer.hasActiveContext",
+          "group": "navigation@1"
+        },
+        {
+          "command": "kubexplorer.selectNamespaces",
+          "when": "view == kubexplorer.resources && kubexplorer.hasActiveContext",
+          "group": "navigation@2"
+        },
+        {
+          "command": "kubexplorer.refresh",
+          "when": "view == kubexplorer.resources",
+          "group": "navigation@3"
+        },
+        {
+          "command": "kubexplorer.refresh",
+          "when": "view == kubexplorer.clusters",
+          "group": "navigation@1"
+        },
+        {
+          "command": "kubexplorer.toggleDemoCluster",
+          "when": "view == kubexplorer.clusters",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "kubexplorer.showLog",
+          "when": "view == kubexplorer.clusters",
+          "group": "1_settings@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kubexplorer.openOverview",
+          "when": "view == kubexplorer.clusters && viewItem =~ /^cluster/",
+          "group": "inline"
+        },
+        {
+          "command": "kubexplorer.activateContext",
+          "when": "view == kubexplorer.clusters && viewItem == cluster",
+          "group": "1_main@1"
+        },
+        {
+          "command": "kubexplorer.openOverview",
+          "when": "view == kubexplorer.clusters && viewItem =~ /^cluster/",
+          "group": "1_main@2"
+        },
+        {
+          "command": "kubexplorer.copyContextName",
+          "when": "view == kubexplorer.clusters && viewItem =~ /^cluster/",
+          "group": "2_copy@1"
+        },
+        {
+          "command": "kubexplorer.openResourceInNewTab",
+          "when": "view == kubexplorer.resources && viewItem == resource",
+          "group": "inline"
+        },
+        {
+          "command": "kubexplorer.openResourceInNewTab",
+          "when": "view == kubexplorer.resources && viewItem == resource",
+          "group": "1_open@1"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "kubexplorer.resource.logs",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\blogs\\b/",
+          "group": "1_actions@1"
+        },
+        {
+          "command": "kubexplorer.resource.shell",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bshell\\b/",
+          "group": "1_actions@2"
+        },
+        {
+          "command": "kubexplorer.resource.portForward",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bportForward\\b/",
+          "group": "1_actions@3"
+        },
+        {
+          "command": "kubexplorer.resource.openBrowser",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bopenBrowser\\b/",
+          "group": "1_actions@4"
+        },
+        {
+          "command": "kubexplorer.resource.scale",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bscale\\b/",
+          "group": "1_actions@5"
+        },
+        {
+          "command": "kubexplorer.resource.restart",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\brestart\\b/",
+          "group": "1_actions@6"
+        },
+        {
+          "command": "kubexplorer.resource.trigger",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\btrigger\\b/",
+          "group": "1_actions@7"
+        },
+        {
+          "command": "kubexplorer.resource.install",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\binstall\\b/",
+          "group": "1_actions@8"
+        },
+        {
+          "command": "kubexplorer.resource.values",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bvalues\\b/",
+          "group": "2_inspect@1"
+        },
+        {
+          "command": "kubexplorer.resource.manifest",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bmanifest\\b/",
+          "group": "2_inspect@2"
+        },
+        {
+          "command": "kubexplorer.resource.rollback",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\brollback\\b/",
+          "group": "2_inspect@3"
+        },
+        {
+          "command": "kubexplorer.resource.edit",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bedit\\b/",
+          "group": "2_inspect@4"
+        },
+        {
+          "command": "kubexplorer.resource.describe",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bdescribe\\b/",
+          "group": "2_inspect@5"
+        },
+        {
+          "command": "kubexplorer.resource.copyName",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bcopyName\\b/",
+          "group": "3_copy@1"
+        },
+        {
+          "command": "kubexplorer.resource.stop",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bstop\\b/",
+          "group": "9_danger@1"
+        },
+        {
+          "command": "kubexplorer.resource.delete",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bdelete\\b/",
+          "group": "9_danger@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "KubeXplorer",
+      "properties": {
+        "kubexplorer.kubectlPath": {
+          "type": "string",
+          "default": "kubectl",
+          "scope": "machine-overridable",
+          "markdownDescription": "%config.kubectlPath%"
+        },
+        "kubexplorer.helmPath": {
+          "type": "string",
+          "default": "helm",
+          "scope": "machine-overridable",
+          "markdownDescription": "%config.helmPath%"
+        },
+        "kubexplorer.watch": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.watch%"
+        },
+        "kubexplorer.pollInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 2,
+          "markdownDescription": "%config.pollInterval%"
+        },
+        "kubexplorer.reuseTab": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.reuseTab%"
+        },
+        "kubexplorer.appearance": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "freelens"
+          ],
+          "enumDescriptions": [
+            "%config.appearance.vscode%",
+            "%config.appearance.freelens%"
+          ],
+          "default": "vscode",
+          "markdownDescription": "%config.appearance%"
+        },
+        "kubexplorer.confirmApply": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.confirmApply%"
+        },
+        "kubexplorer.logs.tailLines": {
+          "type": "number",
+          "default": 500,
+          "minimum": 10,
+          "markdownDescription": "%config.logs.tailLines%"
+        },
+        "kubexplorer.demoCluster": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%config.demoCluster%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build -- --production",
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "node scripts/build.mjs --tests && vscode-test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run knip && npm run test",
+    "fixtures": "node scripts/capture-fixtures.mjs",
+    "preview": "node scripts/build.mjs && node scripts/preview-server.mjs",
+    "screenshots": "node scripts/build.mjs && node scripts/screenshots.mjs",
+    "l10n:export": "npx @vscode/l10n-dev export --outDir ./l10n ./src",
+    "package": "vsce package --out dist/kubexplorer.vsix",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@fontsource/roboto": "^5.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.5",
+    "@types/vscode": "1.90.0",
+    "@vscode/codicons": "^0.0.46-24",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "knip": "^5.88.1",
+    "mocha": "^12.0.3",
+    "playwright": "^1.48.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

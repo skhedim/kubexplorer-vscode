@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/extension.ts", "src/webview/index.ts", "dev/preview.ts", "test/**/*.test.ts", "scripts/*.mjs"],
+  "project": ["src/**/*.ts", "dev/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": ["@fontsource/roboto", "@vscode/codicons", "@vscode/test-electron"]
+}

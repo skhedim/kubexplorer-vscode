@@ -1,0 +1,9 @@
+dist/
+out-test/
+media/dist/
+.vscode-test/
+test/fixtures/
+dev-cluster/metrics-server.yaml
+dev-cluster/charts/**/templates/
+package-lock.json
+CHANGELOG.md

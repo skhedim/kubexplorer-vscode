@@ -1,0 +1,16 @@
+# Allow-list: only what the packaged extension needs at runtime.
+**
+!package.json
+!package.nls.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!l10n/**
+!dist/extension.js
+!media/icon.png
+!media/activity-icon.svg
+!media/tab-icon.svg
+!media/styles.css
+!media/dist/webview.js
+!media/fonts/**
+!media/codicons/**

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out-test/
+media/dist/
+media/fonts/
+media/codicons/
+.vscode-test/
+*.vsix
+# Kubeconfig of the local kind cluster (written by dev-cluster/setup.sh).
+test/.kubeconfig-*
+# Screenshot captures (README images live in docs/images).
+screenshots/
