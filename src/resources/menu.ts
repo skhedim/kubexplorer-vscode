@@ -1,16 +1,34 @@
-// The Freelens side menu, rendered by the Resources view.
+// The Freelens side menu, rendered by the Resources view, with the menus of the Flux and Karpenter
+// extensions of Freelens, shown when their CRDs are installed.
+
+import type { PanelTarget } from "../shared/protocol";
 
 export interface MenuEntry {
   id: string;
   label: string;
   /** VS Code codicon. */
   icon?: string;
-  /** Resource type to open; "overview" opens the cluster overview. */
+  /** Resource type to open; "overview" opens the cluster overview, "overview:<page>" another overview page. */
   open?: string;
   children?: MenuEntry[];
   /** Children discovered at runtime (CRDs). */
   dynamic?: "crds";
 }
+
+/** The tab an `open` value opens. */
+export function menuTarget(open: string): PanelTarget {
+  if (open === "overview") return { kind: "overview" };
+  if (open.startsWith("overview:")) return { kind: "overview", page: open.slice("overview:".length) };
+  return { kind: "list", resource: open };
+}
+
+/** The `open` value of a tab (to select its menu entry). */
+export function menuOpen(target: PanelTarget): string {
+  if (target.kind === "list") return target.resource;
+  return target.page ? `overview:${target.page}` : "overview";
+}
+
+const entry = (id: string, label: string): MenuEntry => ({ id, label, open: id });
 
 export const MENU: MenuEntry[] = [
   { id: "cluster", label: "Cluster", icon: "dashboard", open: "overview" },
@@ -83,6 +101,66 @@ export const MENU: MenuEntry[] = [
     ],
   },
   {
+    id: "flux",
+    label: "Flux",
+    icon: "sync",
+    children: [
+      { id: "flux-overview", label: "Overview", open: "overview:flux" },
+      {
+        id: "flux-operator",
+        label: "Operator",
+        children: [
+          entry("flux:fluxinstances", "Flux Instances"),
+          entry("flux:fluxreports", "Flux Reports"),
+          entry("flux:resourcesets", "Resource Sets"),
+          entry("flux:resourcesetinputproviders", "Input Providers"),
+        ],
+      },
+      entry("flux:kustomizations", "Kustomizations"),
+      entry("flux:helmreleases", "Helm Releases"),
+      {
+        id: "flux-sources",
+        label: "Sources",
+        children: [
+          entry("flux:gitrepositories", "Git Repositories"),
+          entry("flux:ocirepositories", "OCI Repositories"),
+          entry("flux:helmrepositories", "Helm Repositories"),
+          entry("flux:helmcharts", "Helm Charts"),
+          entry("flux:buckets", "Buckets"),
+          entry("flux:externalartifacts", "External Artifacts"),
+          entry("flux:artifactgenerators", "Artifact Generators"),
+        ],
+      },
+      {
+        id: "flux-image",
+        label: "Image Automation",
+        children: [
+          entry("flux:imagerepositories", "Image Repositories"),
+          entry("flux:imagepolicies", "Image Policies"),
+          entry("flux:imageupdateautomations", "Image Update Automations"),
+        ],
+      },
+      {
+        id: "flux-notifications",
+        label: "Notifications",
+        children: [entry("flux:alerts", "Alerts"), entry("flux:providers", "Providers"), entry("flux:receivers", "Receivers")],
+      },
+    ],
+  },
+  {
+    id: "karpenter",
+    label: "Karpenter",
+    icon: "server-environment",
+    children: [
+      { id: "karpenter-overview", label: "Overview", open: "overview:karpenter" },
+      entry("karpenter:nodepools", "Node Pools"),
+      entry("karpenter:nodeclaims", "Node Claims"),
+      entry("karpenter:ec2nodeclasses", "EC2 Node Classes"),
+      entry("karpenter:aksnodeclasses", "AKS Node Classes"),
+      entry("karpenter:kwoknodeclasses", "KWOK Node Classes"),
+    ],
+  },
+  {
     id: "access",
     label: "Access Control",
     icon: "shield",
@@ -102,6 +180,20 @@ export const MENU: MenuEntry[] = [
     children: [{ id: "customresourcedefinitions", label: "Definitions", open: "customresourcedefinitions" }],
   },
 ];
+
+/**
+ * The menu without the entries whose resource is not available: `available(open)` tells whether a resource
+ * type can be listed (its CRD is installed). A section is kept when one of its resources is; its overview
+ * pages follow it.
+ */
+export function filterMenu(entries: MenuEntry[], available: (open: string) => boolean): MenuEntry[] {
+  return entries.flatMap((e) => {
+    if (!e.children) return !e.open || e.open.startsWith("overview") || available(e.open) ? [e] : [];
+    const children = filterMenu(e.children, available);
+    const listed = children.some((c) => c.children || (c.open && !c.open.startsWith("overview")));
+    return listed || e.dynamic ? [{ ...e, children }] : [];
+  });
+}
 
 /** Every entry that can be opened (for the "Open Resource..." QuickPick). */
 export function flattenMenu(entries: MenuEntry[] = MENU, parent?: string): { label: string; detail?: string; open: string }[] {

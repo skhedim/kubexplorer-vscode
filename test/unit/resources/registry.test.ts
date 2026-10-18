@@ -2,9 +2,9 @@
 import { describe, expect, it } from "vitest";
 import type { KubeObject } from "../../../src/kube/types";
 import type { DetailContext } from "../../../src/resources/descriptor";
-import { flattenMenu } from "../../../src/resources/menu";
+import { flattenMenu, menuTarget } from "../../../src/resources/menu";
 import { buildOverview } from "../../../src/resources/overview";
-import { ResourceRegistry } from "../../../src/resources/registry";
+import { overviewPage, ResourceRegistry } from "../../../src/resources/registry";
 import { fixture } from "../helpers";
 
 const registry = new ResourceRegistry();
@@ -53,14 +53,20 @@ describe.each(FIXTURES)("%s", (resource) => {
 
   it("builds the details", async () => {
     const details = await descriptor.details(items[0], ctx);
-    expect(details.sections[0].type).toBe("items");
+    // The usage charts come first, then the metadata.
+    expect(details.sections[0].type).toBe(descriptor.metrics ? "metrics" : "items");
+    expect(details.sections.some((s) => s.type === "items")).toBe(true);
     expect(details.ref).toEqual({ resource, namespace: items[0].metadata.namespace, name: items[0].metadata.name });
   });
 });
 
 describe("registry", () => {
   it("covers every entry of the Freelens menu", () => {
-    for (const entry of flattenMenu()) if (entry.open !== "overview") expect(registry.get(entry.open), entry.open).toBeDefined();
+    for (const { open } of flattenMenu()) {
+      const target = menuTarget(open);
+      if (target.kind === "list") expect(registry.get(target.resource), open).toBeDefined();
+      else expect(overviewPage(target.page).id, open).toBe(target.page);
+    }
   });
 
   it("never puts Secret values in the view model, only revealable keys", async () => {
@@ -115,6 +121,6 @@ describe("overview", () => {
     expect(pods.slices.find((s) => s.tone === "warning")?.value).toBeGreaterThanOrEqual(1);
     const deployments = data.donuts.find((d) => d.resource === "deployments")!;
     expect(deployments.slices.reduce((n, s) => n + s.value, 0)).toBe(fixture("deployments").length);
-    expect(data.events.rows.length).toBeGreaterThan(0);
+    expect(data.tables[0].rows.length).toBeGreaterThan(0);
   });
 });

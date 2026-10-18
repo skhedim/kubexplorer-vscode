@@ -34,6 +34,9 @@ try {
   await shot("pods");
   await page.click('.row:has-text("fraud-scorer")');
   await page.waitForSelector(".drawer .group-title");
+  await page.waitForSelector(".drawer .chart-svg .line");
+  const plot = await page.locator(".drawer .chart-svg").boundingBox();
+  await page.mouse.move(plot.x + plot.width * 0.6, plot.y + plot.height / 2);
   await shot("pod-details");
 
   await open("resource=secrets");

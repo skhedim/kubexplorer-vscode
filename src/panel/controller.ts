@@ -2,15 +2,17 @@
 // The controller subscribes to the store while the tab is visible and pushes rows and details to the webview.
 
 import type { KubeClient } from "../kube/client";
+import type { CrdCatalog } from "../kube/crds";
 import type { HelmClient } from "../kube/helm";
 import type { ResourceStore, Snapshot } from "../kube/store";
 import { type Disposable, errorMessage, type KubeObject, type Logger } from "../kube/types";
 import { type DetailContext, indexRelated, type RowContext } from "../resources/descriptor";
-import { buildOverview, OVERVIEW_RESOURCES, type OverviewResource } from "../resources/overview";
-import type { ResourceRegistry } from "../resources/registry";
+import type { OverviewPage } from "../resources/overview";
+import { overviewPage, type ResourceRegistry } from "../resources/registry";
 import { decodeBase64 } from "../shared/encoding";
 import type { Appearance, HostMessage, NamespaceFilter, PanelTarget, ViewInit, WebviewMessage } from "../shared/protocol";
 import type { ActionId, ResourceRef } from "../shared/view";
+import type { MetricsService } from "./metrics";
 
 /** What the controller delegates to its host (VS Code: dialogs, terminals, commands). */
 export interface PanelHost {
@@ -35,12 +37,20 @@ export interface PanelDeps {
   appearance: Appearance;
   namespaces: NamespaceFilter;
   helm?: HelmClient;
+  /** Usage charts; without it, the drawer shows none. */
+  metrics?: MetricsService;
+  /** Installed CRDs: overview pages skip the optional kinds that are missing. */
+  crds?: CrdCatalog;
 }
 
 /** Refresh of the displayed ages: with a watch, a list only changes when the cluster does. */
 const AGE_TICK_MS = 30_000;
 /** Automatic refresh of the details (which may query the cluster), at most once every… */
 const DETAILS_THROTTLE_MS = 2_000;
+/** Refresh of the usage charts of the drawer. */
+const METRICS_REFRESH_MS = 20_000;
+/** Related lists recorded in the metrics history. */
+const METRICS_LISTS = new Set(["podmetrics", "nodemetrics"]);
 
 export class PanelController implements Disposable {
   private subscriptions: Disposable[] = [];
@@ -50,12 +60,18 @@ export class PanelController implements Disposable {
   private detailsGeneration = 0;
   private lastSnapshot?: Snapshot;
   private rowContext: RowContext = { related: {} };
-  private readonly overviewLists: Partial<Record<OverviewResource, Snapshot>> = {};
+  private overviewLists = new Map<string, Snapshot>();
+  private overviewMissing = new Set<string>();
+  /** Bumped by each (un)subscription: invalidates an overview subscription still waiting for the CRDs. */
+  private subscriptionGeneration = 0;
   private overviewQueued = false;
   private rowsQueued = false;
   private tick?: ReturnType<typeof setInterval>;
   private detailsTimer?: ReturnType<typeof setTimeout>;
   private lastDetailsAt = 0;
+  private metricsTimer?: ReturnType<typeof setInterval>;
+  /** uid of the object whose charts are refreshed. */
+  private metricsUid?: string;
 
   constructor(private readonly d: PanelDeps) {}
 
@@ -67,12 +83,16 @@ export class PanelController implements Disposable {
     return this.d.target;
   }
 
+  private page(): OverviewPage {
+    return overviewPage(this.d.target.kind === "overview" ? this.d.target.page : undefined);
+  }
+
   title(): string {
-    return this.d.target.kind === "overview" ? "Overview" : this.d.registry.require(this.d.target.resource).title;
+    return this.d.target.kind === "overview" ? this.page().title : this.d.registry.require(this.d.target.resource).title;
   }
 
   private init(): ViewInit {
-    if (this.d.target.kind === "overview") return { mode: "overview", context: this.d.context, title: "Overview" };
+    if (this.d.target.kind === "overview") return { mode: "overview", context: this.d.context, title: this.page().title };
     const desc = this.d.registry.require(this.d.target.resource);
     return {
       mode: "list",
@@ -106,6 +126,7 @@ export class PanelController implements Disposable {
         this.selected = msg.ref;
         clearTimeout(this.detailsTimer);
         this.detailsTimer = undefined;
+        this.stopMetrics();
         void this.pushDetails();
         break;
       case "action":
@@ -148,10 +169,12 @@ export class PanelController implements Disposable {
   }
 
   private unsubscribe(): void {
+    this.subscriptionGeneration++;
     for (const s of this.subscriptions) s.dispose();
     this.subscriptions = [];
     clearInterval(this.tick);
     this.tick = undefined;
+    this.stopMetrics();
   }
 
   /** (Re)subscribes to the store, only while the tab is visible and its webview ready. */
@@ -172,22 +195,41 @@ export class PanelController implements Disposable {
         ...desc.related.map((id) =>
           store.watch({ context, kind: registry.require(id), namespaces }, (snap) => {
             this.rowContext = { related: { ...this.rowContext.related, [id]: indexRelated(snap.items) } };
+            this.recordMetrics(id, snap);
             if (!snap.loading) this.queueRows();
           }),
         ),
       );
       this.tick = setInterval(() => this.queueRows(), AGE_TICK_MS);
     } else {
-      for (const resource of OVERVIEW_RESOURCES) {
-        const kind = registry.require(resource);
-        this.subscriptions.push(
-          store.watch({ context, kind, namespaces }, (snap) => {
-            this.overviewLists[resource] = snap;
-            this.queueOverview();
-          }),
-        );
-      }
+      void this.subscribeOverview(this.subscriptionGeneration);
     }
+  }
+
+  /** The metrics-server lists feed the history of the usage charts. */
+  private recordMetrics(id: string, snap: Snapshot): void {
+    if (METRICS_LISTS.has(id) && !snap.loading && !snap.error) this.d.metrics?.history.record(this.d.context, snap.items);
+  }
+
+  private async subscribeOverview(generation: number): Promise<void> {
+    const { store, registry, context } = this.d;
+    const page = this.page();
+    const descriptors = page.resources.map((id) => registry.require(id));
+    const installed = descriptors.some((d) => d.optional) ? await this.d.crds?.kindNames(context) : undefined;
+    if (generation !== this.subscriptionGeneration) return;
+    this.overviewLists = new Map();
+    this.overviewMissing = new Set(descriptors.filter((d) => d.optional && installed && !installed.has(d.kubectlName)).map((d) => d.id));
+    for (const desc of descriptors) {
+      if (this.overviewMissing.has(desc.id)) continue;
+      this.subscriptions.push(
+        store.watch({ context, kind: desc, namespaces: this.d.namespaces.selected }, (snap) => {
+          this.overviewLists.set(desc.id, snap);
+          this.recordMetrics(desc.id, snap);
+          this.queueOverview();
+        }),
+      );
+    }
+    if (!this.subscriptions.length) this.queueOverview();
   }
 
   /** Coalesces the updates (main list + related lists) received in the same tick. */
@@ -226,16 +268,18 @@ export class PanelController implements Disposable {
     this.overviewQueued = true;
     queueMicrotask(() => {
       this.overviewQueued = false;
-      const lists: Partial<Record<OverviewResource, KubeObject[]>> = {};
-      const errors: Partial<Record<OverviewResource, string>> = {};
-      for (const r of OVERVIEW_RESOURCES) {
-        const snap = this.overviewLists[r];
-        if (snap) lists[r] = snap.items;
-        if (snap?.error) errors[r] = snap.error;
+      const page = this.page();
+      const watched = page.resources.filter((r) => !this.overviewMissing.has(r));
+      const lists: Partial<Record<string, KubeObject[]>> = {};
+      const errors: Partial<Record<string, string>> = {};
+      for (const [r, snap] of this.overviewLists) {
+        lists[r] = snap.items;
+        if (snap.error) errors[r] = snap.error;
       }
-      const loading = OVERVIEW_RESOURCES.some((r) => !this.overviewLists[r] || this.overviewLists[r]!.loading);
-      const live = OVERVIEW_RESOURCES.every((r) => this.overviewLists[r]?.live);
-      this.d.host.post({ type: "overview", data: buildOverview({ lists, errors }), loading, error: errors.pods, live });
+      const loading = watched.some((r) => this.overviewLists.get(r)?.loading ?? true);
+      const live = watched.every((r) => this.overviewLists.get(r)?.live);
+      const data = page.build({ lists, errors, missing: this.overviewMissing });
+      this.d.host.post({ type: "overview", data, loading, error: page.primary ? errors[page.primary] : undefined, live });
       if (this.selected && !loading) this.scheduleDetails();
     });
   }
@@ -282,12 +326,42 @@ export class PanelController implements Disposable {
       if (!desc) throw new Error(`Unsupported resource type: ${ref.resource}`);
       const obj = await this.findObject(ref);
       const details = obj ? await desc.details(obj, this.detailContext()) : null;
-      if (generation === this.detailsGeneration) this.d.host.post({ type: "details", details });
+      if (generation !== this.detailsGeneration) return;
+      this.d.host.post({ type: "details", details });
+      if (obj && desc.metrics && this.d.metrics) this.startMetrics(obj.metadata.uid);
     } catch (err) {
       const error = errorMessage(err);
       this.d.log.warn(`Details of ${ref.resource}/${ref.name}: ${error}`);
       if (generation === this.detailsGeneration) this.d.host.post({ type: "details", details: null, error });
     }
+  }
+
+  /** Loads the charts of the object shown in the drawer now, then every METRICS_REFRESH_MS while it stays shown. */
+  private startMetrics(uid: string): void {
+    if (this.metricsUid === uid) return;
+    this.stopMetrics();
+    this.metricsUid = uid;
+    const load = async () => {
+      const ref = this.selected;
+      const desc = ref && this.d.registry.get(ref.resource);
+      if (!ref || !desc?.metrics || !this.d.metrics) return;
+      try {
+        const obj = await this.findObject(ref);
+        const scope = obj && (await desc.metrics(obj, this.detailContext()));
+        const data = scope ? await this.d.metrics.load(this.d.context, scope) : null;
+        if (this.metricsUid === uid) this.d.host.post({ type: "metrics", uid, data });
+      } catch (err) {
+        if (this.metricsUid === uid) this.d.host.post({ type: "metrics", uid, data: { source: "", charts: [], error: errorMessage(err) } });
+      }
+    };
+    void load();
+    this.metricsTimer = setInterval(() => void load(), METRICS_REFRESH_MS);
+  }
+
+  private stopMetrics(): void {
+    clearInterval(this.metricsTimer);
+    this.metricsTimer = undefined;
+    this.metricsUid = undefined;
   }
 
   /** Decodes one Secret value, read fresh from the cluster, and sends it to the webview only. */

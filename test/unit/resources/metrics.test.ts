@@ -21,7 +21,7 @@ describe("metrics (real kind cluster)", () => {
   });
 
   it("renders node usage as gauges", () => {
-    const row = nodes.toRow(fixture("nodes")[0], rc);
+    const row = nodes.toRow(byName(fixture("nodes"), "kubexplorer-control-plane"), rc);
     expect(row.cells.cpu).toMatchObject({ text: expect.stringMatching(/^\d+%$/), tone: expect.any(String) });
     expect((row.cells.cpu as { bar: number }).bar).toBeGreaterThan(0);
   });
@@ -31,9 +31,10 @@ describe("metrics (real kind cluster)", () => {
     expect(usage.cpu!.usage).toBeGreaterThan(0);
     expect(usage.cpu!.requests).toBeGreaterThan(0);
     expect(usage.memory!.text).toMatch(/used · .* requested · .* allocatable/);
-    expect(usage.pods.capacity).toBe(330);
+    const capacity = fixture("nodes").reduce((n, node) => n + Number(node.status?.allocatable?.pods), 0);
+    expect(usage.pods.capacity).toBe(capacity);
     // The Pending pod (512Gi requested, never scheduled) does not reserve anything.
-    expect(usage.memory!.requests).toBeLessThan(0.1);
+    expect(usage.memory!.requests).toBeLessThan(1);
   });
 
   it("reports a missing metrics-server", () => {

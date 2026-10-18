@@ -1,0 +1,161 @@
+[
+ {
+  "apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+  "kind": "Kustomization",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "broken-path",
+   "namespace": "flux-system",
+   "resourceVersion": "11689",
+   "uid": "d848aef1-dcf8-47fe-83d1-261cb0b2c8e3"
+  },
+  "spec": {
+   "force": false,
+   "interval": "10m",
+   "path": "./does-not-exist",
+   "prune": true,
+   "sourceRef": {
+    "kind": "GitRepository",
+    "name": "podinfo"
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T19:12:53Z",
+     "message": "Fetching manifests for revision 6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5 with a timeout of 9m30s",
+     "observedGeneration": 1,
+     "reason": "ProgressingWithRetry",
+     "status": "True",
+     "type": "Reconciling"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T19:12:53Z",
+     "message": "kustomization path not found: stat /tmp/kustomization-2046392017/does-not-exist: no such file or directory",
+     "observedGeneration": 1,
+     "reason": "ArtifactFailed",
+     "status": "False",
+     "type": "Ready"
+    }
+   ],
+   "observedGeneration": -1
+  }
+ },
+ {
+  "apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+  "kind": "Kustomization",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo",
+   "namespace": "flux-system",
+   "resourceVersion": "11861",
+   "uid": "2ee46286-9328-4e7f-8176-7da1cc2d3275"
+  },
+  "spec": {
+   "force": false,
+   "interval": "10m",
+   "path": "./kustomize",
+   "prune": true,
+   "sourceRef": {
+    "kind": "GitRepository",
+    "name": "podinfo"
+   },
+   "targetNamespace": "apps",
+   "timeout": "3m",
+   "wait": true
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T19:13:35Z",
+     "message": "Applied revision: 6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5",
+     "observedGeneration": 1,
+     "reason": "ReconciliationSucceeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T19:13:35Z",
+     "message": "Health check passed in 37.39637ms",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Healthy"
+    }
+   ],
+   "history": [
+    {
+     "digest": "sha256:452c8870f04a2f388a7ac86d0d67082286514615d0a4ce2bde7b65e2eac5887f",
+     "firstReconciled": "2026-10-18T18:53:34Z",
+     "lastReconciled": "2026-10-18T19:13:35Z",
+     "lastReconciledDuration": "332.07449ms",
+     "lastReconciledStatus": "ReconciliationSucceeded",
+     "metadata": {
+      "revision": "6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5"
+     },
+     "totalReconciliations": 3
+    }
+   ],
+   "inventory": {
+    "entries": [
+     {
+      "id": "apps_podinfo__Service",
+      "v": "v1"
+     },
+     {
+      "id": "apps_podinfo_apps_Deployment",
+      "v": "v1"
+     },
+     {
+      "id": "apps_podinfo_autoscaling_HorizontalPodAutoscaler",
+      "v": "v2"
+     }
+    ]
+   },
+   "lastAppliedRevision": "6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5",
+   "lastAttemptedRevision": "6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5",
+   "observedGeneration": 1
+  }
+ },
+ {
+  "apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+  "kind": "Kustomization",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "suspended",
+   "namespace": "flux-system",
+   "resourceVersion": "6197",
+   "uid": "611ea8e5-f501-41d7-8d33-af5cfce6314a"
+  },
+  "spec": {
+   "force": false,
+   "interval": "10m",
+   "path": "./kustomize",
+   "prune": true,
+   "sourceRef": {
+    "kind": "GitRepository",
+    "name": "podinfo"
+   },
+   "suspend": true,
+   "targetNamespace": "apps"
+  },
+  "status": {
+   "observedGeneration": -1
+  }
+ }
+]

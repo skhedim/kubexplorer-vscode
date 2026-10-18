@@ -1,13 +1,44 @@
-// Data of the Overview page: cluster usage, status donuts per workload kind and Warning events.
+// Overview pages: the cluster one (usage, status donuts per workload kind, Warning events), and the
+// pages of the integrations (Flux, Karpenter), all rendered by the same view.
 
 import type { KubeObject } from "../kube/types";
 import { cpuMillis, memoryBytes } from "../kube/quantity";
-import type { ClusterUsage, Donut, DonutSlice, OverviewData, Tone } from "../shared/view";
+import type { ClusterUsage, Donut, DonutSlice, OverviewData, Row, Tone } from "../shared/view";
 import { fmtCpu, fmtMemory } from "./metrics";
 import { events } from "./cluster";
 import { podStatus, podStatusTone } from "./pods";
 
-export const OVERVIEW_RESOURCES = [
+/** Lists of an overview page, by registry identifier; a list is missing until loaded or when its CRD is not installed. */
+export interface OverviewInput {
+  lists: Partial<Record<string, KubeObject[]>>;
+  errors: Partial<Record<string, string>>;
+  /** Optional lists that are not watched because their CRD is not installed. */
+  missing?: ReadonlySet<string>;
+}
+
+export interface OverviewPage {
+  /** Identifier of the page in a PanelTarget; undefined for the cluster overview. */
+  id?: string;
+  title: string;
+  /** Lists the page watches (registry identifiers); optional descriptors are skipped when their CRD is missing. */
+  resources: readonly string[];
+  /** The list whose error is shown as the page error. */
+  primary?: string;
+  build(input: OverviewInput): OverviewData;
+}
+
+/** Events table of an overview, newest first. */
+export function eventRows(items: KubeObject[], filter: (e: KubeObject) => boolean, limit = 100): Row[] {
+  return items
+    .filter(filter)
+    .map((e) => events.toRow(e))
+    .sort((a, b) => Number(a.sort.lastSeen) - Number(b.sort.lastSeen))
+    .slice(0, limit);
+}
+
+export const eventColumns = events.columns.filter((c) => c.id !== "warning");
+
+const OVERVIEW_RESOURCES = [
   "pods",
   "deployments",
   "daemonsets",
@@ -19,7 +50,7 @@ export const OVERVIEW_RESOURCES = [
   "nodes",
   "nodemetrics",
 ] as const;
-export type OverviewResource = (typeof OVERVIEW_RESOURCES)[number];
+type OverviewResource = (typeof OVERVIEW_RESOURCES)[number];
 
 type WorkloadResource = Exclude<OverviewResource, "events" | "nodes" | "nodemetrics">;
 
@@ -74,11 +105,6 @@ function classify(resource: WorkloadResource, o: KubeObject): Tone {
   }
 }
 
-export interface OverviewInput {
-  lists: Partial<Record<OverviewResource, KubeObject[]>>;
-  errors: Partial<Record<OverviewResource, string>>;
-}
-
 export function buildOverview({ lists, errors }: OverviewInput): OverviewData {
   const donuts: Donut[] = (Object.keys(TITLES) as WorkloadResource[]).map((resource) => {
     const counts = new Map<Tone, number>();
@@ -88,17 +114,23 @@ export function buildOverview({ lists, errors }: OverviewInput): OverviewData {
     }
     return { title: TITLES[resource], resource, slices: slices(counts), error: errors[resource] };
   });
-  const warnings = (lists.events ?? [])
-    .filter((e) => e.type === "Warning")
-    .map((e) => events.toRow(e))
-    .sort((a, b) => Number(a.sort.lastSeen) - Number(b.sort.lastSeen))
-    .slice(0, 100);
+  const warnings = eventRows(lists.events ?? [], (e) => e.type === "Warning");
   return {
     usage: clusterUsage(lists, errors),
     donuts,
-    events: { columns: events.columns.filter((c) => c.id !== "type" && c.id !== "warning"), rows: warnings },
+    tables: [
+      {
+        title: "Warning Events",
+        icon: "warning",
+        columns: eventColumns.filter((c) => c.id !== "type"),
+        rows: warnings,
+        empty: "No warning event",
+      },
+    ],
   };
 }
+
+export const clusterOverview: OverviewPage = { title: "Overview", resources: OVERVIEW_RESOURCES, primary: "pods", build: buildOverview };
 
 /** Requests of a pod (finished pods do not reserve anything anymore). */
 function podRequests(pod: KubeObject): { cpu: number; memory: number } {

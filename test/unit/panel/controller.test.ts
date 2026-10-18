@@ -1,9 +1,13 @@
 // The tab controller, end to end on the demo cluster (no VS Code involved).
 import { describe, expect, it, vi } from "vitest";
+import { CrdCatalog } from "../../../src/kube/crds";
 import { DEMO_CONTEXT, DemoClient } from "../../../src/kube/demo";
+import { DemoMetrics } from "../../../src/kube/prometheus";
 import { ResourceStore } from "../../../src/kube/store";
 import { nullLogger } from "../../../src/kube/types";
 import { PanelController, type PanelHost } from "../../../src/panel/controller";
+import { MetricsHistory, MetricsService } from "../../../src/panel/metrics";
+import { menuTarget } from "../../../src/resources/menu";
 import { ResourceRegistry } from "../../../src/resources/registry";
 import type { HostMessage } from "../../../src/shared/protocol";
 
@@ -22,10 +26,13 @@ function setup(resource: string) {
     copyText: vi.fn(),
   };
   const client = new DemoClient();
+  const registry = new ResourceRegistry();
   const controller = new PanelController({
     context: DEMO_CONTEXT,
-    target: resource === "overview" ? { kind: "overview" } : { kind: "list", resource },
-    registry: new ResourceRegistry(),
+    target: menuTarget(resource),
+    registry,
+    metrics: new MetricsService({ backend: new DemoMetrics(), client, registry, history: new MetricsHistory(), log: nullLogger }),
+    crds: new CrdCatalog(client),
     store: new ResourceStore(client, { pollIntervalMs: () => 60_000 }, nullLogger),
     client,
     host,
@@ -101,7 +108,30 @@ describe("PanelController", () => {
     start();
     const overview = await until("overview", (m) => !m.loading);
     expect(overview.data.donuts.find((d) => d.resource === "pods")!.slices.length).toBeGreaterThan(1);
-    expect(overview.data.events.rows).toHaveLength(2);
+    expect(overview.data.tables[0].rows).toHaveLength(2);
     expect(overview.data.usage?.cpu).toBeDefined();
+  });
+
+  it("sends the usage charts of the object shown in the drawer, after its details", async () => {
+    const { controller, messages, until, start } = setup("pods");
+    start();
+    const rows = await until("rows", (m) => !m.loading);
+    const pod = rows.rows.find((r) => r.ref.name.startsWith("web-app"))!;
+    controller.onMessage({ type: "showDetails", ref: pod.ref });
+    const metrics = await until("metrics");
+    expect(metrics.uid).toBe(pod.uid);
+    expect(metrics.data!.charts.map((c) => c.id)).toEqual(["cpu", "memory", "network", "filesystem"]);
+    const types = messages.map((m) => m.type);
+    expect(types.indexOf("details")).toBeLessThan(types.indexOf("metrics"));
+    controller.dispose();
+  });
+
+  it("shows that an integration is not installed", async () => {
+    // The demo cluster has no Flux CRD: the page subscribes to the events only.
+    const { until, start, controller } = setup("overview:flux");
+    start();
+    const overview = await until("overview", (m) => !m.loading);
+    expect(overview.data.empty).toMatch(/Flux is not installed/);
+    expect(controller.title()).toBe("Flux");
   });
 });

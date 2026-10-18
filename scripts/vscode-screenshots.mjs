@@ -69,6 +69,21 @@ const tree = (label) =>
     .filter({ hasText: new RegExp(`^${label}$`) })
     .first();
 const firstRow = () => webview().locator(".table .row:not(.head)").first();
+/** An entry of a section of the Resources view (several sections have an "Overview"). */
+const child = async (parent, label) => {
+  const rows = page.locator(".pane-body .monaco-list-row");
+  const texts = (await rows.allTextContents()).map((t) => t.trim());
+  const start = texts.indexOf(parent);
+  const i = texts.findIndex((t, j) => j > start && t === label);
+  if (start < 0 || i < 0) throw new Error(`${parent} > ${label} is not in the Resources view`);
+  return rows.nth(i);
+};
+/** Moves the mouse over the chart of the drawer, to show its tooltip. */
+const hoverChart = async () => {
+  await webview().locator(".drawer .chart-svg .line").first().waitFor({ timeout: 60_000 });
+  const box = await webview().locator(".drawer .chart-svg").boundingBox();
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2);
+};
 
 try {
   await page.locator('.activitybar [aria-label^="KubeXplorer"]').first().click();
@@ -81,14 +96,18 @@ try {
   await tree("Pods").click();
   await firstRow().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(2500); // metrics
-  await webview().locator('.row:has-text("fraud-scorer")').click();
-  await webview().locator(".drawer .group-title").waitFor();
+  await webview().locator('.row:has-text("prometheus-server")').first().click();
+  await webview().locator(".drawer .group-title").first().waitFor();
+  await hoverChart();
   await shot("pods");
 
   // Logs from the drawer: VS Code terminal.
   await webview().locator('.drawer-title [data-act="logs"]').click();
-  await page.waitForSelector(".quick-input-widget:visible", { timeout: 10_000 });
-  await page.keyboard.press("Enter");
+  // A quick pick asks which logs only for a container that restarted.
+  await page
+    .waitForSelector(".quick-input-widget:visible", { timeout: 3_000 })
+    .then(() => page.keyboard.press("Enter"))
+    .catch(() => undefined);
   await page.waitForSelector(".terminal-wrapper", { timeout: 15_000 });
   await webview().locator('[data-action="close-drawer"]').click();
   // The native context menu reacts badly to synthetic clicks: keyboard navigation.
@@ -97,6 +116,8 @@ try {
   await shot("logs-and-context-menu");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
+  // Closes the panel of the logs terminal.
+  await page.keyboard.press("Control+J");
 
   await tree("Workloads").click();
   await tree("Config").click();
@@ -112,6 +133,27 @@ try {
   await webview().locator('.row:has-text("shop-landing")').first().click();
   await webview().locator(".drawer .table").waitFor({ timeout: 30_000 });
   await shot("helm");
+  await tree("Helm").click();
+
+  // Integrations: dev-cluster/setup.sh --addons installs Flux and a simulated Karpenter.
+  await tree("Flux").click();
+  await (await child("Flux", "Overview")).click();
+  await webview().locator(".overview-statuses .workload").first().waitFor({ timeout: 60_000 });
+  await shot("flux-overview");
+  await (await child("Flux", "Kustomizations")).click();
+  await webview().locator('.row:has(.col-name :text-is("podinfo"))').first().click();
+  await webview().locator(".drawer .table.grid").first().waitFor({ timeout: 30_000 });
+  await shot("flux-kustomizations");
+  await tree("Flux").click();
+
+  await tree("Karpenter").click();
+  await (await child("Karpenter", "Overview")).click();
+  await webview().locator(".overview-cards .overview-card").first().waitFor({ timeout: 60_000 });
+  await shot("karpenter");
+  await (await child("Karpenter", "Node Pools")).click();
+  await webview().locator('.row:has-text("default")').first().click();
+  await webview().locator(".drawer .table").first().waitFor({ timeout: 30_000 });
+  await shot("karpenter-nodepool");
 } catch (err) {
   await page.screenshot({ path: join(root, "screenshots", "error.png") }).catch(() => undefined);
   throw err;

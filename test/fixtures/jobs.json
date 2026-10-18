@@ -4,17 +4,17 @@
   "kind": "Job",
   "metadata": {
    "annotations": {
-    "batch.kubernetes.io/cronjob-scheduled-timestamp": "2026-10-18T18:10:00Z"
+    "batch.kubernetes.io/cronjob-scheduled-timestamp": "2026-10-18T19:16:00Z"
    },
-   "creationTimestamp": "2026-10-18T18:10:00Z",
+   "creationTimestamp": "2026-10-18T19:16:00Z",
    "generation": 1,
    "labels": {
-    "batch.kubernetes.io/controller-uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e",
-    "batch.kubernetes.io/job-name": "invoice-export-29872450",
-    "controller-uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e",
-    "job-name": "invoice-export-29872450"
+    "batch.kubernetes.io/controller-uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7",
+    "batch.kubernetes.io/job-name": "invoice-export-29872516",
+    "controller-uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7",
+    "job-name": "invoice-export-29872516"
    },
-   "name": "invoice-export-29872450",
+   "name": "invoice-export-29872516",
    "namespace": "payments",
    "ownerReferences": [
     {
@@ -26,8 +26,8 @@
      "uid": "3a83f017-41d8-4be6-8ce5-11d005dfa3ea"
     }
    ],
-   "resourceVersion": "1390",
-   "uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e"
+   "resourceVersion": "12478",
+   "uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7"
   },
   "spec": {
    "backoffLimit": 6,
@@ -38,7 +38,7 @@
    "podReplacementPolicy": "TerminatingOrFailed",
    "selector": {
     "matchLabels": {
-     "batch.kubernetes.io/controller-uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e"
+     "batch.kubernetes.io/controller-uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7"
     }
    },
    "suspend": false,
@@ -46,10 +46,10 @@
     "metadata": {
      "creationTimestamp": null,
      "labels": {
-      "batch.kubernetes.io/controller-uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e",
-      "batch.kubernetes.io/job-name": "invoice-export-29872450",
-      "controller-uid": "dd728909-b9c4-47ed-b148-5f53c6a1f63e",
-      "job-name": "invoice-export-29872450"
+      "batch.kubernetes.io/controller-uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7",
+      "batch.kubernetes.io/job-name": "invoice-export-29872516",
+      "controller-uid": "a27c3069-3824-4fb5-ab46-2967c4245ec7",
+      "job-name": "invoice-export-29872516"
      }
     },
     "spec": {
@@ -77,19 +77,19 @@
    }
   },
   "status": {
-   "completionTime": "2026-10-18T18:10:08Z",
+   "completionTime": "2026-10-18T19:16:08Z",
    "conditions": [
     {
-     "lastProbeTime": "2026-10-18T18:10:08Z",
-     "lastTransitionTime": "2026-10-18T18:10:08Z",
+     "lastProbeTime": "2026-10-18T19:16:08Z",
+     "lastTransitionTime": "2026-10-18T19:16:08Z",
      "message": "Reached expected number of succeeded pods",
      "reason": "CompletionsReached",
      "status": "True",
      "type": "SuccessCriteriaMet"
     },
     {
-     "lastProbeTime": "2026-10-18T18:10:08Z",
-     "lastTransitionTime": "2026-10-18T18:10:08Z",
+     "lastProbeTime": "2026-10-18T19:16:08Z",
+     "lastTransitionTime": "2026-10-18T19:16:08Z",
      "message": "Reached expected number of succeeded pods",
      "reason": "CompletionsReached",
      "status": "True",
@@ -97,7 +97,7 @@
     }
    ],
    "ready": 0,
-   "startTime": "2026-10-18T18:10:00Z",
+   "startTime": "2026-10-18T19:16:00Z",
    "succeeded": 1,
    "terminating": 0,
    "uncountedTerminatedPods": {}
@@ -108,17 +108,17 @@
   "kind": "Job",
   "metadata": {
    "annotations": {
-    "batch.kubernetes.io/cronjob-scheduled-timestamp": "2026-10-18T18:12:00Z"
+    "batch.kubernetes.io/cronjob-scheduled-timestamp": "2026-10-18T19:18:00Z"
    },
-   "creationTimestamp": "2026-10-18T18:12:00Z",
+   "creationTimestamp": "2026-10-18T19:18:00Z",
    "generation": 1,
    "labels": {
-    "batch.kubernetes.io/controller-uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6",
-    "batch.kubernetes.io/job-name": "invoice-export-29872452",
-    "controller-uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6",
-    "job-name": "invoice-export-29872452"
+    "batch.kubernetes.io/controller-uid": "9199ad57-6be9-420d-958b-0a6afa7c555b",
+    "batch.kubernetes.io/job-name": "invoice-export-29872518",
+    "controller-uid": "9199ad57-6be9-420d-958b-0a6afa7c555b",
+    "job-name": "invoice-export-29872518"
    },
-   "name": "invoice-export-29872452",
+   "name": "invoice-export-29872518",
    "namespace": "payments",
    "ownerReferences": [
     {
@@ -130,8 +130,8 @@
      "uid": "3a83f017-41d8-4be6-8ce5-11d005dfa3ea"
     }
    ],
-   "resourceVersion": "1596",
-   "uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6"
+   "resourceVersion": "12944",
+   "uid": "9199ad57-6be9-420d-958b-0a6afa7c555b"
   },
   "spec": {
    "backoffLimit": 6,
@@ -142,7 +142,7 @@
    "podReplacementPolicy": "TerminatingOrFailed",
    "selector": {
     "matchLabels": {
-     "batch.kubernetes.io/controller-uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6"
+     "batch.kubernetes.io/controller-uid": "9199ad57-6be9-420d-958b-0a6afa7c555b"
     }
    },
    "suspend": false,
@@ -150,10 +150,10 @@
     "metadata": {
      "creationTimestamp": null,
      "labels": {
-      "batch.kubernetes.io/controller-uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6",
-      "batch.kubernetes.io/job-name": "invoice-export-29872452",
-      "controller-uid": "3a76909c-6fb9-43b7-80e1-c030a0a74af6",
-      "job-name": "invoice-export-29872452"
+      "batch.kubernetes.io/controller-uid": "9199ad57-6be9-420d-958b-0a6afa7c555b",
+      "batch.kubernetes.io/job-name": "invoice-export-29872518",
+      "controller-uid": "9199ad57-6be9-420d-958b-0a6afa7c555b",
+      "job-name": "invoice-export-29872518"
      }
     },
     "spec": {
@@ -181,19 +181,19 @@
    }
   },
   "status": {
-   "completionTime": "2026-10-18T18:12:08Z",
+   "completionTime": "2026-10-18T19:18:07Z",
    "conditions": [
     {
-     "lastProbeTime": "2026-10-18T18:12:08Z",
-     "lastTransitionTime": "2026-10-18T18:12:08Z",
+     "lastProbeTime": "2026-10-18T19:18:07Z",
+     "lastTransitionTime": "2026-10-18T19:18:07Z",
      "message": "Reached expected number of succeeded pods",
      "reason": "CompletionsReached",
      "status": "True",
      "type": "SuccessCriteriaMet"
     },
     {
-     "lastProbeTime": "2026-10-18T18:12:08Z",
-     "lastTransitionTime": "2026-10-18T18:12:08Z",
+     "lastProbeTime": "2026-10-18T19:18:07Z",
+     "lastTransitionTime": "2026-10-18T19:18:07Z",
      "message": "Reached expected number of succeeded pods",
      "reason": "CompletionsReached",
      "status": "True",
@@ -201,7 +201,7 @@
     }
    ],
    "ready": 0,
-   "startTime": "2026-10-18T18:12:00Z",
+   "startTime": "2026-10-18T19:18:00Z",
    "succeeded": 1,
    "terminating": 0,
    "uncountedTerminatedPods": {}

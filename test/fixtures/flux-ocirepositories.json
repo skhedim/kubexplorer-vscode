@@ -1,0 +1,66 @@
+[
+ {
+  "apiVersion": "source.toolkit.fluxcd.io/v1",
+  "kind": "OCIRepository",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo-chart",
+   "namespace": "flux-system",
+   "resourceVersion": "6368",
+   "uid": "77264742-3cd1-4cf6-9746-8446c94807fc"
+  },
+  "spec": {
+   "interval": "10m",
+   "provider": "generic",
+   "ref": {
+    "semver": ">=6.0.0"
+   },
+   "timeout": "60s",
+   "url": "oci://ghcr.io/stefanprodan/charts/podinfo"
+  },
+  "status": {
+   "artifact": {
+    "digest": "sha256:990a5340e73925d0385ed4c094cc25f7a857ebe5a2dd60f480f4ffe31d9d0711",
+    "lastUpdateTime": "2026-10-18T18:52:52Z",
+    "metadata": {
+     "org.opencontainers.image.authors": "stefanprodan (stefanprodan@users.noreply.github.com)",
+     "org.opencontainers.image.created": "2026-08-31T15:40:16Z",
+     "org.opencontainers.image.description": "Podinfo Helm chart for Kubernetes",
+     "org.opencontainers.image.source": "https://github.com/stefanprodan/podinfo",
+     "org.opencontainers.image.title": "podinfo",
+     "org.opencontainers.image.url": "https://github.com/stefanprodan/podinfo",
+     "org.opencontainers.image.version": "6.15.0"
+    },
+    "path": "ocirepository/flux-system/podinfo-chart/sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8.tar.gz",
+    "revision": "6.15.0@sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8",
+    "size": 15573,
+    "url": "http://source-controller.flux-system.svc.cluster.local./ocirepository/flux-system/podinfo-chart/sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8.tar.gz"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "message": "stored artifact for digest '6.15.0@sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "message": "stored artifact for digest '6.15.0@sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "ArtifactInStorage"
+    }
+   ],
+   "observedGeneration": 1,
+   "url": "http://source-controller.flux-system.svc.cluster.local./ocirepository/flux-system/podinfo-chart/latest.tar.gz"
+  }
+ }
+]

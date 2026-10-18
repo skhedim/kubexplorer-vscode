@@ -1,9 +1,36 @@
 [
  {
+  "name": "podinfo-https",
+  "namespace": "apps",
+  "revision": "1",
+  "updated": "2026-10-18 18:52:51.588760144 +0000 UTC",
+  "status": "deployed",
+  "chart": "podinfo-6.15.0",
+  "app_version": "6.15.0"
+ },
+ {
+  "name": "podinfo-oci",
+  "namespace": "apps",
+  "revision": "1",
+  "updated": "2026-10-18 18:52:52.983625512 +0000 UTC",
+  "status": "deployed",
+  "chart": "podinfo-6.15.0+ff3d3e14728f",
+  "app_version": "6.15.0"
+ },
+ {
+  "name": "prometheus",
+  "namespace": "monitoring",
+  "revision": "1",
+  "updated": "2026-10-18 20:53:23.79494431 +0200 CEST",
+  "status": "deployed",
+  "chart": "prometheus-29.37.0",
+  "app_version": "v3.15.0"
+ },
+ {
   "name": "shop-landing",
   "namespace": "frontend",
-  "revision": "2",
-  "updated": "2026-10-18 20:09:55.039044441 +0200 CEST",
+  "revision": "4",
+  "updated": "2026-10-18 20:51:44.233970427 +0200 CEST",
   "status": "deployed",
   "chart": "demo-app-0.1.0",
   "app_version": "1.27"

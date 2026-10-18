@@ -3,6 +3,166 @@
   "apiVersion": "v1",
   "kind": "Service",
   "metadata": {
+   "creationTimestamp": "2026-10-18T18:52:54Z",
+   "labels": {
+    "kustomize.toolkit.fluxcd.io/name": "podinfo",
+    "kustomize.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo",
+   "namespace": "apps",
+   "resourceVersion": "6405",
+   "uid": "839a3f0e-14ce-4d08-b4c3-24fc9db91158"
+  },
+  "spec": {
+   "clusterIP": "10.96.90.229",
+   "clusterIPs": [
+    "10.96.90.229"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 9898,
+     "protocol": "TCP",
+     "targetPort": "http"
+    },
+    {
+     "name": "grpc",
+     "port": 9999,
+     "protocol": "TCP",
+     "targetPort": "grpc"
+    }
+   ],
+   "selector": {
+    "app": "podinfo"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "podinfo-https",
+    "meta.helm.sh/release-namespace": "apps"
+   },
+   "creationTimestamp": "2026-10-18T18:52:52Z",
+   "labels": {
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "podinfo-https",
+    "app.kubernetes.io/version": "6.15.0",
+    "helm.sh/chart": "podinfo-6.15.0",
+    "helm.toolkit.fluxcd.io/name": "podinfo-https",
+    "helm.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo-https",
+   "namespace": "apps",
+   "resourceVersion": "6297",
+   "uid": "e150df7c-b30c-499e-a651-006ffc9eb4d5"
+  },
+  "spec": {
+   "clusterIP": "10.96.94.235",
+   "clusterIPs": [
+    "10.96.94.235"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 9898,
+     "protocol": "TCP",
+     "targetPort": "http"
+    },
+    {
+     "name": "grpc",
+     "port": 9999,
+     "protocol": "TCP",
+     "targetPort": "grpc"
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "podinfo-https"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "podinfo-oci",
+    "meta.helm.sh/release-namespace": "apps"
+   },
+   "creationTimestamp": "2026-10-18T18:52:53Z",
+   "labels": {
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "podinfo-oci",
+    "app.kubernetes.io/version": "6.15.0",
+    "helm.sh/chart": "podinfo-6.15.0_ff3d3e14728f",
+    "helm.toolkit.fluxcd.io/name": "podinfo-oci",
+    "helm.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo-oci",
+   "namespace": "apps",
+   "resourceVersion": "6383",
+   "uid": "3b529c10-0f4c-416b-82f1-87c60c892ac6"
+  },
+  "spec": {
+   "clusterIP": "10.96.81.221",
+   "clusterIPs": [
+    "10.96.81.221"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 9898,
+     "protocol": "TCP",
+     "targetPort": "http"
+    },
+    {
+     "name": "grpc",
+     "port": 9999,
+     "protocol": "TCP",
+     "targetPort": "grpc"
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "podinfo-oci"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
    "creationTimestamp": "2026-10-18T18:06:03Z",
    "labels": {
     "component": "apiserver",
@@ -31,6 +191,182 @@
      "targetPort": 6443
     }
    ],
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:51:51Z",
+   "labels": {
+    "app.kubernetes.io/component": "notification-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "notification-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "5835",
+   "uid": "9b5f95f3-8f12-4e20-8f32-a9a4e310083c"
+  },
+  "spec": {
+   "clusterIP": "10.96.253.31",
+   "clusterIPs": [
+    "10.96.253.31"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http"
+    }
+   ],
+   "selector": {
+    "app": "notification-controller"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:51:51Z",
+   "labels": {
+    "app.kubernetes.io/component": "source-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "source-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "5839",
+   "uid": "7d17a4f7-5822-4398-b351-5b8dd2a4c859"
+  },
+  "spec": {
+   "clusterIP": "10.96.81.185",
+   "clusterIPs": [
+    "10.96.81.185"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http"
+    }
+   ],
+   "selector": {
+    "app": "source-controller"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:51:51Z",
+   "labels": {
+    "app.kubernetes.io/component": "source-watcher",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "source-watcher"
+   },
+   "name": "source-watcher",
+   "namespace": "flux-system",
+   "resourceVersion": "5843",
+   "uid": "455eacc9-aeda-45ef-9176-0749f8892b10"
+  },
+  "spec": {
+   "clusterIP": "10.96.26.226",
+   "clusterIPs": [
+    "10.96.26.226"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http"
+    }
+   ],
+   "selector": {
+    "app": "source-watcher"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "labels": {
+    "app.kubernetes.io/component": "notification-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "webhook-receiver",
+   "namespace": "flux-system",
+   "resourceVersion": "5847",
+   "uid": "618bf490-6bc8-4a1f-8d41-1832b184bbd2"
+  },
+  "spec": {
+   "clusterIP": "10.96.32.199",
+   "clusterIPs": [
+    "10.96.32.199"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http-webhook"
+    }
+   ],
+   "selector": {
+    "app": "notification-controller"
+   },
    "sessionAffinity": "None",
    "type": "ClusterIP"
   },
@@ -186,6 +522,48 @@
   "kind": "Service",
   "metadata": {
    "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:52Z",
+   "labels": {
+    "app": "kwok-controller"
+   },
+   "name": "kwok-controller",
+   "namespace": "kube-system",
+   "resourceVersion": "6339",
+   "uid": "c0df2532-0d1a-4bc0-a96c-ea86630d4aec"
+  },
+  "spec": {
+   "clusterIP": "10.96.123.134",
+   "clusterIPs": [
+    "10.96.123.134"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 10247,
+     "protocol": "TCP",
+     "targetPort": 10247
+    }
+   ],
+   "selector": {
+    "app": "kwok-controller"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {},
    "creationTimestamp": "2026-10-18T18:06:41Z",
    "labels": {
     "k8s-app": "metrics-server"
@@ -215,6 +593,112 @@
    ],
    "selector": {
     "k8s-app": "metrics-server"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "prometheus",
+    "meta.helm.sh/release-namespace": "monitoring",
+    "prometheus.io/scrape": "true"
+   },
+   "creationTimestamp": "2026-10-18T18:53:24Z",
+   "labels": {
+    "app.kubernetes.io/component": "metrics",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus-node-exporter",
+    "app.kubernetes.io/part-of": "prometheus-node-exporter",
+    "app.kubernetes.io/version": "1.12.1",
+    "helm.sh/chart": "prometheus-node-exporter-4.60.0"
+   },
+   "name": "prometheus-prometheus-node-exporter",
+   "namespace": "monitoring",
+   "resourceVersion": "6818",
+   "uid": "300dcc46-ee71-44f1-bcc6-83282175ac37"
+  },
+  "spec": {
+   "clusterIP": "10.96.204.124",
+   "clusterIPs": [
+    "10.96.204.124"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "metrics",
+     "port": 9100,
+     "protocol": "TCP",
+     "targetPort": 9100
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/name": "prometheus-node-exporter"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "prometheus",
+    "meta.helm.sh/release-namespace": "monitoring"
+   },
+   "creationTimestamp": "2026-10-18T18:53:24Z",
+   "labels": {
+    "app.kubernetes.io/component": "server",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus",
+    "app.kubernetes.io/part-of": "prometheus",
+    "app.kubernetes.io/version": "v3.15.0",
+    "helm.sh/chart": "prometheus-29.37.0"
+   },
+   "name": "prometheus-server",
+   "namespace": "monitoring",
+   "resourceVersion": "6822",
+   "uid": "daeb728b-8dcc-4a8d-9594-9ae393d2de2c"
+  },
+  "spec": {
+   "clusterIP": "10.96.232.74",
+   "clusterIPs": [
+    "10.96.232.74"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": 9090
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/component": "server",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/name": "prometheus"
    },
    "sessionAffinity": "None",
    "type": "ClusterIP"

@@ -1,0 +1,192 @@
+[
+ {
+  "apiVersion": "helm.toolkit.fluxcd.io/v2",
+  "kind": "HelmRelease",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo-https",
+   "namespace": "flux-system",
+   "resourceVersion": "11660",
+   "uid": "8a5b2b72-6780-4f60-acb3-e81397f7a165"
+  },
+  "spec": {
+   "chart": {
+    "spec": {
+     "chart": "podinfo",
+     "reconcileStrategy": "ChartVersion",
+     "sourceRef": {
+      "kind": "HelmRepository",
+      "name": "podinfo"
+     },
+     "version": ">=6.0.0"
+    }
+   },
+   "interval": "10m",
+   "releaseName": "podinfo-https",
+   "targetNamespace": "apps",
+   "values": {
+    "replicaCount": 1,
+    "resources": {
+     "requests": {
+      "cpu": "5m",
+      "memory": "16Mi"
+     }
+    }
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:07Z",
+     "message": "Helm install succeeded for release apps/podinfo-https.v1 with chart podinfo@6.15.0",
+     "observedGeneration": 1,
+     "reason": "InstallSucceeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:07Z",
+     "message": "Helm install succeeded for release apps/podinfo-https.v1 with chart podinfo@6.15.0",
+     "observedGeneration": 1,
+     "reason": "InstallSucceeded",
+     "status": "True",
+     "type": "Released"
+    }
+   ],
+   "helmChart": "flux-system/flux-system-podinfo-https",
+   "history": [
+    {
+     "action": "install",
+     "apiVersion": "v2",
+     "appVersion": "6.15.0",
+     "chartName": "podinfo",
+     "chartVersion": "6.15.0",
+     "configDigest": "sha256:24b032b1d240ebaa7e1fade49971bfec423f1704eefb28911d8bb2ac85cbfaf6",
+     "digest": "sha256:56b71bee2e3a281cd782bdb15dbdafbfe9c19fd3c0d67a2b61dff94b4a0ef154",
+     "firstDeployed": "2026-10-18T18:52:51Z",
+     "lastDeployed": "2026-10-18T18:52:51Z",
+     "name": "podinfo-https",
+     "namespace": "apps",
+     "status": "deployed",
+     "version": 1
+    }
+   ],
+   "inventory": {
+    "entries": [
+     {
+      "id": "apps_podinfo-https__Service",
+      "v": "v1"
+     },
+     {
+      "id": "apps_podinfo-https_apps_Deployment",
+      "v": "v1"
+     }
+    ]
+   },
+   "lastAttemptedConfigDigest": "sha256:24b032b1d240ebaa7e1fade49971bfec423f1704eefb28911d8bb2ac85cbfaf6",
+   "lastAttemptedGeneration": 1,
+   "lastAttemptedReleaseAction": "install",
+   "lastAttemptedReleaseActionDuration": "15.696115773s",
+   "lastAttemptedRevision": "6.15.0",
+   "observedGeneration": 1,
+   "storageNamespace": "flux-system"
+  }
+ },
+ {
+  "apiVersion": "helm.toolkit.fluxcd.io/v2",
+  "kind": "HelmRelease",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo-oci",
+   "namespace": "flux-system",
+   "resourceVersion": "11709",
+   "uid": "436f233f-826b-4358-8916-d28fceb7fc73"
+  },
+  "spec": {
+   "chartRef": {
+    "kind": "OCIRepository",
+    "name": "podinfo-chart"
+   },
+   "interval": "10m",
+   "releaseName": "podinfo-oci",
+   "targetNamespace": "apps",
+   "values": {
+    "replicaCount": 1,
+    "resources": {
+     "requests": {
+      "cpu": "5m",
+      "memory": "16Mi"
+     }
+    }
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:13Z",
+     "message": "Helm install succeeded for release apps/podinfo-oci.v1 with chart podinfo@6.15.0+ff3d3e14728f",
+     "observedGeneration": 1,
+     "reason": "InstallSucceeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:13Z",
+     "message": "Helm install succeeded for release apps/podinfo-oci.v1 with chart podinfo@6.15.0+ff3d3e14728f",
+     "observedGeneration": 1,
+     "reason": "InstallSucceeded",
+     "status": "True",
+     "type": "Released"
+    }
+   ],
+   "history": [
+    {
+     "action": "install",
+     "apiVersion": "v2",
+     "appVersion": "6.15.0",
+     "chartName": "podinfo",
+     "chartVersion": "6.15.0+ff3d3e14728f",
+     "configDigest": "sha256:24b032b1d240ebaa7e1fade49971bfec423f1704eefb28911d8bb2ac85cbfaf6",
+     "digest": "sha256:1777bd02ce7e168ed959c7b46b26cae78e270e727af51156deceb32b1f9dd291",
+     "firstDeployed": "2026-10-18T18:52:52Z",
+     "lastDeployed": "2026-10-18T18:52:52Z",
+     "name": "podinfo-oci",
+     "namespace": "apps",
+     "ociDigest": "sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8",
+     "status": "deployed",
+     "version": 1
+    }
+   ],
+   "inventory": {
+    "entries": [
+     {
+      "id": "apps_podinfo-oci__Service",
+      "v": "v1"
+     },
+     {
+      "id": "apps_podinfo-oci_apps_Deployment",
+      "v": "v1"
+     }
+    ]
+   },
+   "lastAttemptedConfigDigest": "sha256:24b032b1d240ebaa7e1fade49971bfec423f1704eefb28911d8bb2ac85cbfaf6",
+   "lastAttemptedGeneration": 1,
+   "lastAttemptedReleaseAction": "install",
+   "lastAttemptedReleaseActionDuration": "20.897071892s",
+   "lastAttemptedRevision": "6.15.0+ff3d3e14728f",
+   "lastAttemptedRevisionDigest": "sha256:ff3d3e14728f75476ed4d43c14f80d52d81d36bc16906843463d464c6146f0d8",
+   "observedGeneration": 1,
+   "storageNamespace": "flux-system"
+  }
+ }
+]

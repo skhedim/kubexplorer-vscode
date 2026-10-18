@@ -4,6 +4,2151 @@
   "kind": "Deployment",
   "metadata": {
    "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:52:54Z",
+   "generation": 2,
+   "labels": {
+    "kustomize.toolkit.fluxcd.io/name": "podinfo",
+    "kustomize.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo",
+   "namespace": "apps",
+   "resourceVersion": "6978",
+   "uid": "56b37198-9714-45f6-bc98-af2a4140f45b"
+  },
+  "spec": {
+   "minReadySeconds": 3,
+   "progressDeadlineSeconds": 60,
+   "replicas": 2,
+   "revisionHistoryLimit": 5,
+   "selector": {
+    "matchLabels": {
+     "app": "podinfo"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": 0
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "9797",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "podinfo"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "./podinfo",
+        "--port=9898",
+        "--port-metrics=9797",
+        "--grpc-port=9999",
+        "--grpc-service-name=podinfo",
+        "--level=info",
+        "--random-delay=false",
+        "--random-error=false"
+       ],
+       "env": [
+        {
+         "name": "PODINFO_UI_COLOR",
+         "value": "#34577c"
+        }
+       ],
+       "image": "ghcr.io/stefanprodan/podinfo:6.9.2",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/healthz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "name": "podinfod",
+       "ports": [
+        {
+         "containerPort": 9898,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9797,
+         "name": "http-metrics",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9999,
+         "name": "grpc",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/readyz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "resources": {
+        "limits": {
+         "cpu": "2",
+         "memory": "512Mi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/data",
+         "name": "data"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "data"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 2,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:34Z",
+     "lastUpdateTime": "2026-10-18T18:53:34Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:54Z",
+     "lastUpdateTime": "2026-10-18T18:53:34Z",
+     "message": "ReplicaSet \"podinfo-85bbd5b9c5\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 2,
+   "readyReplicas": 2,
+   "replicas": 2,
+   "updatedReplicas": 2
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1",
+    "meta.helm.sh/release-name": "podinfo-https",
+    "meta.helm.sh/release-namespace": "apps"
+   },
+   "creationTimestamp": "2026-10-18T18:52:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "podinfo-https",
+    "app.kubernetes.io/version": "6.15.0",
+    "helm.sh/chart": "podinfo-6.15.0",
+    "helm.toolkit.fluxcd.io/name": "podinfo-https",
+    "helm.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo-https",
+   "namespace": "apps",
+   "resourceVersion": "6485",
+   "uid": "8ca80bf9-7eb5-47ed-a3e6-4843a9753893"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app.kubernetes.io/name": "podinfo-https"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": 1
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "9898",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app.kubernetes.io/name": "podinfo-https"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "./podinfo",
+        "--port=9898",
+        "--prefix=/",
+        "--cert-path=/data/cert",
+        "--port-metrics=9797",
+        "--grpc-port=9999",
+        "--grpc-service-name=podinfo",
+        "--level=info",
+        "--random-delay=false",
+        "--random-error=false"
+       ],
+       "env": [
+        {
+         "name": "PODINFO_UI_COLOR",
+         "value": "#34577c"
+        }
+       ],
+       "image": "ghcr.io/stefanprodan/podinfo:6.15.0",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/healthz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 1,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "name": "podinfo",
+       "ports": [
+        {
+         "containerPort": 9898,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9797,
+         "name": "http-metrics",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9999,
+         "name": "grpc",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/readyz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 1,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "resources": {
+        "requests": {
+         "cpu": "5m",
+         "memory": "16Mi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/data",
+         "name": "data"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "data"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:52Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "lastUpdateTime": "2026-10-18T18:53:02Z",
+     "message": "ReplicaSet \"podinfo-https-5f4d49c8d9\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1",
+    "meta.helm.sh/release-name": "podinfo-oci",
+    "meta.helm.sh/release-namespace": "apps"
+   },
+   "creationTimestamp": "2026-10-18T18:52:53Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "podinfo-oci",
+    "app.kubernetes.io/version": "6.15.0",
+    "helm.sh/chart": "podinfo-6.15.0_ff3d3e14728f",
+    "helm.toolkit.fluxcd.io/name": "podinfo-oci",
+    "helm.toolkit.fluxcd.io/namespace": "flux-system"
+   },
+   "name": "podinfo-oci",
+   "namespace": "apps",
+   "resourceVersion": "6546",
+   "uid": "601b0ac2-fb97-45ab-95ea-d99c284b04b8"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app.kubernetes.io/name": "podinfo-oci"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": 1
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "9898",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app.kubernetes.io/name": "podinfo-oci"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "./podinfo",
+        "--port=9898",
+        "--prefix=/",
+        "--cert-path=/data/cert",
+        "--port-metrics=9797",
+        "--grpc-port=9999",
+        "--grpc-service-name=podinfo",
+        "--level=info",
+        "--random-delay=false",
+        "--random-error=false"
+       ],
+       "env": [
+        {
+         "name": "PODINFO_UI_COLOR",
+         "value": "#34577c"
+        }
+       ],
+       "image": "ghcr.io/stefanprodan/podinfo:6.15.0",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/healthz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 1,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "name": "podinfo",
+       "ports": [
+        {
+         "containerPort": 9898,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9797,
+         "name": "http-metrics",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9999,
+         "name": "grpc",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "exec": {
+         "command": [
+          "podcli",
+          "check",
+          "http",
+          "localhost:9898/readyz"
+         ]
+        },
+        "failureThreshold": 3,
+        "initialDelaySeconds": 1,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 5
+       },
+       "resources": {
+        "requests": {
+         "cpu": "5m",
+         "memory": "16Mi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/data",
+         "name": "data"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "data"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:53Z",
+     "lastUpdateTime": "2026-10-18T18:52:53Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:53Z",
+     "lastUpdateTime": "2026-10-18T18:53:09Z",
+     "message": "ReplicaSet \"podinfo-oci-55957c96c7\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "name": "inference",
+   "namespace": "batch",
+   "resourceVersion": "6761",
+   "uid": "d84509be-48aa-4792-bf20-6be2915b2b8b"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "inference"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "creationTimestamp": null,
+     "labels": {
+      "app": "inference"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "public.ecr.aws/eks-distro/kubernetes/pause:3.7",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "model",
+       "resources": {
+        "limits": {
+         "nvidia.com/gpu": "1"
+        },
+        "requests": {
+         "cpu": "2",
+         "memory": "8Gi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File"
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "nodeSelector": {
+      "karpenter.sh/nodepool": "gpu"
+     },
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoSchedule",
+       "key": "kwok.x-k8s.io/node",
+       "operator": "Exists"
+      },
+      {
+       "effect": "NoSchedule",
+       "key": "nvidia.com/gpu",
+       "operator": "Exists"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "lastUpdateTime": "2026-10-18T18:53:17Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "lastUpdateTime": "2026-10-18T18:53:17Z",
+     "message": "ReplicaSet \"inference-8c46f86d7\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "name": "inflate",
+   "namespace": "batch",
+   "resourceVersion": "6765",
+   "uid": "8e00d1d1-765c-4001-ac2a-ee5cdd8275ca"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 6,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "inflate"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "creationTimestamp": null,
+     "labels": {
+      "app": "inflate"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "public.ecr.aws/eks-distro/kubernetes/pause:3.7",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "inflate",
+       "resources": {
+        "requests": {
+         "cpu": "500m",
+         "memory": "1Gi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File"
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "nodeSelector": {
+      "karpenter.sh/nodepool": "default"
+     },
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoSchedule",
+       "key": "kwok.x-k8s.io/node",
+       "operator": "Exists"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 6,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "lastUpdateTime": "2026-10-18T18:53:17Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "lastUpdateTime": "2026-10-18T18:53:17Z",
+     "message": "ReplicaSet \"inflate-585769f457\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 6,
+   "replicas": 6,
+   "updatedReplicas": 6
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "helm-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "helm-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "5993",
+   "uid": "2136dd74-12dc-4c1a-8351-9a1b013b3ad7"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "helm-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "helm-controller",
+      "app.kubernetes.io/component": "helm-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election"
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/helm-controller:v1.6.5",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/readyz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/tmp",
+         "name": "temp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "priorityClassName": "system-cluster-critical",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "helm-controller",
+     "serviceAccountName": "helm-controller",
+     "terminationGracePeriodSeconds": 600,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "temp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:03Z",
+     "lastUpdateTime": "2026-10-18T18:52:03Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:03Z",
+     "message": "ReplicaSet \"helm-controller-68b448d45f\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "image-automation-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "image-automation-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "6027",
+   "uid": "86df1a94-56ed-452f-b7fa-4a430d757030"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "image-automation-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "image-automation-controller",
+      "app.kubernetes.io/component": "image-automation-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election"
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/image-automation-controller:v1.2.5",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/readyz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/tmp",
+         "name": "temp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "image-automation-controller",
+     "serviceAccountName": "image-automation-controller",
+     "terminationGracePeriodSeconds": 10,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "temp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:10Z",
+     "lastUpdateTime": "2026-10-18T18:52:10Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:10Z",
+     "message": "ReplicaSet \"image-automation-controller-96d8666cf\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "image-reflector-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "image-reflector-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "6048",
+   "uid": "d505feda-c6af-4d57-9938-b80900fded23"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "image-reflector-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "image-reflector-controller",
+      "app.kubernetes.io/component": "image-reflector-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election"
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/image-reflector-controller:v1.2.5",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/readyz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/tmp",
+         "name": "temp"
+        },
+        {
+         "mountPath": "/data",
+         "name": "data"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "image-reflector-controller",
+     "serviceAccountName": "image-reflector-controller",
+     "terminationGracePeriodSeconds": 10,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "temp"
+      },
+      {
+       "emptyDir": {},
+       "name": "data"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:16Z",
+     "lastUpdateTime": "2026-10-18T18:52:16Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:16Z",
+     "message": "ReplicaSet \"image-reflector-controller-6b79485\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "kustomize-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "kustomize-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "6080",
+   "uid": "0ad18727-1ade-4ea0-a450-563107a6e165"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "kustomize-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "kustomize-controller",
+      "app.kubernetes.io/component": "kustomize-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election"
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/kustomize-controller:v1.9.6",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/readyz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/tmp",
+         "name": "temp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "priorityClassName": "system-cluster-critical",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "kustomize-controller",
+     "serviceAccountName": "kustomize-controller",
+     "terminationGracePeriodSeconds": 60,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "temp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:26Z",
+     "lastUpdateTime": "2026-10-18T18:52:26Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:26Z",
+     "message": "ReplicaSet \"kustomize-controller-c494dc99d\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "notification-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "notification-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "6116",
+   "uid": "d0db3175-22a6-46eb-8213-85e179564661"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "notification-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "notification-controller",
+      "app.kubernetes.io/component": "notification-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election"
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/notification-controller:v1.9.4",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 9090,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9292,
+         "name": "http-webhook",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/readyz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "100m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/tmp",
+         "name": "temp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "notification-controller",
+     "serviceAccountName": "notification-controller",
+     "terminationGracePeriodSeconds": 10,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "temp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:34Z",
+     "lastUpdateTime": "2026-10-18T18:52:34Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:34Z",
+     "message": "ReplicaSet \"notification-controller-678c8f8548\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "source-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "source-controller",
+   "namespace": "flux-system",
+   "resourceVersion": "6151",
+   "uid": "83ced93c-4665-48ef-81e5-5623561e5bc3"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "source-controller"
+    }
+   },
+   "strategy": {
+    "type": "Recreate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "source-controller",
+      "app.kubernetes.io/component": "source-controller",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election",
+        "--storage-path=/data",
+        "--storage-adv-addr=source-controller.$(RUNTIME_NAMESPACE).svc.cluster.local."
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "TUF_ROOT",
+         "value": "/tmp/.sigstore"
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/source-controller:v1.9.6",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 9090,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/",
+         "port": "http",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "50m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/data",
+         "name": "data"
+        },
+        {
+         "mountPath": "/tmp",
+         "name": "tmp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "priorityClassName": "system-cluster-critical",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "source-controller",
+     "serviceAccountName": "source-controller",
+     "terminationGracePeriodSeconds": 10,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "data"
+      },
+      {
+       "emptyDir": {},
+       "name": "tmp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:42Z",
+     "lastUpdateTime": "2026-10-18T18:52:42Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:42Z",
+     "message": "ReplicaSet \"source-controller-9c987cc9b\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
+   "creationTimestamp": "2026-10-18T18:51:52Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "source-watcher",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "control-plane": "controller"
+   },
+   "name": "source-watcher",
+   "namespace": "flux-system",
+   "resourceVersion": "6185",
+   "uid": "72b38aca-57aa-4cc8-9889-69f5ded41d9b"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "source-watcher"
+    }
+   },
+   "strategy": {
+    "type": "Recreate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "prometheus.io/port": "8080",
+      "prometheus.io/scrape": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app": "source-watcher",
+      "app.kubernetes.io/component": "source-watcher",
+      "app.kubernetes.io/instance": "flux-system",
+      "app.kubernetes.io/part-of": "flux"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--events-addr=http://notification-controller.flux-system.svc.cluster.local./",
+        "--watch-all-namespaces",
+        "--log-level=info",
+        "--log-encoding=json",
+        "--enable-leader-election",
+        "--storage-path=/data",
+        "--storage-adv-addr=source-watcher.$(RUNTIME_NAMESPACE).svc.cluster.local."
+       ],
+       "env": [
+        {
+         "name": "RUNTIME_NAMESPACE",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "metadata.namespace"
+          }
+         }
+        },
+        {
+         "name": "GOMEMLIMIT",
+         "valueFrom": {
+          "resourceFieldRef": {
+           "containerName": "manager",
+           "divisor": "0",
+           "resource": "limits.memory"
+          }
+         }
+        }
+       ],
+       "image": "ghcr.io/fluxcd/source-watcher:v2.2.4",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "healthz",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "manager",
+       "ports": [
+        {
+         "containerPort": 9090,
+         "name": "http",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 8080,
+         "name": "http-prom",
+         "protocol": "TCP"
+        },
+        {
+         "containerPort": 9440,
+         "name": "healthz",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/",
+         "port": "http",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {
+        "limits": {
+         "cpu": "1",
+         "memory": "1Gi"
+        },
+        "requests": {
+         "cpu": "50m",
+         "memory": "64Mi"
+        }
+       },
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+         "drop": [
+          "ALL"
+         ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+         "type": "RuntimeDefault"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/data",
+         "name": "data"
+        },
+        {
+         "mountPath": "/tmp",
+         "name": "tmp"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "priorityClassName": "system-cluster-critical",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 1337
+     },
+     "serviceAccount": "source-watcher",
+     "serviceAccountName": "source-watcher",
+     "terminationGracePeriodSeconds": 10,
+     "volumes": [
+      {
+       "emptyDir": {},
+       "name": "data"
+      },
+      {
+       "emptyDir": {},
+       "name": "tmp"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:49Z",
+     "lastUpdateTime": "2026-10-18T18:52:49Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:51:52Z",
+     "lastUpdateTime": "2026-10-18T18:52:49Z",
+     "message": "ReplicaSet \"source-watcher-56cdd96c6b\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
     "deployment.kubernetes.io/revision": "1",
     "meta.helm.sh/release-name": "shop-landing",
     "meta.helm.sh/release-namespace": "frontend"
@@ -431,6 +2576,170 @@
    "annotations": {
     "deployment.kubernetes.io/revision": "1"
    },
+   "creationTimestamp": "2026-10-18T18:52:52Z",
+   "generation": 1,
+   "labels": {
+    "app": "kwok-controller"
+   },
+   "name": "kwok-controller",
+   "namespace": "kube-system",
+   "resourceVersion": "6571",
+   "uid": "4ccd6aa4-c0bd-41a8-acbd-56858691154c"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "kwok-controller"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "creationTimestamp": null,
+     "labels": {
+      "app": "kwok-controller"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--config=/root/.kwok/kwok.yaml",
+        "--node-ip=$(POD_IP)"
+       ],
+       "env": [
+        {
+         "name": "POD_IP",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "status.podIP"
+          }
+         }
+        },
+        {
+         "name": "HOST_IP",
+         "valueFrom": {
+          "fieldRef": {
+           "apiVersion": "v1",
+           "fieldPath": "status.hostIP"
+          }
+         }
+        }
+       ],
+       "image": "registry.k8s.io/kwok/kwok:v0.8.0",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 10,
+        "httpGet": {
+         "path": "/healthz",
+         "port": 10247,
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 30,
+        "periodSeconds": 60,
+        "successThreshold": 1,
+        "timeoutSeconds": 10
+       },
+       "name": "kwok-controller",
+       "readinessProbe": {
+        "failureThreshold": 5,
+        "httpGet": {
+         "path": "/healthz",
+         "port": 10247,
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 2,
+        "periodSeconds": 20,
+        "successThreshold": 1,
+        "timeoutSeconds": 2
+       },
+       "resources": {},
+       "startupProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": 10247,
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 2,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 2
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/root/.kwok/kwok.yaml",
+         "name": "kwok-config",
+         "readOnly": true,
+         "subPath": "kwok.yaml"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "serviceAccount": "kwok-controller",
+     "serviceAccountName": "kwok-controller",
+     "terminationGracePeriodSeconds": 30,
+     "volumes": [
+      {
+       "configMap": {
+        "defaultMode": 420,
+        "name": "kwok"
+       },
+       "name": "kwok-config"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:13Z",
+     "lastUpdateTime": "2026-10-18T18:53:13Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "lastUpdateTime": "2026-10-18T18:53:13Z",
+     "message": "ReplicaSet \"kwok-controller-6d8fc65865\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1"
+   },
    "creationTimestamp": "2026-10-18T18:06:41Z",
    "generation": 1,
    "labels": {
@@ -723,6 +3032,229 @@
   "kind": "Deployment",
   "metadata": {
    "annotations": {
+    "deployment.kubernetes.io/revision": "1",
+    "meta.helm.sh/release-name": "prometheus",
+    "meta.helm.sh/release-namespace": "monitoring"
+   },
+   "creationTimestamp": "2026-10-18T18:53:24Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "server",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus",
+    "app.kubernetes.io/part-of": "prometheus",
+    "app.kubernetes.io/version": "v3.15.0",
+    "helm.sh/chart": "prometheus-29.37.0"
+   },
+   "name": "prometheus-server",
+   "namespace": "monitoring",
+   "resourceVersion": "7230",
+   "uid": "8e6deb3c-89ff-4bdd-8d68-5238fa7d2cc3"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app.kubernetes.io/component": "server",
+     "app.kubernetes.io/instance": "prometheus",
+     "app.kubernetes.io/name": "prometheus"
+    }
+   },
+   "strategy": {
+    "type": "Recreate"
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "kubectl.kubernetes.io/default-container": "prometheus-server"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app.kubernetes.io/component": "server",
+      "app.kubernetes.io/instance": "prometheus",
+      "app.kubernetes.io/name": "prometheus",
+      "app.kubernetes.io/part-of": "prometheus",
+      "app.kubernetes.io/version": "v3.15.0",
+      "helm.sh/chart": "prometheus-29.37.0"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "args": [
+        "--watched-dir=/etc/config",
+        "--listen-address=0.0.0.0:8080",
+        "--reload-url=http://127.0.0.1:9090/-/reload"
+       ],
+       "image": "quay.io/prometheus-operator/prometheus-config-reloader:v0.94.1",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "metrics",
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 2,
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "prometheus-server-configmap-reload",
+       "ports": [
+        {
+         "containerPort": 8080,
+         "name": "metrics",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/healthz",
+         "port": "metrics",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/etc/config",
+         "name": "config-volume",
+         "readOnly": true
+        }
+       ]
+      },
+      {
+       "args": [
+        "--storage.tsdb.retention.time=1d",
+        "--config.file=/etc/config/prometheus.yml",
+        "--storage.tsdb.path=/data",
+        "--web.console.libraries=/etc/prometheus/console_libraries",
+        "--web.console.templates=/etc/prometheus/consoles",
+        "--web.enable-lifecycle"
+       ],
+       "image": "quay.io/prometheus/prometheus:v3.15.0",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/-/healthy",
+         "port": 9090,
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 30,
+        "periodSeconds": 15,
+        "successThreshold": 1,
+        "timeoutSeconds": 10
+       },
+       "name": "prometheus-server",
+       "ports": [
+        {
+         "containerPort": 9090,
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/-/ready",
+         "port": 9090,
+         "scheme": "HTTP"
+        },
+        "initialDelaySeconds": 30,
+        "periodSeconds": 5,
+        "successThreshold": 1,
+        "timeoutSeconds": 4
+       },
+       "resources": {
+        "requests": {
+         "cpu": "50m",
+         "memory": "256Mi"
+        }
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/etc/config",
+         "name": "config-volume"
+        },
+        {
+         "mountPath": "/data",
+         "name": "storage-volume"
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "enableServiceLinks": true,
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 65534,
+      "runAsGroup": 65534,
+      "runAsNonRoot": true,
+      "runAsUser": 65534
+     },
+     "serviceAccount": "prometheus-server",
+     "serviceAccountName": "prometheus-server",
+     "terminationGracePeriodSeconds": 300,
+     "volumes": [
+      {
+       "configMap": {
+        "defaultMode": 420,
+        "name": "prometheus-server"
+       },
+       "name": "config-volume"
+      },
+      {
+       "emptyDir": {},
+       "name": "storage-volume"
+      }
+     ]
+    }
+   }
+  },
+  "status": {
+   "availableReplicas": 1,
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:54:19Z",
+     "lastUpdateTime": "2026-10-18T18:54:19Z",
+     "message": "Deployment has minimum availability.",
+     "reason": "MinimumReplicasAvailable",
+     "status": "True",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:24Z",
+     "lastUpdateTime": "2026-10-18T18:54:19Z",
+     "message": "ReplicaSet \"prometheus-server-7d87847f6d\" has successfully progressed.",
+     "reason": "NewReplicaSetAvailable",
+     "status": "True",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 1,
+   "readyReplicas": 1,
+   "replicas": 1,
+   "updatedReplicas": 1
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
     "deployment.kubernetes.io/revision": "1"
    },
    "creationTimestamp": "2026-10-18T18:06:40Z",
@@ -732,7 +3264,7 @@
    },
    "name": "fraud-scorer",
    "namespace": "payments",
-   "resourceVersion": "1669",
+   "resourceVersion": "12169",
    "uid": "efb37b15-d21d-4d0f-a23c-feec8b7f8d47"
   },
   "spec": {
@@ -793,8 +3325,8 @@
      "type": "Progressing"
     },
     {
-     "lastTransitionTime": "2026-10-18T18:12:46Z",
-     "lastUpdateTime": "2026-10-18T18:12:46Z",
+     "lastTransitionTime": "2026-10-18T19:14:50Z",
+     "lastUpdateTime": "2026-10-18T19:14:50Z",
      "message": "Deployment does not have minimum availability.",
      "reason": "MinimumReplicasUnavailable",
      "status": "False",
@@ -821,7 +3353,7 @@
    },
    "name": "ledger-worker",
    "namespace": "payments",
-   "resourceVersion": "671",
+   "resourceVersion": "2078",
    "uid": "31a58cbc-18b2-4042-9bd9-1524ca7bd894"
   },
   "spec": {
@@ -885,11 +3417,11 @@
      "type": "Available"
     },
     {
-     "lastTransitionTime": "2026-10-18T18:06:40Z",
-     "lastUpdateTime": "2026-10-18T18:06:40Z",
-     "message": "ReplicaSet \"ledger-worker-6f49d6d7fc\" is progressing.",
-     "reason": "ReplicaSetUpdated",
-     "status": "True",
+     "lastTransitionTime": "2026-10-18T18:16:40Z",
+     "lastUpdateTime": "2026-10-18T18:16:40Z",
+     "message": "ReplicaSet \"ledger-worker-6f49d6d7fc\" has timed out progressing.",
+     "reason": "ProgressDeadlineExceeded",
+     "status": "False",
      "type": "Progressing"
     }
    ],

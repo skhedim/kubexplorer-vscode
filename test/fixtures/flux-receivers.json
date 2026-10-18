@@ -1,0 +1,49 @@
+[
+ {
+  "apiVersion": "notification.toolkit.fluxcd.io/v1",
+  "kind": "Receiver",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "github",
+   "namespace": "flux-system",
+   "resourceVersion": "6255",
+   "uid": "c2de4fea-4bbd-4a77-8217-3e11aa42883d"
+  },
+  "spec": {
+   "events": [
+    "ping",
+    "push"
+   ],
+   "interval": "10m",
+   "resources": [
+    {
+     "kind": "GitRepository",
+     "name": "podinfo"
+    }
+   ],
+   "secretRef": {
+    "name": "webhook-token"
+   },
+   "type": "github"
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:51Z",
+     "message": "Receiver initialized for path: /hook/85c6de2db7c6a34c69c067bb06d17c6b0467545da5b62fb68262897d3e6da4d7",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "observedGeneration": 1,
+   "webhookPath": "/hook/85c6de2db7c6a34c69c067bb06d17c6b0467545da5b62fb68262897d3e6da4d7"
+  }
+ }
+]

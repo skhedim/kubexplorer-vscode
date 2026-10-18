@@ -54,6 +54,9 @@ export const ALL_ACTIONS = [
   "scale",
   "restart",
   "trigger",
+  "reconcile",
+  "suspend",
+  "resume",
   "rollback",
   "values",
   "manifest",
@@ -104,7 +107,11 @@ export type DetailSection =
       actions?: { action: ActionId; container: string }[];
       items: DetailItem[];
     }
-  | { type: "table"; columns: ColumnDef[]; rows: Row[]; empty: string };
+  | { type: "table"; columns: ColumnDef[]; rows: Row[]; empty: string }
+  /** A plain table, whose rows are not objects (conditions, inventory, history…). */
+  | { type: "grid"; columns: ColumnDef[]; rows: Cell[][]; empty: string }
+  /** Usage charts over time: a placeholder, filled by the "metrics" message (loaded separately). */
+  | { type: "metrics" };
 
 export interface Details {
   uid: string;
@@ -115,12 +122,45 @@ export interface Details {
   sections: DetailSection[];
 }
 
+// ---------- Metric charts ----------
+
+export type ChartUnit = "cpu" | "bytes" | "bytesPerSecond";
+
+/** usage: the measured series (an area); secondary: a second measured series; the others are reference lines. */
+export type SeriesRole = "usage" | "secondary" | "requests" | "limits" | "capacity";
+
+export interface ChartSeries {
+  label: string;
+  role: SeriesRole;
+  /** [unix seconds, value] points; a reference line has one constant value instead. */
+  points?: [number, number][];
+  value?: number;
+}
+
+export interface Chart {
+  id: string;
+  title: string;
+  unit: ChartUnit;
+  series: ChartSeries[];
+}
+
+export interface MetricsData {
+  /** Where the values come from, shown under the charts. */
+  source: string;
+  charts: Chart[];
+  /** Why there is no or little data (e.g. metrics collected since the tab opened). */
+  note?: string;
+  error?: string;
+}
+
 // ---------- Overview ----------
 
 export interface DonutSlice {
   label: string;
   value: number;
   tone: Tone;
+  /** Index in the categorical palette, for slices that are categories rather than states (zones, types…). */
+  color?: number;
 }
 
 export interface Donut {
@@ -138,8 +178,28 @@ export interface ClusterUsage {
   error?: string;
 }
 
+/** A summary card (e.g. a Karpenter NodePool): a title linking to the object, and detail items. */
+export interface OverviewCard {
+  title: string;
+  ref?: ResourceRef;
+  tag?: Tag;
+  items: DetailItem[];
+}
+
+export interface OverviewTable {
+  title: string;
+  icon?: string;
+  columns: ColumnDef[];
+  rows: Row[];
+  empty: string;
+}
+
 export interface OverviewData {
   usage?: ClusterUsage;
+  cards?: OverviewCard[];
   donuts: Donut[];
-  events: { columns: ColumnDef[]; rows: Row[] };
+  /** Tables after the donuts, the last one being the events. */
+  tables: OverviewTable[];
+  /** Shown instead of the content when the page has nothing to show (e.g. Flux is not installed). */
+  empty?: string;
 }

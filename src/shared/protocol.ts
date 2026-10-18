@@ -1,10 +1,11 @@
 // Messages exchanged between a resource tab (webview) and the extension.
 
-import type { ActionId, ColumnDef, Details, OverviewData, ResourceRef, Row } from "./view";
+import type { ActionId, ColumnDef, Details, MetricsData, OverviewData, ResourceRef, Row } from "./view";
 
 export type Appearance = "vscode" | "freelens";
 
-export type PanelTarget = { kind: "list"; resource: string } | { kind: "overview" };
+/** page: an overview page other than the cluster one ("flux", "karpenter"). */
+export type PanelTarget = { kind: "list"; resource: string } | { kind: "overview"; page?: string };
 
 export interface ListViewInit {
   mode: "list";
@@ -41,6 +42,8 @@ export type HostMessage =
   | { type: "overview"; data: OverviewData; loading: boolean; error?: string; live?: boolean }
   /** Details of the object shown in the drawer; null when the object is gone. */
   | { type: "details"; details: Details | null; error?: string }
+  /** Usage charts of the object shown in the drawer; null when it has none. */
+  | { type: "metrics"; uid: string; data: MetricsData | null }
   /** Decoded value of one Secret key, sent only on explicit request (revealSecret). */
   | { type: "secretValue"; uid: string; key: string; value?: string; error?: string };
 

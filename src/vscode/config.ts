@@ -18,5 +18,6 @@ export const config = {
   confirmApply: (): boolean => settings().get<boolean>("confirmApply", true),
   logTailLines: (): number => settings().get<number>("logs.tailLines", 500),
   demoCluster: (): boolean => settings().get<boolean>("demoCluster", false),
+  prometheus: (): string => settings().get<string>("prometheus", ""),
   setDemoCluster: (enabled: boolean): Thenable<void> => settings().update("demoCluster", enabled, vscode.ConfigurationTarget.Global),
 };

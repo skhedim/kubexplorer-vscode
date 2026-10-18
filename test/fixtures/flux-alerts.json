@@ -1,0 +1,31 @@
+[
+ {
+  "apiVersion": "notification.toolkit.fluxcd.io/v1beta3",
+  "kind": "Alert",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "generation": 1,
+   "name": "all-errors",
+   "namespace": "flux-system",
+   "resourceVersion": "6215",
+   "uid": "bf5a766c-02b5-4f66-8979-a18ea6ecbc07"
+  },
+  "spec": {
+   "eventSeverity": "error",
+   "eventSources": [
+    {
+     "kind": "Kustomization",
+     "name": "*"
+    },
+    {
+     "kind": "HelmRelease",
+     "name": "*"
+    }
+   ],
+   "providerRef": {
+    "name": "webhook"
+   }
+  }
+ }
+]

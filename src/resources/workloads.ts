@@ -3,6 +3,7 @@
 import type { ContainerSpec, PersistentVolumeClaimTemplate } from "../kube/models";
 import type { KubeObject } from "../kube/types";
 import type { Cell, DetailSection } from "../shared/view";
+import type { MetricsScope } from "./charts";
 import { type DetailContext, defineResource } from "./descriptor";
 import { conditionTags, formatAge, labelTags, link, mono, ownerCell, selectorString, text } from "./format";
 
@@ -20,6 +21,17 @@ export async function podsSection(
     { type: "title", text: "Pods" },
     { type: "table", columns, rows, empty: "No pod" },
   ];
+}
+
+/** The usage charts of a workload: the sum of its pods. */
+async function podsScope(
+  ctx: DetailContext,
+  namespace: string | undefined,
+  selector: Record<string, string> | undefined,
+): Promise<MetricsScope | undefined> {
+  const labelSelector = selectorString(selector);
+  if (!labelSelector || !namespace) return undefined;
+  return { kind: "pods", namespace, pods: await ctx.list("pods", { namespaces: [namespace], labelSelector }) };
 }
 
 function readyCell(ready: number, desired: number): Cell {
@@ -68,6 +80,7 @@ export const deployments = defineResource({
       { name: "Conditions", value: conditionTags(o.status?.conditions, true, true) },
     ];
   },
+  metrics: (o, ctx) => podsScope(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
   sections: (o, ctx) => podsSection(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
 });
 
@@ -93,6 +106,7 @@ export const statefulsets = defineResource({
       ),
     },
   ],
+  metrics: (o, ctx) => podsScope(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
   sections: (o, ctx) => podsSection(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
 });
 
@@ -115,6 +129,7 @@ export const daemonsets = defineResource({
       value: `${o.status?.numberReady ?? 0} ready, ${o.status?.desiredNumberScheduled ?? 0} desired, ${o.status?.numberMisscheduled ?? 0} misscheduled`,
     },
   ],
+  metrics: (o, ctx) => podsScope(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
   sections: (o, ctx) => podsSection(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
 });
 
@@ -142,6 +157,7 @@ export const replicasets = defineResource({
     { name: "Images", value: images(o) },
     { name: "Replicas", value: `${o.status?.replicas ?? 0} current / ${o.spec?.replicas ?? 0} desired` },
   ],
+  metrics: (o, ctx) => podsScope(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
   sections: (o, ctx) => podsSection(ctx, o.metadata.namespace, o.spec?.selector?.matchLabels),
 });
 

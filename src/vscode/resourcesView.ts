@@ -1,9 +1,9 @@
 // The Resources view: the Freelens side menu, with Custom Resources discovered on the active cluster.
 
 import * as vscode from "vscode";
-import type { KubeClient } from "../kube/client";
+import type { CrdCatalog } from "../kube/crds";
 import { errorMessage, type Logger } from "../kube/types";
-import { MENU, type MenuEntry } from "../resources/menu";
+import { filterMenu, flattenMenu, MENU, type MenuEntry } from "../resources/menu";
 import type { ResourceRegistry } from "../resources/registry";
 import type { ClusterState } from "./clusterState";
 
@@ -11,7 +11,7 @@ export interface ResourceNode {
   id: string;
   label: string;
   icon?: string;
-  /** Resource type to open; "overview" opens the cluster overview. */
+  /** Resource type to open; "overview" opens the cluster overview, "overview:<page>" another overview page. */
   open?: string;
   parent?: ResourceNode;
   children?: ResourceNode[];
@@ -30,13 +30,14 @@ function toNodes(entries: MenuEntry[], parent?: ResourceNode): ResourceNode[] {
 export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<ResourceNode | void>();
   readonly onDidChangeTreeData = this.emitter.event;
-  private roots = toNodes(MENU);
+  /** The menu of the active cluster, without the integrations whose CRDs are missing. */
+  private roots?: Promise<ResourceNode[]>;
   private crdChildren?: ResourceNode[];
   private readonly subscription: vscode.Disposable;
 
   constructor(
     private readonly state: ClusterState,
-    private readonly client: KubeClient,
+    private readonly crds: CrdCatalog,
     private readonly registry: ResourceRegistry,
     private readonly log: Logger,
   ) {
@@ -44,9 +45,22 @@ export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vsc
   }
 
   reset(): void {
-    this.roots = toNodes(MENU);
+    this.roots = undefined;
     this.crdChildren = undefined;
     this.emitter.fire();
+  }
+
+  private async menu(context: string): Promise<MenuEntry[]> {
+    const installed = await this.crds.kindNames(context);
+    return filterMenu(MENU, (open) => {
+      const d = this.registry.get(open);
+      return !d?.optional || installed.has(d.kubectlName);
+    });
+  }
+
+  /** The entries that can be opened on a cluster (for the "Open Resource..." quick pick). */
+  async openableEntries(context: string): Promise<ReturnType<typeof flattenMenu>> {
+    return flattenMenu(await this.menu(context));
   }
 
   getTreeItem(n: ResourceNode): vscode.TreeItem {
@@ -74,7 +88,7 @@ export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vsc
 
   async getChildren(n?: ResourceNode): Promise<ResourceNode[]> {
     if (!this.state.active) return [];
-    if (!n) return this.roots;
+    if (!n) return (this.roots ??= this.menu(this.state.active).then((entries) => toNodes(entries)));
     if (n.dynamic === "crds") return [...(n.children ?? []), ...(await this.loadCrds(n))];
     return n.children ?? [];
   }
@@ -84,7 +98,8 @@ export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vsc
   }
 
   /** Node of an opened resource type (to select it in the tree). */
-  findNode(resource: string): ResourceNode | undefined {
+  async findNode(resource: string): Promise<ResourceNode | undefined> {
+    const roots = await this.roots;
     const walk = (nodes: ResourceNode[] | undefined): ResourceNode | undefined => {
       for (const n of nodes ?? []) {
         if (n.open === resource) return n;
@@ -93,7 +108,7 @@ export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vsc
       }
       return undefined;
     };
-    return walk(this.roots);
+    return walk(roots);
   }
 
   /** CRDs of the active cluster, grouped by API group. */
@@ -101,9 +116,9 @@ export class ResourcesView implements vscode.TreeDataProvider<ResourceNode>, vsc
     if (this.crdChildren) return this.crdChildren;
     const context = this.state.active!;
     try {
-      const crds = await this.client.list(context, this.registry.require("customresourcedefinitions"), { namespaces: [] });
+      const crds = await this.crds.list(context);
       const groups = new Map<string, ResourceNode>();
-      for (const crd of crds.sort((a, b) => String(a.spec?.names?.kind).localeCompare(String(b.spec?.names?.kind)))) {
+      for (const crd of [...crds].sort((a, b) => String(a.spec?.names?.kind).localeCompare(String(b.spec?.names?.kind)))) {
         const groupName = crd.spec?.group ?? "?";
         let group = groups.get(groupName);
         if (!group) {

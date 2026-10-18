@@ -163,6 +163,25 @@ export class KubectlClient implements KubeClient {
     await this.run(["--context", context, ...namespaceArgs(t), "rollout", "restart", `${t.kubectlName}/${t.name}`]);
   }
 
+  async patch(context: string, t: ObjectTarget, patch: object): Promise<void> {
+    await this.run([
+      "--context",
+      context,
+      ...namespaceArgs(t),
+      "patch",
+      t.kubectlName,
+      t.name,
+      "--type",
+      "merge",
+      "-p",
+      JSON.stringify(patch),
+    ]);
+  }
+
+  getRaw(context: string, path: string): Promise<string> {
+    return this.run(["--context", context, "get", "--raw", path], { timeoutMs: 15_000 });
+  }
+
   async triggerCronJob(context: string, namespace: string, name: string): Promise<string> {
     const job = `${name}-manual-${Math.floor(Date.now() / 1000).toString(36)}`.slice(0, 63);
     await this.run(["--context", context, "-n", namespace, "create", "job", job, `--from=cronjob/${name}`]);

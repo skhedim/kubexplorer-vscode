@@ -1,0 +1,53 @@
+[
+ {
+  "apiVersion": "source.toolkit.fluxcd.io/v1",
+  "kind": "HelmRepository",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo",
+   "namespace": "flux-system",
+   "resourceVersion": "6263",
+   "uid": "f14ac9c6-5920-4c42-b601-115df88a73f2"
+  },
+  "spec": {
+   "interval": "10m",
+   "provider": "generic",
+   "url": "https://stefanprodan.github.io/podinfo"
+  },
+  "status": {
+   "artifact": {
+    "digest": "sha256:11752bf8beeb6dc33feac6184c4910334db1d698dd177f1bd23340ca0ea46203",
+    "lastUpdateTime": "2026-10-18T18:52:51Z",
+    "path": "helmrepository/flux-system/podinfo/index-e7dc68a4dec90a35c2c6d8cdfedb7eaaee17fde45dced5898289df85069ec089.yaml",
+    "revision": "sha256:e7dc68a4dec90a35c2c6d8cdfedb7eaaee17fde45dced5898289df85069ec089",
+    "size": 81804,
+    "url": "http://source-controller.flux-system.svc.cluster.local./helmrepository/flux-system/podinfo/index-e7dc68a4dec90a35c2c6d8cdfedb7eaaee17fde45dced5898289df85069ec089.yaml"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:51Z",
+     "message": "stored artifact: revision 'sha256:e7dc68a4dec90a35c2c6d8cdfedb7eaaee17fde45dced5898289df85069ec089'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:51Z",
+     "message": "stored artifact: revision 'sha256:e7dc68a4dec90a35c2c6d8cdfedb7eaaee17fde45dced5898289df85069ec089'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "ArtifactInStorage"
+    }
+   ],
+   "observedGeneration": 1,
+   "url": "http://source-controller.flux-system.svc.cluster.local./helmrepository/flux-system/podinfo/index.yaml"
+  }
+ }
+]

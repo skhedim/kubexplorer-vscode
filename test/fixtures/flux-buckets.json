@@ -1,0 +1,55 @@
+[
+ {
+  "apiVersion": "source.toolkit.fluxcd.io/v1",
+  "kind": "Bucket",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "unreachable",
+   "namespace": "flux-system",
+   "resourceVersion": "13027",
+   "uid": "6890132b-68ef-47d9-a919-92b0d0d09b45"
+  },
+  "spec": {
+   "bucketName": "manifests",
+   "endpoint": "minio.invalid:9000",
+   "insecure": true,
+   "interval": "10m",
+   "provider": "generic",
+   "timeout": "60s"
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T19:18:27Z",
+     "message": "building artifact",
+     "observedGeneration": 1,
+     "reason": "ProgressingWithRetry",
+     "status": "True",
+     "type": "Reconciling"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T19:18:27Z",
+     "message": "failed to confirm existence of 'manifests' bucket: Get \"http://minio.invalid:9000/manifests/ dial tcp: lookup minio.invalid on 10.96.0.10:53: no such host",
+     "observedGeneration": 1,
+     "reason": "BucketOperationFailed",
+     "status": "False",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:51Z",
+     "message": "failed to confirm existence of 'manifests' bucket: Get \"http://minio.invalid:9000/manifests/ dial tcp: lookup minio.invalid on 10.96.0.10:53: no such host",
+     "observedGeneration": 1,
+     "reason": "BucketOperationFailed",
+     "status": "True",
+     "type": "FetchFailed"
+    }
+   ],
+   "observedGeneration": -1
+  }
+ }
+]

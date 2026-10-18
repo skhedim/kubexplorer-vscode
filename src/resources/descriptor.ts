@@ -3,6 +3,7 @@
 
 import type { HelmClient } from "../kube/helm";
 import type { KindTarget, KubeObject } from "../kube/types";
+import type { MetricsScope } from "./charts";
 import type { ActionId, Cell, ColumnDef, DetailItem, Details, DetailSection, Row } from "../shared/view";
 import { cellText, formatAge, metadataItems } from "./format";
 
@@ -64,6 +65,12 @@ export interface ResourceDescriptor extends KindTarget {
   toCompactRow(o: KubeObject, rc?: RowContext): Row;
   details(o: KubeObject, ctx: DetailContext): Promise<Details>;
   actions: ActionId[];
+  /** A CRD-based kind that may not be installed: menus and overview pages skip it when its CRD is missing. */
+  optional: boolean;
+  /** Actions performed by a merge patch (e.g. Flux reconcile), built from the object and the current time. */
+  patches: Partial<Record<ActionId, (o: KubeObject, now: string) => object>>;
+  /** What the usage charts of an object cover (the pod itself, the pods of a workload, a node). */
+  metrics?(o: KubeObject, ctx: DetailContext): Promise<MetricsScope | undefined>;
 }
 
 export interface ResourceSpec {
@@ -89,6 +96,12 @@ export interface ResourceSpec {
   actions?: ActionId[];
   /** Common actions; edit, describe, copyName and delete by default (Kubernetes objects). */
   commonActions?: ActionId[];
+  /** Hides an action for one object (e.g. Resume on an object that is not suspended). */
+  hideAction?(o: KubeObject, action: ActionId): boolean;
+  patches?: ResourceDescriptor["patches"];
+  optional?: boolean;
+  /** Usage charts at the top of the drawer. */
+  metrics?(o: KubeObject, ctx: DetailContext): Promise<MetricsScope | undefined>;
   related?: string[];
   defaultSort?: { col: string; desc: boolean };
   /** Replaces the Kubernetes metadata at the top of the drawer (virtual objects: Helm, port forwards). */
@@ -124,6 +137,7 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
     ? all.filter((c) => spec.compact!.includes(c.id))
     : all.filter((c) => c.id !== "namespace" && c.id !== "warning");
   const actions = [...(spec.actions ?? []), ...(spec.commonActions ?? COMMON_ACTIONS)];
+  const actionsOf = (o: KubeObject) => (spec.hideAction ? actions.filter((a) => !spec.hideAction!(o, a)) : actions);
 
   function build(o: KubeObject, specs: ColumnSpec[], rc: RowContext = emptyRowContext): Row {
     const cells: Record<string, Cell> = {};
@@ -143,7 +157,7 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
         .join(" ")
         .toLowerCase(),
       warning: spec.warning?.(o),
-      actions,
+      actions: actionsOf(o),
     };
   }
 
@@ -159,19 +173,25 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
     defaultSort: spec.defaultSort ?? { col: spec.showName === false ? "age" : "name", desc: false },
     related: spec.related ?? [],
     actions,
+    optional: !!spec.optional,
+    patches: spec.patches ?? {},
+    metrics: spec.metrics,
     toRow: (o, rc) => build(o, all, rc),
     toCompactRow: (o, rc) => build(o, compactSpecs, rc),
     async details(o, ctx) {
       const rc = ctx.rowContext ?? emptyRowContext;
       const head = spec.header ? spec.header(o) : metadataItems(o);
-      const sections: DetailSection[] = [{ type: "items", items: [...head, ...(spec.items?.(o, rc) ?? [])] }];
+      const sections: DetailSection[] = [
+        ...(spec.metrics ? [{ type: "metrics" } as const] : []),
+        { type: "items", items: [...head, ...(spec.items?.(o, rc) ?? [])] },
+      ];
       if (spec.sections) sections.push(...(await spec.sections(o, ctx)));
       return {
         uid: o.metadata.uid,
         ref: { resource: spec.id, namespace: o.metadata.namespace, name: o.metadata.name },
         kindName: spec.kindName,
         title: spec.detailsTitle?.(o) ?? `${spec.kindName}: ${o.metadata.name}`,
-        actions,
+        actions: actionsOf(o),
         sections,
       };
     },

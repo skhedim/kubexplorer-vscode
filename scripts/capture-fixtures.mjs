@@ -38,12 +38,46 @@ const KINDS = {
   "nodes.metrics.k8s.io": "nodemetrics",
 };
 
+/** Kinds of the add-ons (dev-cluster/setup.sh --addons): skipped when their CRD is missing. */
+const ADDON_KINDS = {
+  "kustomizations.kustomize.toolkit.fluxcd.io": "flux-kustomizations",
+  "helmreleases.helm.toolkit.fluxcd.io": "flux-helmreleases",
+  "gitrepositories.source.toolkit.fluxcd.io": "flux-gitrepositories",
+  "ocirepositories.source.toolkit.fluxcd.io": "flux-ocirepositories",
+  "helmrepositories.source.toolkit.fluxcd.io": "flux-helmrepositories",
+  "helmcharts.source.toolkit.fluxcd.io": "flux-helmcharts",
+  "buckets.source.toolkit.fluxcd.io": "flux-buckets",
+  "imagerepositories.image.toolkit.fluxcd.io": "flux-imagerepositories",
+  "imagepolicies.image.toolkit.fluxcd.io": "flux-imagepolicies",
+  "alerts.notification.toolkit.fluxcd.io": "flux-alerts",
+  "providers.notification.toolkit.fluxcd.io": "flux-providers",
+  "receivers.notification.toolkit.fluxcd.io": "flux-receivers",
+  "nodepools.karpenter.sh": "karpenter-nodepools",
+  "nodeclaims.karpenter.sh": "karpenter-nodeclaims",
+  "ec2nodeclasses.karpenter.k8s.aws": "karpenter-ec2nodeclasses",
+};
+
 const write = (file, data) => writeFileSync(join(out, `${file}.json`), `${JSON.stringify(data, null, 1)}\n`);
 
-for (const [kind, file] of Object.entries(KINDS)) {
-  const { items } = JSON.parse(
-    execFileSync("kubectl", ["--context", context, "get", kind, "-A", "-o", "json"], { maxBuffer: 64 * 1024 * 1024 }).toString(),
-  );
+const eventTime = (e) => e.lastTimestamp ?? e.eventTime ?? e.metadata.creationTimestamp ?? "";
+
+const list = (kind) =>
+  JSON.parse(
+    execFileSync("kubectl", ["--context", context, "get", kind, "-A", "-o", "json"], {
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    }).toString(),
+  ).items;
+
+for (const [kind, file] of [...Object.entries(KINDS), ...Object.entries(ADDON_KINDS)]) {
+  let items;
+  try {
+    items = list(kind);
+  } catch (err) {
+    if (!(kind in ADDON_KINDS)) throw err;
+    console.log(`${file.padEnd(24)} skipped: run dev-cluster/setup.sh --addons`);
+    continue;
+  }
   for (const item of items) {
     delete item.metadata.managedFields;
     // This annotation copies the applied manifest, including the stringData of Secrets.
@@ -51,6 +85,8 @@ for (const [kind, file] of Object.entries(KINDS)) {
     // Secret values never land in the repository, not even fake ones.
     if (item.kind === "Secret" && item.data) item.data = Object.fromEntries(Object.keys(item.data).map((k) => [k, "UkVEQUNURUQ="]));
   }
+  // The most recent events are enough, and keep the fixture small.
+  if (file === "events") items = items.sort((a, b) => eventTime(b).localeCompare(eventTime(a))).slice(0, 150);
   write(file, items);
   console.log(`${file.padEnd(24)} ${items.length} objects`);
 }

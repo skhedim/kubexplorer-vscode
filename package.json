@@ -201,6 +201,24 @@
         "icon": "$(play)"
       },
       {
+        "command": "kubexplorer.resource.reconcile",
+        "title": "%action.reconcile%",
+        "category": "KubeXplorer",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "kubexplorer.resource.suspend",
+        "title": "%action.suspend%",
+        "category": "KubeXplorer",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "kubexplorer.resource.resume",
+        "title": "%action.resume%",
+        "category": "KubeXplorer",
+        "icon": "$(debug-continue)"
+      },
+      {
         "command": "kubexplorer.resource.install",
         "title": "%action.install%",
         "category": "KubeXplorer",
@@ -299,6 +317,18 @@
         },
         {
           "command": "kubexplorer.resource.trigger",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.reconcile",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.suspend",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.resume",
           "when": "false"
         },
         {
@@ -439,9 +469,24 @@
           "group": "1_actions@7"
         },
         {
+          "command": "kubexplorer.resource.reconcile",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\breconcile\\b/",
+          "group": "1_actions@8"
+        },
+        {
+          "command": "kubexplorer.resource.suspend",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bsuspend\\b/",
+          "group": "1_actions@9"
+        },
+        {
+          "command": "kubexplorer.resource.resume",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bresume\\b/",
+          "group": "1_actions@10"
+        },
+        {
           "command": "kubexplorer.resource.install",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\binstall\\b/",
-          "group": "1_actions@8"
+          "group": "1_actions@11"
         },
         {
           "command": "kubexplorer.resource.values",
@@ -540,6 +585,12 @@
           "minimum": 10,
           "markdownDescription": "%config.logs.tailLines%"
         },
+        "kubexplorer.prometheus": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "%config.prometheus%"
+        },
         "kubexplorer.demoCluster": {
           "type": "boolean",
           "default": false,
@@ -563,7 +614,7 @@
     "fixtures": "node scripts/capture-fixtures.mjs",
     "preview": "node scripts/build.mjs && node scripts/preview-server.mjs",
     "screenshots": "node scripts/build.mjs && node scripts/screenshots.mjs",
-    "l10n:export": "npx @vscode/l10n-dev export --outDir ./l10n ./src",
+    "l10n:export": "npx @vscode/l10n-dev export --outDir ./l10n ./src && prettier --write l10n",
     "package": "vsce package --out dist/kubexplorer.vsix",
     "knip": "knip"
   },

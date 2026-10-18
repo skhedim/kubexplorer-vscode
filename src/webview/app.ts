@@ -2,7 +2,8 @@
 // The UI state is persisted with setState so that the tab survives a reload of VS Code.
 
 import type { Appearance, HostMessage, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
-import type { ActionId, Details, OverviewData, ResourceRef, Row } from "../shared/view";
+import type { ActionId, Details, MetricsData, OverviewData, ResourceRef, Row } from "../shared/view";
+import { renderMetrics, tooltipHtml, valuesAt } from "./chart";
 import { checkbox, codicon, data, esc } from "./dom";
 import { renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
 
@@ -14,6 +15,8 @@ export interface VsCodeApi {
 
 const DEFAULT_DRAWER_WIDTH = 640;
 const MIN_DRAWER_WIDTH = 320;
+/** Horizontal padding of the drawer content around the charts. */
+const CHART_INSET = 40;
 
 function sameTarget(a: PersistedState["panel"], b: PersistedState["panel"]): boolean {
   return !!a && !!b && a.context === b.context && JSON.stringify(a.target) === JSON.stringify(b.target);
@@ -37,6 +40,10 @@ export class App {
   private secretValues = new Map<string, string>();
   private secretPending = new Set<string>();
   private secretErrors = new Map<string, string>();
+  /** Usage charts of the object shown in the drawer (uid of that object). */
+  private metrics?: { uid: string; data: MetricsData | null };
+  /** Selected chart tab, kept from one object to the next like in Freelens. */
+  private chartTab = "cpu";
   private readonly rendered = new Map<string, string>();
   private ui: PersistedState;
 
@@ -93,10 +100,16 @@ export class App {
         this.live = !!msg.live;
         break;
       case "details":
-        if (msg.details?.uid !== this.details?.uid) this.clearSecrets();
+        if (msg.details?.uid !== this.details?.uid) {
+          this.clearSecrets();
+          if (this.metrics?.uid !== msg.details?.uid) this.metrics = undefined;
+        }
         this.details = msg.details;
         this.detailsError = msg.error;
         this.detailsLoading = false;
+        break;
+      case "metrics":
+        if (msg.uid === this.details?.uid) this.metrics = { uid: msg.uid, data: msg.data };
         break;
       case "secretValue":
         this.secretPending.delete(msg.key);
@@ -136,10 +149,12 @@ export class App {
 
   // ---------------- Rendering ----------------
 
-  private region(id: string, html: string): void {
-    if (this.rendered.get(id) === html) return;
+  /** Updates a region when its HTML changed; returns whether it did. */
+  private region(id: string, html: string): boolean {
+    if (this.rendered.get(id) === html) return false;
     this.rendered.set(id, html);
     document.getElementById(id)!.innerHTML = html;
+    return true;
   }
 
   private visibleRows(): Row[] {
@@ -258,7 +273,7 @@ export class App {
     }
     if (!container.firstChild) container.innerHTML = renderDrawerFrame(this.ui.drawerWidth);
     this.region("r-drawer-header", renderDrawerHeader(this.details, this.history.length > 0));
-    this.region(
+    const replaced = this.region(
       "r-drawer-content",
       renderDrawerContent(this.details, {
         context: this.view?.context ?? "",
@@ -267,6 +282,51 @@ export class App {
         secrets: { values: this.secretValues, pending: this.secretPending, errors: this.secretErrors },
       }),
     );
+    // The charts placeholder is part of the content: a new content has an empty one.
+    if (replaced) this.rendered.delete("r-drawer-metrics");
+    this.renderMetrics();
+  }
+
+  private renderMetrics(): void {
+    if (!document.getElementById("r-drawer-metrics")) return;
+    const content = document.getElementById("r-drawer-content");
+    const width = Math.max(240, (content?.clientWidth || this.ui.drawerWidth) - CHART_INSET);
+    const metrics = this.metrics?.uid === this.details?.uid ? (this.metrics?.data ?? undefined) : undefined;
+    // null: the object has no charts after all (e.g. a workload without pods).
+    const html = this.metrics?.data === null && this.metrics.uid === this.details?.uid ? "" : renderMetrics(metrics, this.chartTab, width);
+    this.region("r-drawer-metrics", html);
+  }
+
+  /** Moves the cursor of the chart under the mouse and shows the values at that time. */
+  private onChartHover(ev: MouseEvent): void {
+    const svg = (ev.target as Element).closest<SVGSVGElement>(".chart-svg");
+    const chartEl = svg?.parentElement;
+    const tooltip = chartEl?.querySelector<HTMLElement>(".chart-tooltip");
+    const cursor = svg?.querySelector(".cursor");
+    const chart = this.metrics?.data?.charts.find((c) => c.id === svg?.dataset.chart);
+    if (!svg || !tooltip || !cursor || !chart) return;
+    const box = svg.getBoundingClientRect();
+    const { tmin, tmax, left, right } = svg.dataset;
+    const px = ev.clientX - box.left;
+    const [t0, t1, x0, x1] = [Number(tmin), Number(tmax), Number(left), Number(right)];
+    const values = px >= x0 && px <= x1 ? valuesAt(chart, t0 + ((px - x0) / (x1 - x0)) * (t1 - t0)) : undefined;
+    if (!values) return this.hideChartHover(svg);
+    const cx = x0 + ((values.time - t0) / (t1 - t0)) * (x1 - x0);
+    cursor.setAttribute("x1", String(cx));
+    cursor.setAttribute("x2", String(cx));
+    cursor.setAttribute("visibility", "visible");
+    tooltip.innerHTML = tooltipHtml(values);
+    tooltip.hidden = false;
+    // On the right of the cursor, or on its left near the right edge.
+    const flip = cx > box.width / 2;
+    tooltip.style.left = flip ? "" : `${cx + 12}px`;
+    tooltip.style.right = flip ? `${box.width - cx + 12}px` : "";
+  }
+
+  private hideChartHover(svg: Element): void {
+    svg.querySelector(".cursor")?.setAttribute("visibility", "hidden");
+    const tooltip = svg.parentElement?.querySelector<HTMLElement>(".chart-tooltip");
+    if (tooltip) tooltip.hidden = true;
   }
 
   // ---------------- Actions ----------------
@@ -315,6 +375,11 @@ export class App {
       this.render();
     });
     this.root.addEventListener("mousedown", (ev) => this.onDragStart(ev));
+    this.root.addEventListener("mousemove", (ev) => this.onChartHover(ev));
+    this.root.addEventListener("mouseout", (ev) => {
+      const svg = (ev.target as Element).closest?.(".chart-svg");
+      if (svg && !svg.contains(ev.relatedTarget as Node | null)) this.hideChartHover(svg);
+    });
     window.addEventListener("keydown", (ev) => this.onKeyDown(ev));
   }
 
@@ -350,6 +415,8 @@ export class App {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
       this.save();
+      // The charts are drawn at the width of the drawer.
+      this.renderMetrics();
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
@@ -388,6 +455,10 @@ export class App {
         return;
       case "toggle-secret":
         if (ref && d.key) this.toggleSecret(ref, d.key);
+        return;
+      case "chart-tab":
+        this.chartTab = d.chart ?? this.chartTab;
+        this.renderMetrics();
         return;
       case "copy-secret": {
         const value = d.key ? this.secretValues.get(d.key) : undefined;

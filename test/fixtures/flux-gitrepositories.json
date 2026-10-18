@@ -1,0 +1,55 @@
+[
+ {
+  "apiVersion": "source.toolkit.fluxcd.io/v1",
+  "kind": "GitRepository",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo",
+   "namespace": "flux-system",
+   "resourceVersion": "6362",
+   "uid": "5a5cec4a-8f54-4a5c-b393-64e4fe5bb08e"
+  },
+  "spec": {
+   "interval": "10m",
+   "ref": {
+    "tag": "6.9.2"
+   },
+   "timeout": "60s",
+   "url": "https://github.com/stefanprodan/podinfo"
+  },
+  "status": {
+   "artifact": {
+    "digest": "sha256:52fd298984e07e2a61deae9a8d1f12b65de04905b66ed8350a30afec4bb9ba09",
+    "lastUpdateTime": "2026-10-18T18:52:52Z",
+    "path": "gitrepository/flux-system/podinfo/e86405a8674ecab990d0a389824c7ebbd82973b5.tar.gz",
+    "revision": "6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5",
+    "size": 300691,
+    "url": "http://source-controller.flux-system.svc.cluster.local./gitrepository/flux-system/podinfo/e86405a8674ecab990d0a389824c7ebbd82973b5.tar.gz"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "message": "stored artifact for revision '6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:52:52Z",
+     "message": "stored artifact for revision '6.9.2@sha1:e86405a8674ecab990d0a389824c7ebbd82973b5'",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "ArtifactInStorage"
+    }
+   ],
+   "observedGeneration": 1
+  }
+ }
+]

@@ -3,7 +3,8 @@ import { chartObject, type HelmClient, releaseObject } from "../../../src/kube/h
 import { helmcharts, helmreleases } from "../../../src/resources/helm";
 import { emptyDetailContext, fixture } from "../helpers";
 
-const release = () => releaseObject(fixture("helm-releases")[0] as never);
+const release = () =>
+  releaseObject(fixture("helm-releases").find((r) => (r as unknown as { name: string }).name === "shop-landing") as never);
 
 describe("Helm descriptors", () => {
   it("lists real releases", () => {

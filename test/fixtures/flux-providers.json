@@ -1,0 +1,22 @@
+[
+ {
+  "apiVersion": "notification.toolkit.fluxcd.io/v1beta3",
+  "kind": "Provider",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "webhook",
+   "namespace": "flux-system",
+   "resourceVersion": "6214",
+   "uid": "83a1890b-e99b-4aa1-85d5-ffa770575ce4"
+  },
+  "spec": {
+   "address": "https://example.invalid/flux",
+   "type": "generic"
+  }
+ }
+]

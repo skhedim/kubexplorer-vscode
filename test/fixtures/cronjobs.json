@@ -8,7 +8,7 @@
    "generation": 1,
    "name": "invoice-export",
    "namespace": "payments",
-   "resourceVersion": "1600",
+   "resourceVersion": "12947",
    "uid": "3a83f017-41d8-4be6-8ce5-11d005dfa3ea"
   },
   "spec": {
@@ -53,8 +53,8 @@
    "suspend": false
   },
   "status": {
-   "lastScheduleTime": "2026-10-18T18:12:00Z",
-   "lastSuccessfulTime": "2026-10-18T18:12:08Z"
+   "lastScheduleTime": "2026-10-18T19:18:00Z",
+   "lastSuccessfulTime": "2026-10-18T19:18:07Z"
   }
  }
 ]

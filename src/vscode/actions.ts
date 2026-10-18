@@ -61,6 +61,12 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
       return `$(debug-restart) ${vscode.l10n.t("Restart")}`;
     case "trigger":
       return `$(play) ${vscode.l10n.t("Trigger Now")}`;
+    case "reconcile":
+      return `$(sync) ${vscode.l10n.t("Reconcile")}`;
+    case "suspend":
+      return `$(debug-pause) ${vscode.l10n.t("Suspend")}`;
+    case "resume":
+      return `$(debug-continue) ${vscode.l10n.t("Resume")}`;
     case "rollback":
       return `$(discard) ${vscode.l10n.t("Rollback...")}`;
     case "values":
@@ -185,7 +191,27 @@ export class ResourceActions {
         return this.rollback(context, ref);
       case "install":
         return this.install(context, ref);
+      case "reconcile":
+      case "suspend":
+      case "resume":
+        return this.patchAction(action, context, ref);
     }
+  }
+
+  /** Actions performed by a merge patch of the descriptor (Flux reconcile, suspend and resume). */
+  private async patchAction(action: ActionId, context: string, ref: ResourceRef): Promise<void> {
+    const descriptor = this.d.registry.require(ref.resource);
+    const build = descriptor.patches[action];
+    if (!build) throw new Error(vscode.l10n.t("{0} does not support this action", descriptor.kindName));
+    const obj = await this.fetch(context, ref);
+    await this.d.client.patch(context, this.objectTarget(ref), build(obj, new Date().toISOString()));
+    const done: Partial<Record<ActionId, string>> = {
+      reconcile: vscode.l10n.t("Reconciliation of {0} requested", display(ref)),
+      suspend: vscode.l10n.t("{0} suspended", display(ref)),
+      resume: vscode.l10n.t("{0} resumed", display(ref)),
+    };
+    vscode.window.setStatusBarMessage(`$(check) ${done[action] ?? display(ref)}`, 4000);
+    this.d.store.refresh(context);
   }
 
   // ---------------- Pods: containers, logs, shell ----------------

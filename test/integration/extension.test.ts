@@ -66,7 +66,10 @@ describe("KubeXplorer in VS Code", function () {
     assert.match(String(api.clustersView.getTreeItem(api.state.contexts[0]).description), /active/);
   });
 
-  it("mirrors the Freelens menu in the Resources view, CRDs included", async () => {
+  it("mirrors the Freelens menu in the Resources view, with Flux and Karpenter when installed", async () => {
+    const crds = kubectl("get", "crds", "-o", "name");
+    const flux = crds.includes("kustomizations.kustomize.toolkit.fluxcd.io");
+    const karpenter = crds.includes("nodepools.karpenter.sh");
     const roots = await api.resourcesView.getChildren();
     assert.deepEqual(
       roots.map((r) => r.label),
@@ -80,18 +83,33 @@ describe("KubeXplorer in VS Code", function () {
         "Namespaces",
         "Events",
         "Helm",
+        ...(flux ? ["Flux"] : []),
+        ...(karpenter ? ["Karpenter"] : []),
         "Access Control",
         "Custom Resources",
       ],
     );
+    if (karpenter) {
+      const entries = await api.resourcesView.getChildren(roots.find((r) => r.id === "karpenter"));
+      // AKS and KWOK node classes are not installed on the development cluster.
+      assert.deepEqual(
+        entries.map((e) => e.label),
+        ["Overview", "Node Pools", "Node Claims", "EC2 Node Classes"],
+      );
+    }
     const workloads = await api.resourcesView.getChildren(roots.find((r) => r.id === "workloads"));
     assert.ok(workloads.some((w) => w.open === "pods"));
     const network = await api.resourcesView.getChildren(roots.find((r) => r.id === "network"));
     assert.ok(network.some((n) => n.open === "portforwards"));
-    // kind installs no CRD: only "Definitions", and no error.
-    const crds = await api.resourcesView.getChildren(roots.find((r) => r.id === "crds"));
-    assert.equal(crds[0].label, "Definitions");
-    assert.ok(!crds.some((c) => c.error), crds.map((c) => c.error).join());
+    // "Definitions", then a group per API group of the CRDs, and no error.
+    const custom = await api.resourcesView.getChildren(roots.find((r) => r.id === "crds"));
+    assert.equal(custom[0].label, "Definitions");
+    assert.ok(!custom.some((c) => c.error), custom.map((c) => c.error).join());
+    if (flux) {
+      // The CRDs with a dedicated view open it.
+      const group = await api.resourcesView.getChildren(custom.find((c) => c.label === "kustomize.toolkit.fluxcd.io"));
+      assert.equal(group[0].open, "flux:kustomizations");
+    }
   });
 
   it("reuses the current tab when opening another resource type", async () => {
@@ -206,6 +224,41 @@ describe("KubeXplorer in VS Code", function () {
     assert.ok(podMetrics[0].containers?.[0]?.usage?.memory);
     const nodeMetrics = await api.client.list(CONTEXT, api.registry.require("nodemetrics"), { namespaces: [] });
     assert.equal(nodeMetrics.length, 3);
+  });
+
+  it("draws the usage charts of the pods of a workload", async () => {
+    const pods = await api.client.list(CONTEXT, api.registry.require("pods"), {
+      namespaces: ["frontend"],
+      labelSelector: "app.kubernetes.io/name=web-app",
+    });
+    assert.ok(pods.length > 0);
+    const data = await api.metrics.load(CONTEXT, { kind: "pods", namespace: "frontend", pods });
+    assert.deepEqual(
+      data.charts.slice(0, 2).map((c) => c.id),
+      ["cpu", "memory"],
+    );
+    // Prometheus when dev-cluster/setup.sh --addons installed it, metrics-server samples otherwise.
+    assert.match(data.source, /^(Prometheus monitoring\/prometheus-server|metrics-server)$/);
+    assert.ok(data.charts[0].series.some((s) => s.role === "requests"));
+  });
+
+  it("asks Flux to reconcile an object", async function () {
+    if (!kubectl("get", "crds", "-o", "name").includes("kustomizations.kustomize.toolkit.fluxcd.io")) this.skip();
+    const before = Date.now();
+    await vscode.commands.executeCommand("kubexplorer.resource.reconcile", {
+      context: CONTEXT,
+      ref: { resource: "flux:kustomizations", namespace: "flux-system", name: "podinfo" },
+    });
+    const requestedAt = kubectl(
+      "-n",
+      "flux-system",
+      "get",
+      "kustomizations.kustomize.toolkit.fluxcd.io",
+      "podinfo",
+      "-o",
+      "jsonpath={.metadata.annotations.reconcile\\.fluxcd\\.io/requestedAt}",
+    );
+    assert.ok(Date.parse(requestedAt) >= before - 1000, requestedAt);
   });
 
   it("lists Helm releases, opens a manifest and rolls back", async () => {

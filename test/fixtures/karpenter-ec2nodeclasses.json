@@ -1,0 +1,182 @@
+[
+ {
+  "apiVersion": "karpenter.k8s.aws/v1",
+  "kind": "EC2NodeClass",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:16Z",
+   "generation": 1,
+   "name": "default",
+   "resourceVersion": "6769",
+   "uid": "d5e8d85d-c8be-467f-9161-aa9e947fc560"
+  },
+  "spec": {
+   "amiSelectorTerms": [
+    {
+     "alias": "al2023@latest"
+    }
+   ],
+   "metadataOptions": {
+    "httpEndpoint": "enabled",
+    "httpProtocolIPv6": "disabled",
+    "httpPutResponseHopLimit": 1,
+    "httpTokens": "required"
+   },
+   "role": "KarpenterNodeRole-dev",
+   "securityGroupSelectorTerms": [
+    {
+     "tags": {
+      "karpenter.sh/discovery": "dev"
+     }
+    }
+   ],
+   "subnetSelectorTerms": [
+    {
+     "tags": {
+      "karpenter.sh/discovery": "dev"
+     }
+    }
+   ]
+  },
+  "status": {
+   "amis": [
+    {
+     "id": "ami-0f1e2d3c4b5a69780",
+     "name": "default-ami",
+     "requirements": [
+      {
+       "key": "kubernetes.io/arch",
+       "operator": "In",
+       "values": [
+        "amd64"
+       ]
+      }
+     ]
+    }
+   ],
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "instanceProfile": "dev_default_instance_profile",
+   "securityGroups": [
+    {
+     "id": "sg-0dd44",
+     "name": "dev-nodes"
+    }
+   ],
+   "subnets": [
+    {
+     "id": "subnet-0aa11",
+     "zone": "eu-west-3a",
+     "zoneID": "euw3-az1"
+    },
+    {
+     "id": "subnet-0bb22",
+     "zone": "eu-west-3b",
+     "zoneID": "euw3-az2"
+    },
+    {
+     "id": "subnet-0cc33",
+     "zone": "eu-west-3c",
+     "zoneID": "euw3-az3"
+    }
+   ]
+  }
+ },
+ {
+  "apiVersion": "karpenter.k8s.aws/v1",
+  "kind": "EC2NodeClass",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:16Z",
+   "generation": 1,
+   "name": "gpu",
+   "resourceVersion": "6771",
+   "uid": "e51af71a-bbfa-4325-8802-8c92fa2f0be4"
+  },
+  "spec": {
+   "amiSelectorTerms": [
+    {
+     "alias": "bottlerocket@latest"
+    }
+   ],
+   "metadataOptions": {
+    "httpEndpoint": "enabled",
+    "httpProtocolIPv6": "disabled",
+    "httpPutResponseHopLimit": 1,
+    "httpTokens": "required"
+   },
+   "role": "KarpenterNodeRole-dev",
+   "securityGroupSelectorTerms": [
+    {
+     "tags": {
+      "karpenter.sh/discovery": "dev"
+     }
+    }
+   ],
+   "subnetSelectorTerms": [
+    {
+     "tags": {
+      "karpenter.sh/discovery": "dev"
+     }
+    }
+   ]
+  },
+  "status": {
+   "amis": [
+    {
+     "id": "ami-0f1e2d3c4b5a69780",
+     "name": "gpu-ami",
+     "requirements": [
+      {
+       "key": "kubernetes.io/arch",
+       "operator": "In",
+       "values": [
+        "amd64"
+       ]
+      }
+     ]
+    }
+   ],
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "instanceProfile": "dev_gpu_instance_profile",
+   "securityGroups": [
+    {
+     "id": "sg-0dd44",
+     "name": "dev-nodes"
+    }
+   ],
+   "subnets": [
+    {
+     "id": "subnet-0aa11",
+     "zone": "eu-west-3a",
+     "zoneID": "euw3-az1"
+    },
+    {
+     "id": "subnet-0bb22",
+     "zone": "eu-west-3b",
+     "zoneID": "euw3-az2"
+    },
+    {
+     "id": "subnet-0cc33",
+     "zone": "eu-west-3c",
+     "zoneID": "euw3-az3"
+    }
+   ]
+  }
+ }
+]

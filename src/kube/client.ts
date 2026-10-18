@@ -29,6 +29,10 @@ export interface KubeClient {
   delete(context: string, target: ObjectTarget): Promise<void>;
   scale(context: string, target: ObjectTarget, replicas: number): Promise<void>;
   restart(context: string, target: ObjectTarget): Promise<void>;
+  /** JSON merge patch (`kubectl patch --type merge`). */
+  patch(context: string, target: ObjectTarget, patch: object): Promise<void>;
+  /** GET of an API path (`kubectl get --raw`), e.g. through a service proxy. */
+  getRaw(context: string, path: string): Promise<string>;
   /** Creates a Job from a CronJob and returns the Job name. */
   triggerCronJob(context: string, namespace: string, name: string): Promise<string>;
   streamLogs(context: string, opts: LogOptions, onData: (chunk: string) => void, onEnd: (error?: string) => void): Stoppable;

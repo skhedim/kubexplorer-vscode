@@ -395,11 +395,16 @@ export class DemoClient implements KubeClient {
   /** Fake but stable metrics (derived from names), shaped like metrics-server output. */
   private metrics(kind: string): KubeObject[] {
     const seed = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    // A slow wave per object, so that usage charts move like a real cluster.
+    const wave = (s: string) => 0.8 + 0.2 * Math.sin(Date.now() / 120_000 + (seed(s) % 628) / 100);
     if (kind === "nodes.metrics.k8s.io") {
       return (this.objects.get("nodes") ?? []).map((n) => ({
         kind: "NodeMetrics",
         metadata: { name: n.metadata.name, uid: `m-${n.metadata.uid}` },
-        usage: { cpu: `${400 + (seed(n.metadata.name) % 3000)}m`, memory: `${2000 + (seed(n.metadata.name) % 9000)}Mi` },
+        usage: {
+          cpu: `${Math.round((400 + (seed(n.metadata.name) % 3000)) * wave(n.metadata.name))}m`,
+          memory: `${Math.round((2000 + (seed(n.metadata.name) % 9000)) * wave(`${n.metadata.name}m`))}Mi`,
+        },
       }));
     }
     return (this.objects.get("pods") ?? [])
@@ -409,7 +414,10 @@ export class DemoClient implements KubeClient {
         metadata: { name: p.metadata.name, namespace: p.metadata.namespace, uid: `m-${p.metadata.uid}` },
         containers: (p.spec?.containers ?? []).map((c: { name: string }) => ({
           name: c.name,
-          usage: { cpu: `${seed(p.metadata.name + c.name) % 250}m`, memory: `${20 + (seed(c.name + p.metadata.name) % 400)}Mi` },
+          usage: {
+            cpu: `${Math.round((seed(p.metadata.name + c.name) % 250) * wave(p.metadata.name))}m`,
+            memory: `${Math.round((20 + (seed(c.name + p.metadata.name) % 400)) * wave(c.name + p.metadata.name))}Mi`,
+          },
         })),
       }));
   }
@@ -500,6 +508,17 @@ export class DemoClient implements KubeClient {
     await this.delay(undefined);
   }
 
+  async patch(_context: string, t: ObjectTarget, patch: object): Promise<void> {
+    const o = this.find(t);
+    if (!o) throw new Error(`${t.kubectlName} "${t.name}" not found`);
+    mergePatch(o, patch);
+    await this.delay(undefined);
+  }
+
+  async getRaw(): Promise<string> {
+    throw new Error("Raw API requests are not available on the demo cluster");
+  }
+
   async triggerCronJob(_context: string, _namespace: string, name: string): Promise<string> {
     return `${name}-manual-demo`;
   }
@@ -528,6 +547,17 @@ export class DemoClient implements KubeClient {
 
   execSpec(): ExecSpec | undefined {
     return undefined;
+  }
+}
+
+/** RFC 7386 JSON merge patch, in place: null removes a field. */
+function mergePatch(target: Record<string, unknown>, patch: object): void {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete target[k];
+    else if (typeof v === "object" && !Array.isArray(v)) {
+      if (typeof target[k] !== "object" || target[k] === null || Array.isArray(target[k])) target[k] = {};
+      mergePatch(target[k] as Record<string, unknown>, v);
+    } else target[k] = v;
   }
 }
 

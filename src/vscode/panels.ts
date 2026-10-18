@@ -5,10 +5,12 @@
 
 import * as vscode from "vscode";
 import type { KubeClient } from "../kube/client";
+import type { CrdCatalog } from "../kube/crds";
 import type { HelmClient } from "../kube/helm";
 import type { ResourceStore } from "../kube/store";
 import type { Logger } from "../kube/types";
 import { PanelController, type PanelHost } from "../panel/controller";
+import type { MetricsService } from "../panel/metrics";
 import type { ResourceRegistry } from "../resources/registry";
 import { shortContextName } from "../shared/clusterNames";
 import type { HostMessage, PanelTarget, PersistedState, WebviewMessage } from "../shared/protocol";
@@ -25,6 +27,8 @@ export interface PanelsDeps {
   helm: HelmClient;
   state: ClusterState;
   actions: ResourceActions;
+  metrics: MetricsService;
+  crds: CrdCatalog;
   log: Logger;
 }
 
@@ -43,7 +47,8 @@ interface Tab {
 }
 
 function sameTarget(a: PanelTarget, b: PanelTarget): boolean {
-  return a.kind === b.kind && (a.kind === "overview" || (b.kind === "list" && a.resource === b.resource));
+  if (a.kind === "overview") return b.kind === "overview" && a.page === b.page;
+  return b.kind === "list" && a.resource === b.resource;
 }
 
 function nonce(): string {
@@ -174,6 +179,8 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       store,
       client: this.d.client,
       helm: this.d.helm,
+      metrics: this.d.metrics,
+      crds: this.d.crds,
       log: this.d.log,
       appearance: config.appearance(),
       namespaces: state.filter(context),

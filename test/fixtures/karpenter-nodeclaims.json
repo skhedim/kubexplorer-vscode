@@ -1,0 +1,386 @@
+[
+ {
+  "apiVersion": "karpenter.sh/v1",
+  "kind": "NodeClaim",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "labels": {
+    "karpenter.sh/capacity-type": "spot",
+    "karpenter.sh/nodepool": "default",
+    "node.kubernetes.io/instance-type": "c6i.large",
+    "topology.kubernetes.io/zone": "eu-west-3c"
+   },
+   "name": "default-c2v8w",
+   "resourceVersion": "6781",
+   "uid": "9d296e58-0ebf-4b62-a089-65f1790bc88d"
+  },
+  "spec": {
+   "expireAfter": "720h",
+   "nodeClassRef": {
+    "group": "karpenter.k8s.aws",
+    "kind": "EC2NodeClass",
+    "name": "default"
+   },
+   "requirements": [
+    {
+     "key": "karpenter.sh/capacity-type",
+     "operator": "In",
+     "values": [
+      "spot"
+     ]
+    }
+   ]
+  },
+  "status": {
+   "allocatable": {
+    "cpu": "2",
+    "memory": "4Gi",
+    "pods": "58"
+   },
+   "capacity": {
+    "cpu": "2",
+    "memory": "4Gi",
+    "pods": "58"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Launched",
+     "status": "True",
+     "type": "Launched"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Registered",
+     "status": "True",
+     "type": "Registered"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Initialized",
+     "status": "True",
+     "type": "Initialized"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Consolidatable",
+     "status": "True",
+     "type": "Consolidatable"
+    }
+   ],
+   "imageID": "ami-0f1e2d3c4b5a69780",
+   "nodeName": "ip-10-0-3-56.eu-west-3.compute.internal",
+   "providerID": "aws:///eu-west-3a/i-0a1b2c3d4e5f60003"
+  }
+ },
+ {
+  "apiVersion": "karpenter.sh/v1",
+  "kind": "NodeClaim",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "labels": {
+    "karpenter.sh/capacity-type": "spot",
+    "karpenter.sh/nodepool": "default",
+    "node.kubernetes.io/instance-type": "m5.xlarge",
+    "topology.kubernetes.io/zone": "eu-west-3b"
+   },
+   "name": "default-m4q9z",
+   "resourceVersion": "6780",
+   "uid": "8df21525-7229-4c56-a038-466b18ffcdf1"
+  },
+  "spec": {
+   "expireAfter": "720h",
+   "nodeClassRef": {
+    "group": "karpenter.k8s.aws",
+    "kind": "EC2NodeClass",
+    "name": "default"
+   },
+   "requirements": [
+    {
+     "key": "karpenter.sh/capacity-type",
+     "operator": "In",
+     "values": [
+      "spot"
+     ]
+    }
+   ]
+  },
+  "status": {
+   "allocatable": {
+    "cpu": "4",
+    "memory": "16Gi",
+    "pods": "58"
+   },
+   "capacity": {
+    "cpu": "4",
+    "memory": "16Gi",
+    "pods": "58"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Launched",
+     "status": "True",
+     "type": "Launched"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Registered",
+     "status": "True",
+     "type": "Registered"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Initialized",
+     "status": "True",
+     "type": "Initialized"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "NodeClass spec changed (AMI)",
+     "reason": "NodeClassDrift",
+     "status": "True",
+     "type": "Drifted"
+    }
+   ],
+   "imageID": "ami-0f1e2d3c4b5a69780",
+   "nodeName": "ip-10-0-2-34.eu-west-3.compute.internal",
+   "providerID": "aws:///eu-west-3a/i-0a1b2c3d4e5f60002"
+  }
+ },
+ {
+  "apiVersion": "karpenter.sh/v1",
+  "kind": "NodeClaim",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "labels": {
+    "karpenter.sh/capacity-type": "on-demand",
+    "karpenter.sh/nodepool": "default",
+    "node.kubernetes.io/instance-type": "m5.large",
+    "topology.kubernetes.io/zone": "eu-west-3a"
+   },
+   "name": "default-x7k2p",
+   "resourceVersion": "6778",
+   "uid": "7ec1d560-9fa3-450c-a6b1-b1470fc6f8e9"
+  },
+  "spec": {
+   "expireAfter": "720h",
+   "nodeClassRef": {
+    "group": "karpenter.k8s.aws",
+    "kind": "EC2NodeClass",
+    "name": "default"
+   },
+   "requirements": [
+    {
+     "key": "karpenter.sh/capacity-type",
+     "operator": "In",
+     "values": [
+      "on-demand"
+     ]
+    }
+   ]
+  },
+  "status": {
+   "allocatable": {
+    "cpu": "2",
+    "memory": "8Gi",
+    "pods": "58"
+   },
+   "capacity": {
+    "cpu": "2",
+    "memory": "8Gi",
+    "pods": "58"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Launched",
+     "status": "True",
+     "type": "Launched"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Registered",
+     "status": "True",
+     "type": "Registered"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Initialized",
+     "status": "True",
+     "type": "Initialized"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "imageID": "ami-0f1e2d3c4b5a69780",
+   "nodeName": "ip-10-0-1-21.eu-west-3.compute.internal",
+   "providerID": "aws:///eu-west-3a/i-0a1b2c3d4e5f60001"
+  }
+ },
+ {
+  "apiVersion": "karpenter.sh/v1",
+  "kind": "NodeClaim",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "labels": {
+    "karpenter.sh/nodepool": "gpu"
+   },
+   "name": "gpu-pending-b8d3k",
+   "resourceVersion": "6784",
+   "uid": "8d170c9b-078d-4f7c-8c86-4a3227e46536"
+  },
+  "spec": {
+   "expireAfter": "720h",
+   "nodeClassRef": {
+    "group": "karpenter.k8s.aws",
+    "kind": "EC2NodeClass",
+    "name": "gpu"
+   },
+   "requirements": [
+    {
+     "key": "karpenter.k8s.aws/instance-family",
+     "operator": "In",
+     "values": [
+      "g5"
+     ]
+    }
+   ]
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "all requested instance types were unavailable during launch",
+     "reason": "InsufficientCapacity",
+     "status": "False",
+     "type": "Launched"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "Node not launched",
+     "reason": "NotLaunched",
+     "status": "False",
+     "type": "Ready"
+    }
+   ]
+  }
+ },
+ {
+  "apiVersion": "karpenter.sh/v1",
+  "kind": "NodeClaim",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "generation": 1,
+   "labels": {
+    "karpenter.sh/capacity-type": "on-demand",
+    "karpenter.sh/nodepool": "gpu",
+    "node.kubernetes.io/instance-type": "g5.xlarge",
+    "topology.kubernetes.io/zone": "eu-west-3a"
+   },
+   "name": "gpu-r5t1n",
+   "resourceVersion": "6783",
+   "uid": "04c32b35-4dd8-4be2-b0a5-00c5ec0982dd"
+  },
+  "spec": {
+   "expireAfter": "720h",
+   "nodeClassRef": {
+    "group": "karpenter.k8s.aws",
+    "kind": "EC2NodeClass",
+    "name": "gpu"
+   },
+   "requirements": [
+    {
+     "key": "karpenter.k8s.aws/instance-family",
+     "operator": "In",
+     "values": [
+      "g5"
+     ]
+    }
+   ]
+  },
+  "status": {
+   "allocatable": {
+    "cpu": "4",
+    "memory": "16Gi",
+    "pods": "58"
+   },
+   "capacity": {
+    "cpu": "4",
+    "memory": "16Gi",
+    "pods": "58"
+   },
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Launched",
+     "status": "True",
+     "type": "Launched"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Registered",
+     "status": "True",
+     "type": "Registered"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Initialized",
+     "status": "True",
+     "type": "Initialized"
+    },
+    {
+     "lastTransitionTime": "2026-10-18T18:53:17Z",
+     "message": "",
+     "reason": "Ready",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "imageID": "ami-0f1e2d3c4b5a69780",
+   "nodeName": "ip-10-0-1-78.eu-west-3.compute.internal",
+   "providerID": "aws:///eu-west-3a/i-0a1b2c3d4e5f60004"
+  }
+ }
+]

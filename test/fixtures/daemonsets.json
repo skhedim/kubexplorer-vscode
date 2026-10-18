@@ -15,7 +15,7 @@
    },
    "name": "kindnet",
    "namespace": "kube-system",
-   "resourceVersion": "556",
+   "resourceVersion": "12942",
    "uid": "3213da34-9658-4940-a927-d530dce9d1ae"
   },
   "spec": {
@@ -156,13 +156,14 @@
    }
   },
   "status": {
-   "currentNumberScheduled": 3,
-   "desiredNumberScheduled": 3,
-   "numberAvailable": 3,
+   "currentNumberScheduled": 7,
+   "desiredNumberScheduled": 7,
+   "numberAvailable": 5,
    "numberMisscheduled": 0,
-   "numberReady": 3,
+   "numberReady": 5,
+   "numberUnavailable": 2,
    "observedGeneration": 1,
-   "updatedNumberScheduled": 3
+   "updatedNumberScheduled": 7
   }
  },
  {
@@ -179,7 +180,7 @@
    },
    "name": "kube-proxy",
    "namespace": "kube-system",
-   "resourceVersion": "522",
+   "resourceVersion": "6703",
    "uid": "6b493d26-6198-4d06-b65a-ff38dc03d59c"
   },
   "spec": {
@@ -292,13 +293,13 @@
    }
   },
   "status": {
-   "currentNumberScheduled": 3,
-   "desiredNumberScheduled": 3,
-   "numberAvailable": 3,
+   "currentNumberScheduled": 7,
+   "desiredNumberScheduled": 7,
+   "numberAvailable": 7,
    "numberMisscheduled": 0,
-   "numberReady": 3,
+   "numberReady": 7,
    "observedGeneration": 1,
-   "updatedNumberScheduled": 3
+   "updatedNumberScheduled": 7
   }
  },
  {
@@ -312,7 +313,7 @@
    "generation": 1,
    "name": "node-agent",
    "namespace": "monitoring",
-   "resourceVersion": "875",
+   "resourceVersion": "6695",
    "uid": "b1344894-78ba-469f-b1f9-afd877e803fa"
   },
   "spec": {
@@ -377,13 +378,231 @@
    }
   },
   "status": {
-   "currentNumberScheduled": 3,
-   "desiredNumberScheduled": 3,
-   "numberAvailable": 3,
+   "currentNumberScheduled": 7,
+   "desiredNumberScheduled": 7,
+   "numberAvailable": 7,
    "numberMisscheduled": 0,
-   "numberReady": 3,
+   "numberReady": 7,
    "observedGeneration": 1,
-   "updatedNumberScheduled": 3
+   "updatedNumberScheduled": 7
+  }
+ },
+ {
+  "apiVersion": "apps/v1",
+  "kind": "DaemonSet",
+  "metadata": {
+   "annotations": {
+    "deprecated.daemonset.template.generation": "1",
+    "meta.helm.sh/release-name": "prometheus",
+    "meta.helm.sh/release-namespace": "monitoring"
+   },
+   "creationTimestamp": "2026-10-18T18:53:24Z",
+   "generation": 1,
+   "labels": {
+    "app.kubernetes.io/component": "metrics",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus-node-exporter",
+    "app.kubernetes.io/part-of": "prometheus-node-exporter",
+    "app.kubernetes.io/version": "1.12.1",
+    "helm.sh/chart": "prometheus-node-exporter-4.60.0"
+   },
+   "name": "prometheus-prometheus-node-exporter",
+   "namespace": "monitoring",
+   "resourceVersion": "6950",
+   "uid": "f9f4b352-3779-4ed0-a6cd-601b29b5973f"
+  },
+  "spec": {
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app.kubernetes.io/instance": "prometheus",
+     "app.kubernetes.io/name": "prometheus-node-exporter"
+    }
+   },
+   "template": {
+    "metadata": {
+     "annotations": {
+      "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+     },
+     "creationTimestamp": null,
+     "labels": {
+      "app.kubernetes.io/component": "metrics",
+      "app.kubernetes.io/instance": "prometheus",
+      "app.kubernetes.io/managed-by": "Helm",
+      "app.kubernetes.io/name": "prometheus-node-exporter",
+      "app.kubernetes.io/part-of": "prometheus-node-exporter",
+      "app.kubernetes.io/version": "1.12.1"
+     }
+    },
+    "spec": {
+     "affinity": {
+      "nodeAffinity": {
+       "requiredDuringSchedulingIgnoredDuringExecution": {
+        "nodeSelectorTerms": [
+         {
+          "matchExpressions": [
+           {
+            "key": "eks.amazonaws.com/compute-type",
+            "operator": "NotIn",
+            "values": [
+             "fargate"
+            ]
+           },
+           {
+            "key": "type",
+            "operator": "NotIn",
+            "values": [
+             "virtual-kubelet"
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     },
+     "automountServiceAccountToken": false,
+     "containers": [
+      {
+       "args": [
+        "--path.procfs=/host/proc",
+        "--path.sysfs=/host/sys",
+        "--path.rootfs=/host/root",
+        "--path.udev.data=/host/root/run/udev/data",
+        "--web.listen-address=[$(HOST_IP)]:9100",
+        "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/containerd/.+|var/lib/docker/.+|var/lib/kubelet/.+)($|/)",
+        "--collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|erofs)$"
+       ],
+       "env": [
+        {
+         "name": "HOST_IP",
+         "value": "0.0.0.0"
+        }
+       ],
+       "image": "quay.io/prometheus/node-exporter:v1.12.1",
+       "imagePullPolicy": "IfNotPresent",
+       "livenessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/",
+         "port": "metrics",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "name": "node-exporter",
+       "ports": [
+        {
+         "containerPort": 9100,
+         "name": "metrics",
+         "protocol": "TCP"
+        }
+       ],
+       "readinessProbe": {
+        "failureThreshold": 3,
+        "httpGet": {
+         "path": "/",
+         "port": "metrics",
+         "scheme": "HTTP"
+        },
+        "periodSeconds": 10,
+        "successThreshold": 1,
+        "timeoutSeconds": 1
+       },
+       "resources": {},
+       "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "readOnlyRootFilesystem": true
+       },
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/host/proc",
+         "name": "proc",
+         "readOnly": true
+        },
+        {
+         "mountPath": "/host/sys",
+         "name": "sys",
+         "readOnly": true
+        },
+        {
+         "mountPath": "/host/root",
+         "mountPropagation": "HostToContainer",
+         "name": "root",
+         "readOnly": true
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "hostNetwork": true,
+     "hostPID": true,
+     "nodeSelector": {
+      "kubernetes.io/os": "linux"
+     },
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {
+      "fsGroup": 65534,
+      "runAsGroup": 65534,
+      "runAsNonRoot": true,
+      "runAsUser": 65534
+     },
+     "serviceAccount": "prometheus-prometheus-node-exporter",
+     "serviceAccountName": "prometheus-prometheus-node-exporter",
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoSchedule",
+       "operator": "Exists"
+      }
+     ],
+     "volumes": [
+      {
+       "hostPath": {
+        "path": "/proc",
+        "type": ""
+       },
+       "name": "proc"
+      },
+      {
+       "hostPath": {
+        "path": "/sys",
+        "type": ""
+       },
+       "name": "sys"
+      },
+      {
+       "hostPath": {
+        "path": "/",
+        "type": ""
+       },
+       "name": "root"
+      }
+     ]
+    }
+   },
+   "updateStrategy": {
+    "rollingUpdate": {
+     "maxSurge": 0,
+     "maxUnavailable": 1
+    },
+    "type": "RollingUpdate"
+   }
+  },
+  "status": {
+   "currentNumberScheduled": 7,
+   "desiredNumberScheduled": 7,
+   "numberAvailable": 7,
+   "numberMisscheduled": 0,
+   "numberReady": 7,
+   "observedGeneration": 1,
+   "updatedNumberScheduled": 7
   }
  }
 ]

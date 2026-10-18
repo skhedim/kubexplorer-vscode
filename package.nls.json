@@ -23,6 +23,9 @@
   "action.scale": "Scale...",
   "action.restart": "Restart",
   "action.trigger": "Trigger Now",
+  "action.reconcile": "Reconcile",
+  "action.suspend": "Suspend",
+  "action.resume": "Resume",
   "action.install": "Install...",
   "action.values": "Values",
   "action.manifest": "Manifest",
@@ -42,5 +45,6 @@
   "config.appearance.freelens": "Use the original dark palette of Freelens.",
   "config.confirmApply": "Ask for confirmation before applying a saved YAML document to the cluster.",
   "config.logs.tailLines": "Number of past log lines shown when opening logs.",
+  "config.prometheus": "Prometheus service of the usage charts, as `namespace/service:port` (e.g. `monitoring/prometheus-server:80`), reached through the API server proxy. Empty: detected among the services of the cluster. `off`: use only the samples of metrics-server.",
   "config.demoCluster": "Add a fictitious, offline demo cluster to the Clusters view."
 }

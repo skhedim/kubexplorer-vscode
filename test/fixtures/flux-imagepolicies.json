@@ -1,0 +1,46 @@
+[
+ {
+  "apiVersion": "image.toolkit.fluxcd.io/v1",
+  "kind": "ImagePolicy",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "finalizers": [
+    "finalizers.fluxcd.io"
+   ],
+   "generation": 1,
+   "name": "podinfo",
+   "namespace": "flux-system",
+   "resourceVersion": "6447",
+   "uid": "7916934b-9df3-4410-a9a4-9ab631ae60ab"
+  },
+  "spec": {
+   "digestReflectionPolicy": "Never",
+   "imageRepositoryRef": {
+    "name": "podinfo"
+   },
+   "policy": {
+    "semver": {
+     "range": ">=6.0.0"
+    }
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-18T18:52:56Z",
+     "message": "Latest image tag for ghcr.io/stefanprodan/podinfo resolved to 6.15.0",
+     "observedGeneration": 1,
+     "reason": "Succeeded",
+     "status": "True",
+     "type": "Ready"
+    }
+   ],
+   "latestRef": {
+    "name": "ghcr.io/stefanprodan/podinfo",
+    "tag": "6.15.0"
+   },
+   "observedGeneration": 1
+  }
+ }
+]

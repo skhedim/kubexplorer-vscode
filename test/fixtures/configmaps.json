@@ -9,11 +9,62 @@
    "annotations": {
     "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
    },
+   "creationTimestamp": "2026-10-18T18:52:50Z",
+   "name": "kube-root-ca.crt",
+   "namespace": "apps",
+   "resourceVersion": "6189",
+   "uid": "9eea575d-7b22-482a-90ef-c5393cf6df02"
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "data": {
+   "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIOobbv/Kk60IwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjEwMTgxODAwNDhaFw0zNjEwMTUxODA1NDhaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQCubmxt86zd3LdOXGt5V66UFV176n3KALHaWo+EKvKwS4/qFcWCGHbqYqnf\nRfkEy5eKigUDhCiwK7FGpM0EBuAKFfSRMSBMo+Nm/0VcLuS1HaETmJFY9QqjK6Rx\njy2S8H8caG0Vyx5WUIG2lz2ojrnaFbn4aVeSBVh1057RLUp8fp1g5wGVgG8d6taQ\nbEI193msdsfYZYMA9PupbmPEKGer2k6ivBJ9jy5loHzMjUaMGVM46H+eWtwtZS8a\njTKRRZXueZVYryKTNzXDLTBzjRufYlbwm/zlGygWEX/YTpbknqkRzgvIef4Zctrf\nuxLjnyMvkHF6fiOSpBk5Q3nkm73BAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSWzXkO8dag+EKZb2nQ2HOz86MjwTAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQCRnlAIJmAP\nhMQ6AjmBaGr+1zY6cGMj2RZtrsK3Rd1UlnVnloOKuNYCFmUtZYSaATuoyjWahhD6\nBGTYK9A6L3A1tERObPPrgfREeJ1G+amIShlG4S4yh1R09Kfq+LjnzY24n0IehrGt\nFBHIoL9JpY36peLGilbItfsa4Irvlqp66/a1wlXyQvfKB/e0C9RBGG/ovP0In7iV\nfMA0bKbCxt30dBEaHw2MQdS/YtwMxmEYzYU6+KBAf4WBl7ewSmCIQjXXi65zNkmB\nNhvwJGh+IlkD6ATPYGcdS1XYmfAJlG05FzHOT6wkBX0k2vpm11BpNLVk5hCU3jEB\ng5OvNpwXB8aB\n-----END CERTIFICATE-----\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+   "annotations": {
+    "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+   },
+   "creationTimestamp": "2026-10-18T18:53:17Z",
+   "name": "kube-root-ca.crt",
+   "namespace": "batch",
+   "resourceVersion": "6707",
+   "uid": "d7a9ae51-7454-450e-acd0-c0642160fb01"
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "data": {
+   "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIOobbv/Kk60IwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjEwMTgxODAwNDhaFw0zNjEwMTUxODA1NDhaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQCubmxt86zd3LdOXGt5V66UFV176n3KALHaWo+EKvKwS4/qFcWCGHbqYqnf\nRfkEy5eKigUDhCiwK7FGpM0EBuAKFfSRMSBMo+Nm/0VcLuS1HaETmJFY9QqjK6Rx\njy2S8H8caG0Vyx5WUIG2lz2ojrnaFbn4aVeSBVh1057RLUp8fp1g5wGVgG8d6taQ\nbEI193msdsfYZYMA9PupbmPEKGer2k6ivBJ9jy5loHzMjUaMGVM46H+eWtwtZS8a\njTKRRZXueZVYryKTNzXDLTBzjRufYlbwm/zlGygWEX/YTpbknqkRzgvIef4Zctrf\nuxLjnyMvkHF6fiOSpBk5Q3nkm73BAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSWzXkO8dag+EKZb2nQ2HOz86MjwTAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQCRnlAIJmAP\nhMQ6AjmBaGr+1zY6cGMj2RZtrsK3Rd1UlnVnloOKuNYCFmUtZYSaATuoyjWahhD6\nBGTYK9A6L3A1tERObPPrgfREeJ1G+amIShlG4S4yh1R09Kfq+LjnzY24n0IehrGt\nFBHIoL9JpY36peLGilbItfsa4Irvlqp66/a1wlXyQvfKB/e0C9RBGG/ovP0In7iV\nfMA0bKbCxt30dBEaHw2MQdS/YtwMxmEYzYU6+KBAf4WBl7ewSmCIQjXXi65zNkmB\nNhvwJGh+IlkD6ATPYGcdS1XYmfAJlG05FzHOT6wkBX0k2vpm11BpNLVk5hCU3jEB\ng5OvNpwXB8aB\n-----END CERTIFICATE-----\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+   "annotations": {
+    "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+   },
    "creationTimestamp": "2026-10-18T18:06:11Z",
    "name": "kube-root-ca.crt",
    "namespace": "default",
    "resourceVersion": "344",
    "uid": "af1db687-ce97-460f-a222-a07a247e80a3"
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "data": {
+   "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIOobbv/Kk60IwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjEwMTgxODAwNDhaFw0zNjEwMTUxODA1NDhaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQCubmxt86zd3LdOXGt5V66UFV176n3KALHaWo+EKvKwS4/qFcWCGHbqYqnf\nRfkEy5eKigUDhCiwK7FGpM0EBuAKFfSRMSBMo+Nm/0VcLuS1HaETmJFY9QqjK6Rx\njy2S8H8caG0Vyx5WUIG2lz2ojrnaFbn4aVeSBVh1057RLUp8fp1g5wGVgG8d6taQ\nbEI193msdsfYZYMA9PupbmPEKGer2k6ivBJ9jy5loHzMjUaMGVM46H+eWtwtZS8a\njTKRRZXueZVYryKTNzXDLTBzjRufYlbwm/zlGygWEX/YTpbknqkRzgvIef4Zctrf\nuxLjnyMvkHF6fiOSpBk5Q3nkm73BAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSWzXkO8dag+EKZb2nQ2HOz86MjwTAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQCRnlAIJmAP\nhMQ6AjmBaGr+1zY6cGMj2RZtrsK3Rd1UlnVnloOKuNYCFmUtZYSaATuoyjWahhD6\nBGTYK9A6L3A1tERObPPrgfREeJ1G+amIShlG4S4yh1R09Kfq+LjnzY24n0IehrGt\nFBHIoL9JpY36peLGilbItfsa4Irvlqp66/a1wlXyQvfKB/e0C9RBGG/ovP0In7iV\nfMA0bKbCxt30dBEaHw2MQdS/YtwMxmEYzYU6+KBAf4WBl7ewSmCIQjXXi65zNkmB\nNhvwJGh+IlkD6ATPYGcdS1XYmfAJlG05FzHOT6wkBX0k2vpm11BpNLVk5hCU3jEB\ng5OvNpwXB8aB\n-----END CERTIFICATE-----\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+   "annotations": {
+    "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+   },
+   "creationTimestamp": "2026-10-18T18:51:51Z",
+   "name": "kube-root-ca.crt",
+   "namespace": "flux-system",
+   "resourceVersion": "5759",
+   "uid": "d9ddaaa2-1d75-418c-9296-4100d5629fa4"
   }
  },
  {
@@ -46,7 +97,7 @@
    "creationTimestamp": "2026-10-18T18:06:40Z",
    "name": "web-app-config",
    "namespace": "frontend",
-   "resourceVersion": "1329",
+   "resourceVersion": "5741",
    "uid": "d0294191-662f-41f8-be19-154058a9bd29"
   }
  },
@@ -212,6 +263,24 @@
  {
   "apiVersion": "v1",
   "data": {
+   "kwok.yaml": "apiVersion: config.kwok.x-k8s.io/v1alpha1\nkind: KwokConfiguration\noptions:\n  enableProfilingHandler: false\n  enableContentionProfiling: false\n  enablePodsOnNodeSyncListPager: false\n  enablePodsOnNodeSyncStreamWatch: true\n  nodeLeaseParallelism: 4\n  podPlayStageParallelism: 4\n  nodePlayStageParallelism: 4\n  nodePort: 10247\n  cidr: 10.0.0.0/24\n  manageAllNodes: false\n  manageNodesWithAnnotationSelector: 'kwok.x-k8s.io/node=fake'\n  manageNodesWithLabelSelector: ''\n  manageSingleNode: ''\n  nodeLeaseDurationSeconds: 40\n  enableCRDs:\n  - Stage\n  - Metric\n  - Attach\n  - ClusterAttach\n  - Exec\n  - ClusterExec\n  - Logs\n  - ClusterLogs\n  - PortForward\n  - ClusterPortForward\n  - ResourceUsage\n  - ClusterResourceUsage\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:52:52Z",
+   "labels": {
+    "app": "kwok-controller"
+   },
+   "name": "kwok",
+   "namespace": "kube-system",
+   "resourceVersion": "6336",
+   "uid": "72ee0c4a-56fb-4b83-ab10-f7089fac1fdd"
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "data": {
    "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIOobbv/Kk60IwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjEwMTgxODAwNDhaFw0zNjEwMTUxODA1NDhaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQCubmxt86zd3LdOXGt5V66UFV176n3KALHaWo+EKvKwS4/qFcWCGHbqYqnf\nRfkEy5eKigUDhCiwK7FGpM0EBuAKFfSRMSBMo+Nm/0VcLuS1HaETmJFY9QqjK6Rx\njy2S8H8caG0Vyx5WUIG2lz2ojrnaFbn4aVeSBVh1057RLUp8fp1g5wGVgG8d6taQ\nbEI193msdsfYZYMA9PupbmPEKGer2k6ivBJ9jy5loHzMjUaMGVM46H+eWtwtZS8a\njTKRRZXueZVYryKTNzXDLTBzjRufYlbwm/zlGygWEX/YTpbknqkRzgvIef4Zctrf\nuxLjnyMvkHF6fiOSpBk5Q3nkm73BAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSWzXkO8dag+EKZb2nQ2HOz86MjwTAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQCRnlAIJmAP\nhMQ6AjmBaGr+1zY6cGMj2RZtrsK3Rd1UlnVnloOKuNYCFmUtZYSaATuoyjWahhD6\nBGTYK9A6L3A1tERObPPrgfREeJ1G+amIShlG4S4yh1R09Kfq+LjnzY24n0IehrGt\nFBHIoL9JpY36peLGilbItfsa4Irvlqp66/a1wlXyQvfKB/e0C9RBGG/ovP0In7iV\nfMA0bKbCxt30dBEaHw2MQdS/YtwMxmEYzYU6+KBAf4WBl7ewSmCIQjXXi65zNkmB\nNhvwJGh+IlkD6ATPYGcdS1XYmfAJlG05FzHOT6wkBX0k2vpm11BpNLVk5hCU3jEB\ng5OvNpwXB8aB\n-----END CERTIFICATE-----\n"
   },
   "kind": "ConfigMap",
@@ -259,6 +328,38 @@
    "namespace": "monitoring",
    "resourceVersion": "595",
    "uid": "c6300e52-ebf7-42ce-b603-6b1613ba0a32"
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "data": {
+   "alerting_rules.yml": "{}\n",
+   "alerts": "{}\n",
+   "allow-snippet-annotations": "false",
+   "prometheus.yml": "global:\n  evaluation_interval: 15s\n  scrape_interval: 15s\n  scrape_timeout: 10s\nscrape_configs:\n- job_name: kubernetes-api-servers\n  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n  kubernetes_sd_configs:\n  - role: endpointslice\n  relabel_configs:\n  - action: keep\n    regex: default;kubernetes;https\n    source_labels:\n    - __meta_kubernetes_namespace\n    - __meta_kubernetes_service_name\n    - __meta_kubernetes_endpointslice_port_name\n  scheme: https\n  tls_config:\n    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n- job_name: kubernetes-nodes\n  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n  kubernetes_sd_configs:\n  - role: node\n  relabel_configs:\n  - action: labelmap\n    regex: __meta_kubernetes_node_label_(.+)\n  scheme: https\n  tls_config:\n    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    insecure_skip_verify: true\n- job_name: kubernetes-nodes-cadvisor\n  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n  kubernetes_sd_configs:\n  - role: node\n  metrics_path: /metrics/cadvisor\n  relabel_configs:\n  - action: labelmap\n    regex: __meta_kubernetes_node_label_(.+)\n  - source_labels:\n    - __metrics_path__\n    target_label: metrics_path\n  scheme: https\n  tls_config:\n    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    insecure_skip_verify: true\n- job_name: kubernetes-pods\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: pod\n  relabel_configs:\n  - action: keep\n    regex: true\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_scrape\n  - action: drop\n    regex: true\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow\n  - action: replace\n    regex: (https?)\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_scheme\n    target_label: __scheme__\n  - action: replace\n    regex: (.+)\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_path\n    target_label: __metrics_path__\n  - action: replace\n    regex: (\\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})\n    replacement: '[$2]:$1'\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_port\n    - __meta_kubernetes_pod_ip\n    target_label: __address__\n  - action: replace\n    regex: (\\d+);((([0-9]+?)(\\.|$)){4})\n    replacement: $2:$1\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_port\n    - __meta_kubernetes_pod_ip\n    target_label: __address__\n  - action: labelmap\n    regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)\n    replacement: __param_$1\n  - action: labelmap\n    regex: __meta_kubernetes_pod_label_(.+)\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_namespace\n    target_label: namespace\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_name\n    target_label: pod\n  - action: drop\n    regex: Pending|Succeeded|Failed|Completed\n    source_labels:\n    - __meta_kubernetes_pod_phase\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_node_name\n    target_label: node\n- job_name: kubernetes-pods-slow\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: pod\n  relabel_configs:\n  - action: keep\n    regex: true\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow\n  - action: replace\n    regex: (https?)\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_scheme\n    target_label: __scheme__\n  - action: replace\n    regex: (.+)\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_path\n    target_label: __metrics_path__\n  - action: replace\n    regex: (\\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})\n    replacement: '[$2]:$1'\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_port\n    - __meta_kubernetes_pod_ip\n    target_label: __address__\n  - action: replace\n    regex: (\\d+);((([0-9]+?)(\\.|$)){4})\n    replacement: $2:$1\n    source_labels:\n    - __meta_kubernetes_pod_annotation_prometheus_io_port\n    - __meta_kubernetes_pod_ip\n    target_label: __address__\n  - action: labelmap\n    regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)\n    replacement: __param_$1\n  - action: labelmap\n    regex: __meta_kubernetes_pod_label_(.+)\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_namespace\n    target_label: namespace\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_name\n    target_label: pod\n  - action: drop\n    regex: Pending|Succeeded|Failed|Completed\n    source_labels:\n    - __meta_kubernetes_pod_phase\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_node_name\n    target_label: node\n  scrape_interval: 5m\n  scrape_timeout: 30s\n- job_name: kubernetes-service-endpoints\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: endpointslice\n  relabel_configs:\n  - action: keep\n    regex: true\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_scrape\n  - action: drop\n    regex: true\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow\n  - action: replace\n    regex: (https?)\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_scheme\n    target_label: __scheme__\n  - action: replace\n    regex: (.+)\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_path\n    target_label: __metrics_path__\n  - action: replace\n    regex: (.+?)(?::\\d+)?;(\\d+)\n    replacement: $1:$2\n    source_labels:\n    - __address__\n    - __meta_kubernetes_service_annotation_prometheus_io_port\n    target_label: __address__\n  - action: labelmap\n    regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)\n    replacement: __param_$1\n  - action: labelmap\n    regex: __meta_kubernetes_service_label_(.+)\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_namespace\n    target_label: namespace\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_service_name\n    target_label: service\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_node_name\n    target_label: node\n- job_name: kubernetes-service-endpoints-slow\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: endpointslice\n  relabel_configs:\n  - action: keep\n    regex: true\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow\n  - action: replace\n    regex: (https?)\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_scheme\n    target_label: __scheme__\n  - action: replace\n    regex: (.+)\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_path\n    target_label: __metrics_path__\n  - action: replace\n    regex: (.+?)(?::\\d+)?;(\\d+)\n    replacement: $1:$2\n    source_labels:\n    - __address__\n    - __meta_kubernetes_service_annotation_prometheus_io_port\n    target_label: __address__\n  - action: labelmap\n    regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)\n    replacement: __param_$1\n  - action: labelmap\n    regex: __meta_kubernetes_service_label_(.+)\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_namespace\n    target_label: namespace\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_service_name\n    target_label: service\n  - action: replace\n    source_labels:\n    - __meta_kubernetes_pod_node_name\n    target_label: node\n  scrape_interval: 5m\n  scrape_timeout: 30s\n- job_name: kubernetes-services\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: service\n  metrics_path: /probe\n  params:\n    module:\n    - http_2xx\n  relabel_configs:\n  - action: keep\n    regex: true\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_probe\n  - source_labels:\n    - __address__\n    target_label: __param_target\n  - replacement: blackbox\n    target_label: __address__\n  - source_labels:\n    - __param_target\n    target_label: instance\n  - action: labelmap\n    regex: __meta_kubernetes_service_label_(.+)\n  - source_labels:\n    - __meta_kubernetes_namespace\n    target_label: namespace\n  - source_labels:\n    - __meta_kubernetes_service_name\n    target_label: service\n- job_name: prometheus\n  static_configs:\n  - targets:\n    - localhost:9090\n- job_name: prometheus-pushgateway\n  honor_labels: true\n  kubernetes_sd_configs:\n  - role: service\n  relabel_configs:\n  - action: keep\n    regex: pushgateway\n    source_labels:\n    - __meta_kubernetes_service_annotation_prometheus_io_probe\nrule_files:\n- /etc/config/recording_rules.yml\n- /etc/config/alerting_rules.yml\n- /etc/config/rules\n- /etc/config/alerts\n",
+   "recording_rules.yml": "{}\n",
+   "rules": "{}\n"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "prometheus",
+    "meta.helm.sh/release-namespace": "monitoring"
+   },
+   "creationTimestamp": "2026-10-18T18:53:24Z",
+   "labels": {
+    "app.kubernetes.io/component": "server",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus",
+    "app.kubernetes.io/part-of": "prometheus",
+    "app.kubernetes.io/version": "v3.15.0",
+    "helm.sh/chart": "prometheus-29.37.0"
+   },
+   "name": "prometheus-server",
+   "namespace": "monitoring",
+   "resourceVersion": "6814",
+   "uid": "78fba49c-c7c5-4433-9900-3c3be5b18b76"
   }
  },
  {

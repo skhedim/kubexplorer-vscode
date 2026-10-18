@@ -3,16 +3,301 @@
   "apiVersion": "metrics.k8s.io/v1beta1",
   "containers": [
    {
-    "name": "web",
+    "name": "podinfod",
     "usage": {
-     "cpu": "0",
-     "memory": "16360Ki"
+     "cpu": "4457374n",
+     "memory": "27584Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "podinfo",
+    "pod-template-hash": "85bbd5b9c5"
+   },
+   "name": "podinfo-85bbd5b9c5-f5tqm",
+   "namespace": "apps"
+  },
+  "timestamp": "2026-10-18T19:18:35Z",
+  "window": "18.97s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "podinfod",
+    "usage": {
+     "cpu": "3890414n",
+     "memory": "24776Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "podinfo",
+    "pod-template-hash": "85bbd5b9c5"
+   },
+   "name": "podinfo-85bbd5b9c5-snbpf",
+   "namespace": "apps"
+  },
+  "timestamp": "2026-10-18T19:18:31Z",
+  "window": "10.099s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "podinfo",
+    "usage": {
+     "cpu": "4596028n",
+     "memory": "27800Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/name": "podinfo-https",
+    "pod-template-hash": "5f4d49c8d9"
+   },
+   "name": "podinfo-https-5f4d49c8d9-dkc6n",
+   "namespace": "apps"
+  },
+  "timestamp": "2026-10-18T19:18:26Z",
+  "window": "19.64s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "podinfo",
+    "usage": {
+     "cpu": "5183067n",
+     "memory": "32956Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/name": "podinfo-oci",
+    "pod-template-hash": "55957c96c7"
+   },
+   "name": "podinfo-oci-55957c96c7-mm78l",
+   "namespace": "apps"
+  },
+  "timestamp": "2026-10-18T19:18:22Z",
+  "window": "11.475s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "1234835n",
+     "memory": "25712Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "helm-controller",
+    "app.kubernetes.io/component": "helm-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "68b448d45f"
+   },
+   "name": "helm-controller-68b448d45f-w6zzg",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:32Z",
+  "window": "29.484s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "1201247n",
+     "memory": "18536Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "image-automation-controller",
+    "app.kubernetes.io/component": "image-automation-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "96d8666cf"
+   },
+   "name": "image-automation-controller-96d8666cf-hcw2c",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:27Z",
+  "window": "12.983s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "13067701n",
+     "memory": "27412Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "image-reflector-controller",
+    "app.kubernetes.io/component": "image-reflector-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "6b79485"
+   },
+   "name": "image-reflector-controller-6b79485-d4wwv",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:22Z",
+  "window": "16.304s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "1589853n",
+     "memory": "36908Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "kustomize-controller",
+    "app.kubernetes.io/component": "kustomize-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "c494dc99d"
+   },
+   "name": "kustomize-controller-c494dc99d-rsthb",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:30Z",
+  "window": "13.108s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "1585851n",
+     "memory": "28308Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "notification-controller",
+    "app.kubernetes.io/component": "notification-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "678c8f8548"
+   },
+   "name": "notification-controller-678c8f8548-9l4n8",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:32Z",
+  "window": "13.542s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "2723350n",
+     "memory": "26204Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "source-controller",
+    "app.kubernetes.io/component": "source-controller",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "9c987cc9b"
+   },
+   "name": "source-controller-9c987cc9b-w7ps9",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:35Z",
+  "window": "17.156s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "manager",
+    "usage": {
+     "cpu": "2716349n",
+     "memory": "17196Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "source-watcher",
+    "app.kubernetes.io/component": "source-watcher",
+    "app.kubernetes.io/instance": "flux-system",
+    "app.kubernetes.io/part-of": "flux",
+    "pod-template-hash": "56cdd96c6b"
+   },
+   "name": "source-watcher-56cdd96c6b-np6s5",
+   "namespace": "flux-system"
+  },
+  "timestamp": "2026-10-18T19:18:34Z",
+  "window": "17.303s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "web",
+    "usage": {
+     "cpu": "0",
+     "memory": "16352Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "shop-landing",
     "pod-template-hash": "6f9f8bccf8"
@@ -20,8 +305,8 @@
    "name": "shop-landing-6f9f8bccf8-jcqd9",
    "namespace": "frontend"
   },
-  "timestamp": "2026-10-18T18:13:01Z",
-  "window": "10.661s"
+  "timestamp": "2026-10-18T19:18:22Z",
+  "window": "11.906s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -29,7 +314,7 @@
    {
     "name": "log-shipper",
     "usage": {
-     "cpu": "40580n",
+     "cpu": "34798n",
      "memory": "404Ki"
     }
    },
@@ -37,13 +322,13 @@
     "name": "nginx",
     "usage": {
      "cpu": "0",
-     "memory": "16340Ki"
+     "memory": "16336Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "web-app",
     "app.kubernetes.io/part-of": "shop",
@@ -52,8 +337,8 @@
    "name": "web-app-7b68b4bc85-6svhd",
    "namespace": "frontend"
   },
-  "timestamp": "2026-10-18T18:12:57Z",
-  "window": "28.749s"
+  "timestamp": "2026-10-18T19:18:19Z",
+  "window": "19.381s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -62,20 +347,20 @@
     "name": "nginx",
     "usage": {
      "cpu": "0",
-     "memory": "16524Ki"
+     "memory": "16556Ki"
     }
    },
    {
     "name": "log-shipper",
     "usage": {
-     "cpu": "46068n",
+     "cpu": "44472n",
      "memory": "392Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "web-app",
     "app.kubernetes.io/part-of": "shop",
@@ -84,8 +369,8 @@
    "name": "web-app-7b68b4bc85-n4mql",
    "namespace": "frontend"
   },
-  "timestamp": "2026-10-18T18:12:49Z",
-  "window": "18.796s"
+  "timestamp": "2026-10-18T19:18:24Z",
+  "window": "10.217s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -93,7 +378,7 @@
    {
     "name": "log-shipper",
     "usage": {
-     "cpu": "41459n",
+     "cpu": "35879n",
      "memory": "392Ki"
     }
    },
@@ -101,13 +386,13 @@
     "name": "nginx",
     "usage": {
      "cpu": "0",
-     "memory": "16540Ki"
+     "memory": "16520Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "web-app",
     "app.kubernetes.io/part-of": "shop",
@@ -116,8 +401,8 @@
    "name": "web-app-7b68b4bc85-qsbd7",
    "namespace": "frontend"
   },
-  "timestamp": "2026-10-18T18:13:00Z",
-  "window": "14.706s"
+  "timestamp": "2026-10-18T19:18:20Z",
+  "window": "19.287s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -125,14 +410,14 @@
    {
     "name": "coredns",
     "usage": {
-     "cpu": "2211114n",
-     "memory": "16388Ki"
+     "cpu": "2935807n",
+     "memory": "37504Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "k8s-app": "kube-dns",
     "pod-template-hash": "6f6b679f8f"
@@ -140,8 +425,8 @@
    "name": "coredns-6f6b679f8f-pcg48",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:13:05Z",
-  "window": "18.643s"
+  "timestamp": "2026-10-18T19:18:36Z",
+  "window": "25.414s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -149,14 +434,14 @@
    {
     "name": "coredns",
     "usage": {
-     "cpu": "2051620n",
-     "memory": "16204Ki"
+     "cpu": "2063771n",
+     "memory": "42140Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "k8s-app": "kube-dns",
     "pod-template-hash": "6f6b679f8f"
@@ -164,8 +449,8 @@
    "name": "coredns-6f6b679f8f-sqdg8",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:55Z",
-  "window": "12.652s"
+  "timestamp": "2026-10-18T19:18:36Z",
+  "window": "19.852s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -173,14 +458,14 @@
    {
     "name": "etcd",
     "usage": {
-     "cpu": "32380107n",
-     "memory": "38052Ki"
+     "cpu": "50351025n",
+     "memory": "77144Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "component": "etcd",
     "tier": "control-plane"
@@ -188,8 +473,8 @@
    "name": "etcd-kubexplorer-control-plane",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:13:01Z",
-  "window": "16.001s"
+  "timestamp": "2026-10-18T19:18:19Z",
+  "window": "17.448s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -197,68 +482,14 @@
    {
     "name": "kindnet-cni",
     "usage": {
-     "cpu": "566174n",
-     "memory": "9968Ki"
+     "cpu": "573842n",
+     "memory": "20488Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
-   "labels": {
-    "app": "kindnet",
-    "controller-revision-hash": "6686867fb7",
-    "k8s-app": "kindnet",
-    "pod-template-generation": "1",
-    "tier": "node"
-   },
-   "name": "kindnet-4lwpf",
-   "namespace": "kube-system"
-  },
-  "timestamp": "2026-10-18T18:12:56Z",
-  "window": "19.648s"
- },
- {
-  "apiVersion": "metrics.k8s.io/v1beta1",
-  "containers": [
-   {
-    "name": "kindnet-cni",
-    "usage": {
-     "cpu": "861051n",
-     "memory": "10688Ki"
-    }
-   }
-  ],
-  "kind": "PodMetrics",
-  "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
-   "labels": {
-    "app": "kindnet",
-    "controller-revision-hash": "6686867fb7",
-    "k8s-app": "kindnet",
-    "pod-template-generation": "1",
-    "tier": "node"
-   },
-   "name": "kindnet-j4f9d",
-   "namespace": "kube-system"
-  },
-  "timestamp": "2026-10-18T18:13:03Z",
-  "window": "12.966s"
- },
- {
-  "apiVersion": "metrics.k8s.io/v1beta1",
-  "containers": [
-   {
-    "name": "kindnet-cni",
-    "usage": {
-     "cpu": "311405n",
-     "memory": "10224Ki"
-    }
-   }
-  ],
-  "kind": "PodMetrics",
-  "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app": "kindnet",
     "controller-revision-hash": "6686867fb7",
@@ -269,8 +500,8 @@
    "name": "kindnet-sn92m",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:59Z",
-  "window": "18.088s"
+  "timestamp": "2026-10-18T19:18:36Z",
+  "window": "24.765s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -278,14 +509,14 @@
    {
     "name": "kube-apiserver",
     "usage": {
-     "cpu": "50585897n",
-     "memory": "232464Ki"
+     "cpu": "135432428n",
+     "memory": "407264Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "component": "kube-apiserver",
     "tier": "control-plane"
@@ -293,8 +524,8 @@
    "name": "kube-apiserver-kubexplorer-control-plane",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:59Z",
-  "window": "15.799s"
+  "timestamp": "2026-10-18T19:18:19Z",
+  "window": "19.267s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -302,14 +533,14 @@
    {
     "name": "kube-controller-manager",
     "usage": {
-     "cpu": "24552341n",
-     "memory": "56432Ki"
+     "cpu": "27708854n",
+     "memory": "88012Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "component": "kube-controller-manager",
     "tier": "control-plane"
@@ -317,8 +548,8 @@
    "name": "kube-controller-manager-kubexplorer-control-plane",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:53Z",
-  "window": "16.849s"
+  "timestamp": "2026-10-18T19:18:33Z",
+  "window": "18.916s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -326,14 +557,14 @@
    {
     "name": "kube-proxy",
     "usage": {
-     "cpu": "398684n",
-     "memory": "16908Ki"
+     "cpu": "335343n",
+     "memory": "23316Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "controller-revision-hash": "5976bc5f75",
     "k8s-app": "kube-proxy",
@@ -342,8 +573,8 @@
    "name": "kube-proxy-l7zmz",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:13:05Z",
-  "window": "25.012s"
+  "timestamp": "2026-10-18T19:18:34Z",
+  "window": "19.537s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -351,14 +582,14 @@
    {
     "name": "kube-proxy",
     "usage": {
-     "cpu": "488584n",
-     "memory": "15320Ki"
+     "cpu": "297788n",
+     "memory": "23568Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "controller-revision-hash": "5976bc5f75",
     "k8s-app": "kube-proxy",
@@ -367,8 +598,8 @@
    "name": "kube-proxy-mmcpt",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:13:03Z",
-  "window": "15.855s"
+  "timestamp": "2026-10-18T19:18:35Z",
+  "window": "27.497s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -376,14 +607,14 @@
    {
     "name": "kube-proxy",
     "usage": {
-     "cpu": "449437n",
-     "memory": "13440Ki"
+     "cpu": "447009n",
+     "memory": "22924Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "controller-revision-hash": "5976bc5f75",
     "k8s-app": "kube-proxy",
@@ -392,8 +623,8 @@
    "name": "kube-proxy-vc6cz",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:53Z",
-  "window": "16.544s"
+  "timestamp": "2026-10-18T19:18:32Z",
+  "window": "28.303s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -401,14 +632,14 @@
    {
     "name": "kube-scheduler",
     "usage": {
-     "cpu": "4682572n",
-     "memory": "24192Ki"
+     "cpu": "4372548n",
+     "memory": "32056Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "component": "kube-scheduler",
     "tier": "control-plane"
@@ -416,8 +647,32 @@
    "name": "kube-scheduler-kubexplorer-control-plane",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:13:04Z",
-  "window": "13.129s"
+  "timestamp": "2026-10-18T19:18:19Z",
+  "window": "16.64s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "kwok-controller",
+    "usage": {
+     "cpu": "3431502n",
+     "memory": "30896Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app": "kwok-controller",
+    "pod-template-hash": "6d8fc65865"
+   },
+   "name": "kwok-controller-6d8fc65865-5hqkq",
+   "namespace": "kube-system"
+  },
+  "timestamp": "2026-10-18T19:18:33Z",
+  "window": "17.202s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -425,14 +680,14 @@
    {
     "name": "metrics-server",
     "usage": {
-     "cpu": "4237596n",
-     "memory": "23864Ki"
+     "cpu": "4887912n",
+     "memory": "30464Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "k8s-app": "metrics-server",
     "pod-template-hash": "587b667b55"
@@ -440,8 +695,8 @@
    "name": "metrics-server-587b667b55-2xf5t",
    "namespace": "kube-system"
   },
-  "timestamp": "2026-10-18T18:12:56Z",
-  "window": "18.672s"
+  "timestamp": "2026-10-18T19:18:33Z",
+  "window": "23.67s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -449,14 +704,14 @@
    {
     "name": "local-path-provisioner",
     "usage": {
-     "cpu": "1565015n",
-     "memory": "9400Ki"
+     "cpu": "560467n",
+     "memory": "15776Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app": "local-path-provisioner",
     "pod-template-hash": "57c5987fd4"
@@ -464,8 +719,8 @@
    "name": "local-path-provisioner-57c5987fd4-dj9ln",
    "namespace": "local-path-storage"
   },
-  "timestamp": "2026-10-18T18:13:03Z",
-  "window": "15.95s"
+  "timestamp": "2026-10-18T19:18:26Z",
+  "window": "12.481s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -473,14 +728,14 @@
    {
     "name": "agent",
     "usage": {
-     "cpu": "9863n",
+     "cpu": "6809n",
      "memory": "380Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "node-agent",
     "controller-revision-hash": "6d7bc8c8fd",
@@ -489,8 +744,8 @@
    "name": "node-agent-swf9h",
    "namespace": "monitoring"
   },
-  "timestamp": "2026-10-18T18:13:01Z",
-  "window": "11.122s"
+  "timestamp": "2026-10-18T19:18:29Z",
+  "window": "17.549s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -498,14 +753,14 @@
    {
     "name": "agent",
     "usage": {
-     "cpu": "14105n",
+     "cpu": "10681n",
      "memory": "372Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "node-agent",
     "controller-revision-hash": "6d7bc8c8fd",
@@ -514,8 +769,8 @@
    "name": "node-agent-v2rcp",
    "namespace": "monitoring"
   },
-  "timestamp": "2026-10-18T18:12:50Z",
-  "window": "17.093s"
+  "timestamp": "2026-10-18T19:18:35Z",
+  "window": "16.824s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -523,14 +778,14 @@
    {
     "name": "agent",
     "usage": {
-     "cpu": "6787n",
+     "cpu": "10648n",
      "memory": "396Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "node-agent",
     "controller-revision-hash": "6d7bc8c8fd",
@@ -539,8 +794,134 @@
    "name": "node-agent-vdfwf",
    "namespace": "monitoring"
   },
-  "timestamp": "2026-10-18T18:12:57Z",
-  "window": "12.331s"
+  "timestamp": "2026-10-18T19:18:24Z",
+  "window": "19.871s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "node-exporter",
+    "usage": {
+     "cpu": "1991395n",
+     "memory": "9760Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/component": "metrics",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus-node-exporter",
+    "app.kubernetes.io/part-of": "prometheus-node-exporter",
+    "app.kubernetes.io/version": "1.12.1",
+    "controller-revision-hash": "7584d984dd",
+    "pod-template-generation": "1"
+   },
+   "name": "prometheus-prometheus-node-exporter-24dcx",
+   "namespace": "monitoring"
+  },
+  "timestamp": "2026-10-18T19:18:29Z",
+  "window": "13.609s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "node-exporter",
+    "usage": {
+     "cpu": "1495562n",
+     "memory": "12892Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/component": "metrics",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus-node-exporter",
+    "app.kubernetes.io/part-of": "prometheus-node-exporter",
+    "app.kubernetes.io/version": "1.12.1",
+    "controller-revision-hash": "7584d984dd",
+    "pod-template-generation": "1"
+   },
+   "name": "prometheus-prometheus-node-exporter-gq7fm",
+   "namespace": "monitoring"
+  },
+  "timestamp": "2026-10-18T19:18:35Z",
+  "window": "17.624s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "node-exporter",
+    "usage": {
+     "cpu": "2834758n",
+     "memory": "9532Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/component": "metrics",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/managed-by": "Helm",
+    "app.kubernetes.io/name": "prometheus-node-exporter",
+    "app.kubernetes.io/part-of": "prometheus-node-exporter",
+    "app.kubernetes.io/version": "1.12.1",
+    "controller-revision-hash": "7584d984dd",
+    "pod-template-generation": "1"
+   },
+   "name": "prometheus-prometheus-node-exporter-sdjtk",
+   "namespace": "monitoring"
+  },
+  "timestamp": "2026-10-18T19:18:23Z",
+  "window": "13.401s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "containers": [
+   {
+    "name": "prometheus-server",
+    "usage": {
+     "cpu": "18894258n",
+     "memory": "324952Ki"
+    }
+   },
+   {
+    "name": "prometheus-server-configmap-reload",
+    "usage": {
+     "cpu": "131716n",
+     "memory": "10280Ki"
+    }
+   }
+  ],
+  "kind": "PodMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T19:18:39Z",
+   "labels": {
+    "app.kubernetes.io/component": "server",
+    "app.kubernetes.io/instance": "prometheus",
+    "app.kubernetes.io/name": "prometheus",
+    "app.kubernetes.io/part-of": "prometheus",
+    "app.kubernetes.io/version": "v3.15.0",
+    "helm.sh/chart": "prometheus-29.37.0",
+    "pod-template-hash": "7d87847f6d"
+   },
+   "name": "prometheus-server-7d87847f6d-57jmv",
+   "namespace": "monitoring"
+  },
+  "timestamp": "2026-10-18T19:18:19Z",
+  "window": "14.658s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -548,14 +929,14 @@
    {
     "name": "redis",
     "usage": {
-     "cpu": "6404328n",
-     "memory": "3436Ki"
+     "cpu": "5715301n",
+     "memory": "3440Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "redis",
     "apps.kubernetes.io/pod-index": "0",
@@ -565,8 +946,8 @@
    "name": "redis-0",
    "namespace": "monitoring"
   },
-  "timestamp": "2026-10-18T18:12:56Z",
-  "window": "14.739s"
+  "timestamp": "2026-10-18T19:18:33Z",
+  "window": "14.972s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -574,14 +955,14 @@
    {
     "name": "redis",
     "usage": {
-     "cpu": "6578959n",
-     "memory": "3452Ki"
+     "cpu": "6532174n",
+     "memory": "3448Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "redis",
     "apps.kubernetes.io/pod-index": "1",
@@ -591,8 +972,8 @@
    "name": "redis-1",
    "namespace": "monitoring"
   },
-  "timestamp": "2026-10-18T18:13:01Z",
-  "window": "19.686s"
+  "timestamp": "2026-10-18T19:18:24Z",
+  "window": "19.556s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -600,14 +981,14 @@
    {
     "name": "api",
     "usage": {
-     "cpu": "72469n",
+     "cpu": "65775n",
      "memory": "412Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "payments-api",
     "pod-template-hash": "7b59689f9b"
@@ -615,8 +996,8 @@
    "name": "payments-api-7b59689f9b-gnzfh",
    "namespace": "payments"
   },
-  "timestamp": "2026-10-18T18:13:04Z",
-  "window": "25.299s"
+  "timestamp": "2026-10-18T19:18:26Z",
+  "window": "13.917s"
  },
  {
   "apiVersion": "metrics.k8s.io/v1beta1",
@@ -624,14 +1005,14 @@
    {
     "name": "api",
     "usage": {
-     "cpu": "56934n",
+     "cpu": "60559n",
      "memory": "404Ki"
     }
    }
   ],
   "kind": "PodMetrics",
   "metadata": {
-   "creationTimestamp": "2026-10-18T18:13:20Z",
+   "creationTimestamp": "2026-10-18T19:18:39Z",
    "labels": {
     "app.kubernetes.io/name": "payments-api",
     "pod-template-hash": "7b59689f9b"
@@ -639,7 +1020,7 @@
    "name": "payments-api-7b59689f9b-mz7l4",
    "namespace": "payments"
   },
-  "timestamp": "2026-10-18T18:12:56Z",
-  "window": "17.636s"
+  "timestamp": "2026-10-18T19:18:31Z",
+  "window": "15.801s"
  }
 ]

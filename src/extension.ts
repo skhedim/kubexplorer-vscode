@@ -1,14 +1,17 @@
 // Entry point: wires the layers (kube → resources → panel → vscode) and registers the commands.
 
 import * as vscode from "vscode";
+import { CrdCatalog } from "./kube/crds";
 import { DEMO_CONTEXT } from "./kube/demo";
 import { HelmCli, HelmRouter, helmSources } from "./kube/helm";
 import { KubectlClient } from "./kube/kubectl";
 import { PortForwardManager } from "./kube/portForward";
+import { MetricsRouter, PrometheusClient } from "./kube/prometheus";
 import { RoutingClient } from "./kube/routing";
 import { ResourceStore } from "./kube/store";
 import { PORT_FORWARDS } from "./kube/virtualKinds";
-import { flattenMenu } from "./resources/menu";
+import { MetricsHistory, MetricsService } from "./panel/metrics";
+import { menuOpen, menuTarget } from "./resources/menu";
 import { ResourceRegistry } from "./resources/registry";
 import type { PanelTarget } from "./shared/protocol";
 import { ALL_ACTIONS, type ActionId } from "./shared/view";
@@ -38,15 +41,18 @@ export async function activate(context: vscode.ExtensionContext) {
     log,
   );
   const registry = new ResourceRegistry();
+  const crds = new CrdCatalog(client);
+  const prometheus = new MetricsRouter(new PrometheusClient(client, config.prometheus, log));
+  const metrics = new MetricsService({ backend: prometheus, client, registry, history: new MetricsHistory(), log });
   const store = new ResourceStore(client, { pollIntervalMs: config.pollIntervalMs }, log);
   const state = new ClusterState(context.globalState, client, log);
   const terminals = new Terminals(client);
   const documents = new ReadonlyDocuments();
   const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, log });
-  const panels = new ResourcePanels(context.extensionUri, { registry, store, client, helm, state, actions, log });
+  const panels = new ResourcePanels(context.extensionUri, { registry, store, client, helm, state, actions, metrics, crds, log });
 
   const clustersView = new ClustersView(state);
-  const resourcesView = new ResourcesView(state, client, registry, log);
+  const resourcesView = new ResourcesView(state, crds, registry, log);
   const clustersTree = vscode.window.createTreeView("kubexplorer.clusters", { treeDataProvider: clustersView });
   const resourcesTree = vscode.window.createTreeView<ResourceNode>("kubexplorer.resources", { treeDataProvider: resourcesView });
 
@@ -92,18 +98,21 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, panels),
     state.onDidChangeActive(updateResourcesDescription),
     // The active tab selects the matching entry of the Resources view, like the Freelens side menu.
-    panels.onDidChangeActiveTab(({ context: ctx, target }) => {
+    panels.onDidChangeActiveTab(async ({ context: ctx, target }) => {
       if (ctx !== state.active || !resourcesTree.visible) return;
-      const node = resourcesView.findNode(target.kind === "overview" ? "overview" : target.resource);
+      const node = await resourcesView.findNode(menuOpen(target));
       if (node) void resourcesTree.reveal(node, { select: true, focus: false });
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("kubexplorer.demoCluster") || e.affectsConfiguration("kubexplorer.kubectlPath"))
         void state.reloadContexts();
+      if (e.affectsConfiguration("kubexplorer.prometheus")) prometheus.invalidate();
     }),
 
     vscode.commands.registerCommand("kubexplorer.refresh", async () => {
       await state.reloadContexts();
+      crds.invalidate();
+      prometheus.invalidate();
       resourcesView.reset();
       store.refresh();
       if (state.active) void state.loadNamespaces(state.active, true);
@@ -144,10 +153,10 @@ export async function activate(context: vscode.ExtensionContext) {
           picks.map((p) => p.label),
         );
     }),
-    vscode.commands.registerCommand("kubexplorer.openResource", (resource: string) => openTarget({ kind: "list", resource })),
+    vscode.commands.registerCommand("kubexplorer.openResource", (open: string) => openTarget(menuTarget(open))),
     vscode.commands.registerCommand("kubexplorer.openResourceInNewTab", (node: ResourceNode | string) => {
-      const resource = typeof node === "string" ? node : node.open;
-      if (resource) openTarget(resource === "overview" ? { kind: "overview" } : { kind: "list", resource }, true);
+      const open = typeof node === "string" ? node : node.open;
+      if (open) openTarget(menuTarget(open), true);
     }),
     vscode.commands.registerCommand("kubexplorer.openOverview", async (cluster?: { name: string }) => {
       if (cluster?.name) await state.setActive(cluster.name);
@@ -156,11 +165,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("kubexplorer.openResourcePicker", async () => {
       const ctx = activeContext();
       if (!ctx) return;
-      const pick = await vscode.window.showQuickPick(flattenMenu(), {
+      const pick = await vscode.window.showQuickPick(resourcesView.openableEntries(ctx), {
         title: vscode.l10n.t("Open Resource: {0}", ctx),
         matchOnDetail: true,
       });
-      if (pick) panels.open(ctx, pick.open === "overview" ? { kind: "overview" } : { kind: "list", resource: pick.open });
+      if (pick) panels.open(ctx, menuTarget(pick.open));
     }),
     vscode.commands.registerCommand("kubexplorer.toggleDemoCluster", async () => {
       const enabled = !config.demoCluster();
@@ -175,7 +184,7 @@ export async function activate(context: vscode.ExtensionContext) {
   await state.reloadContexts();
   updateResourcesDescription();
   // Exposed for the integration tests (vscode.extensions.getExtension(...).exports).
-  return { state, registry, store, client, helm, portForwards, panels, clustersView, resourcesView };
+  return { state, registry, store, client, helm, portForwards, panels, clustersView, resourcesView, metrics };
 }
 
 export type KubeXplorerApi = Awaited<ReturnType<typeof activate>>;

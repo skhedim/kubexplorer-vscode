@@ -81,6 +81,14 @@ export class RoutingClient implements KubeClient {
     return this.pick(context).restart(context, t);
   }
 
+  patch(context: string, t: ObjectTarget, patch: object): Promise<void> {
+    return this.pick(context).patch(context, t, patch);
+  }
+
+  getRaw(context: string, path: string): Promise<string> {
+    return this.pick(context).getRaw(context, path);
+  }
+
   triggerCronJob(context: string, namespace: string, name: string): Promise<string> {
     return this.pick(context).triggerCronJob(context, namespace, name);
   }

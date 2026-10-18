@@ -6,6 +6,7 @@ import type {
   Cell,
   ClusterUsage,
   ColumnDef,
+  OverviewCard,
   Details,
   DetailItem,
   DetailSection,
@@ -29,6 +30,9 @@ const ACTION_META: Record<ActionId, { icon: string; title: string }> = {
   scale: { icon: "arrow-both", title: "Scale" },
   restart: { icon: "debug-restart", title: "Restart" },
   trigger: { icon: "play", title: "Trigger Now" },
+  reconcile: { icon: "sync", title: "Reconcile" },
+  suspend: { icon: "debug-pause", title: "Suspend" },
+  resume: { icon: "debug-continue", title: "Resume" },
   edit: { icon: "edit", title: "Edit YAML" },
   describe: { icon: "info", title: "Describe" },
   copyName: { icon: "copy", title: "Copy Name" },
@@ -201,7 +205,24 @@ function renderSection(s: DetailSection, context: string, ref: ResourceRef, secr
       </div>`;
     case "table":
       return renderTable({ context, columns: s.columns, rows: s.rows, interactive: false, empty: s.empty });
+    case "grid":
+      return renderGrid(s.columns, s.rows, s.empty);
+    case "metrics":
+      // Filled by the "metrics" message (renderMetrics), loaded after the details.
+      return `<div id="r-drawer-metrics" class="drawer-metrics"></div>`;
   }
+}
+
+/** A read-only table of cells (conditions, inventory…): its rows are not objects. */
+function renderGrid(columns: ColumnDef[], rows: Cell[][], empty: string): string {
+  const head = columns.map((c) => `<div role="columnheader" class="cell" style="${colStyle(c)}">${esc(c.title)}</div>`).join("");
+  const body = rows
+    .map(
+      (r) =>
+        `<div role="row" class="row">${columns.map((c, i) => `<div role="cell" class="cell" style="${colStyle(c)}">${renderCell(r[i])}</div>`).join("")}</div>`,
+    )
+    .join("");
+  return `<div role="table" class="table grid"><div role="row" class="row head">${head}</div>${body || `<div class="empty">${esc(empty)}</div>`}</div>`;
 }
 
 const DRAWER_ACTIONS: ActionId[] = [
@@ -212,6 +233,9 @@ const DRAWER_ACTIONS: ActionId[] = [
   "scale",
   "restart",
   "trigger",
+  "reconcile",
+  "suspend",
+  "resume",
   "values",
   "manifest",
   "rollback",
@@ -272,7 +296,7 @@ function donut(d: Donut): string {
   const arcs = d.slices
     .map((s) => {
       const len = (s.value / total) * circ;
-      const arc = `<circle class="arc tone-stroke-${s.tone}" r="${r}" cx="70" cy="70" stroke-dasharray="${len} ${circ - len}" stroke-dashoffset="${-offset}"><title>${esc(s.label)} : ${s.value}</title></circle>`;
+      const arc = `<circle class="arc ${s.color !== undefined ? `cat-stroke-${s.color}` : `tone-stroke-${s.tone}`}" r="${r}" cx="70" cy="70" stroke-dasharray="${len} ${circ - len}" stroke-dashoffset="${-offset}"><title>${esc(s.label)} : ${s.value}</title></circle>`;
       offset += len;
       return arc;
     })
@@ -285,7 +309,7 @@ function donut(d: Donut): string {
       <text x="70" y="70" class="donut-total">${d.error ? "!" : total}</text>
     </svg>
     <div class="legend">
-      ${d.error ? `<div class="tone-error" title="${esc(d.error)}">unavailable</div>` : d.slices.map((s) => `<div><span class="dot tone-bg-${s.tone}"></span>${esc(s.label)}: ${s.value}</div>`).join("") || `<div class="dim">—</div>`}
+      ${d.error ? `<div class="tone-error" title="${esc(d.error)}">unavailable</div>` : d.slices.map((s) => `<div><span class="dot ${s.color !== undefined ? `cat-bg-${s.color}` : `tone-bg-${s.tone}`}"></span>${esc(s.label)}: ${s.value}</div>`).join("") || `<div class="dim">—</div>`}
     </div>
   </div>`;
 }
@@ -320,12 +344,31 @@ function usageSection(u: ClusterUsage | undefined): string {
   </section>`;
 }
 
+function card(c: OverviewCard): string {
+  return `
+  <div class="overview-card">
+    <div class="card-title">
+      ${c.ref ? `<a href="#" class="link" ${data({ action: "open-ref", ref: c.ref })}>${esc(c.title)}</a>` : esc(c.title)}
+      <span class="spacer"></span>
+      ${c.tag ? renderCell({ tags: [c.tag], solid: true }) : ""}
+    </div>
+    ${renderItems(c.items)}
+  </div>`;
+}
+
 export function renderOverview(o: OverviewData, context: string, selectedUid?: string): string {
+  if (o.empty) return `<div class="empty">${codicon("info")}<div>${esc(o.empty)}</div></div>`;
   return `
   ${usageSection(o.usage)}
-  <section class="overview-statuses">${o.donuts.map(donut).join("")}</section>
-  <section class="overview-events">
-    <h3>${codicon("warning", { cls: "tone-warning" })} Warning Events <span class="dim">(${o.events.rows.length})</span></h3>
-    ${renderTable({ context, columns: o.events.columns, rows: o.events.rows, interactive: false, selectedUid, empty: "No warning event" })}
-  </section>`;
+  ${o.cards?.length ? `<section class="overview-cards">${o.cards.map(card).join("")}</section>` : ""}
+  ${o.donuts.length ? `<section class="overview-statuses">${o.donuts.map(donut).join("")}</section>` : ""}
+  ${o.tables
+    .map(
+      (t) => `
+  <section class="overview-table">
+    <h3>${t.icon ? codicon(t.icon, { cls: t.icon === "warning" ? "tone-warning" : undefined }) : ""} ${esc(t.title)} <span class="dim">(${t.rows.length})</span></h3>
+    ${renderTable({ context, columns: t.columns, rows: t.rows, interactive: false, selectedUid, empty: t.empty })}
+  </section>`,
+    )
+    .join("")}`;
 }

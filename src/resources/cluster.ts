@@ -7,6 +7,7 @@ import { cpuMillis, memoryBytes } from "../kube/quantity";
 import { defineResource } from "./descriptor";
 import { fmtCpu, fmtMemory, nodeUsage, usageBar } from "./metrics";
 import { conditionTags, formatAge, formatBytes, link, mono, text } from "./format";
+import { nodeKarpenterSection } from "./karpenter";
 
 function nodeRoles(o: KubeObject): string {
   const roles = Object.keys(o.metadata.labels ?? {})
@@ -83,10 +84,16 @@ export const nodes = defineResource({
     { name: "Taints", value: (o.spec?.taints ?? []).map((t: Taint) => mono(`${t.key}${t.value ? `=${t.value}` : ""}:${t.effect}`)) },
     { name: "Conditions", value: conditionTags(o.status?.conditions, false, true) },
   ],
+  metrics: async (o, ctx) => ({
+    kind: "node",
+    node: o,
+    pods: await ctx.list("pods", { namespaces: [], fieldSelector: `spec.nodeName=${o.metadata.name}` }),
+  }),
   sections: async (o, ctx) => {
     const items = await ctx.list("pods", { namespaces: [], fieldSelector: `spec.nodeName=${o.metadata.name}` });
     const { columns, rows } = ctx.rowsOf("pods", items);
     return [
+      ...(await nodeKarpenterSection(o, ctx)),
       { type: "title", text: `Pods (${items.length})` },
       { type: "table", columns, rows, empty: "No pod" },
     ];

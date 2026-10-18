@@ -201,6 +201,7 @@ export const pods = defineResource({
   compact: ["name", "node", "containers", "cpu", "memory", "restarts", "age", "status"],
   actions: ["logs", "shell", "portForward"],
   related: ["podmetrics"],
+  metrics: async (o) => ({ kind: "pods", namespace: o.metadata.namespace ?? "default", pods: [o] }),
   items: (o, rc) => [
     ...(() => {
       const u = podUsage(rc, o);
