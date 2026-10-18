@@ -1,0 +1,306 @@
+[
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:06:03Z",
+   "labels": {
+    "component": "apiserver",
+    "provider": "kubernetes"
+   },
+   "name": "kubernetes",
+   "namespace": "default",
+   "resourceVersion": "233",
+   "uid": "9d1adede-a8ec-4d1f-895e-97473aa189d5"
+  },
+  "spec": {
+   "clusterIP": "10.96.0.1",
+   "clusterIPs": [
+    "10.96.0.1"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "https",
+     "port": 443,
+     "protocol": "TCP",
+     "targetPort": 6443
+    }
+   ],
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "meta.helm.sh/release-name": "shop-landing",
+    "meta.helm.sh/release-namespace": "frontend"
+   },
+   "creationTimestamp": "2026-10-18T18:06:42Z",
+   "labels": {
+    "app.kubernetes.io/managed-by": "Helm"
+   },
+   "name": "shop-landing",
+   "namespace": "frontend",
+   "resourceVersion": "745",
+   "uid": "7dc807fd-c959-4ed9-9d11-835ba7e05aa9"
+  },
+  "spec": {
+   "clusterIP": "10.96.114.202",
+   "clusterIPs": [
+    "10.96.114.202"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http"
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "shop-landing"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:06:40Z",
+   "name": "web-app",
+   "namespace": "frontend",
+   "resourceVersion": "607",
+   "uid": "8fb45301-1d9b-4428-bf15-c1eccc784baf"
+  },
+  "spec": {
+   "clusterIP": "10.96.156.236",
+   "clusterIPs": [
+    "10.96.156.236"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "http",
+     "port": 80,
+     "protocol": "TCP",
+     "targetPort": "http"
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "web-app"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {
+    "prometheus.io/port": "9153",
+    "prometheus.io/scrape": "true"
+   },
+   "creationTimestamp": "2026-10-18T18:06:05Z",
+   "labels": {
+    "k8s-app": "kube-dns",
+    "kubernetes.io/cluster-service": "true",
+    "kubernetes.io/name": "CoreDNS"
+   },
+   "name": "kube-dns",
+   "namespace": "kube-system",
+   "resourceVersion": "261",
+   "uid": "8cc4882b-57d4-4088-8db0-c6ee0d6080ab"
+  },
+  "spec": {
+   "clusterIP": "10.96.0.10",
+   "clusterIPs": [
+    "10.96.0.10"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "dns",
+     "port": 53,
+     "protocol": "UDP",
+     "targetPort": 53
+    },
+    {
+     "name": "dns-tcp",
+     "port": 53,
+     "protocol": "TCP",
+     "targetPort": 53
+    },
+    {
+     "name": "metrics",
+     "port": 9153,
+     "protocol": "TCP",
+     "targetPort": 9153
+    }
+   ],
+   "selector": {
+    "k8s-app": "kube-dns"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:06:41Z",
+   "labels": {
+    "k8s-app": "metrics-server"
+   },
+   "name": "metrics-server",
+   "namespace": "kube-system",
+   "resourceVersion": "721",
+   "uid": "e19897d0-0b51-4948-830b-722302844fdd"
+  },
+  "spec": {
+   "clusterIP": "10.96.165.187",
+   "clusterIPs": [
+    "10.96.165.187"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "https",
+     "port": 443,
+     "protocol": "TCP",
+     "targetPort": "https"
+    }
+   ],
+   "selector": {
+    "k8s-app": "metrics-server"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:06:40Z",
+   "name": "redis",
+   "namespace": "monitoring",
+   "resourceVersion": "660",
+   "uid": "5c824818-332a-4000-a8be-cf5f755702b5"
+  },
+  "spec": {
+   "clusterIP": "None",
+   "clusterIPs": [
+    "None"
+   ],
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "redis",
+     "port": 6379,
+     "protocol": "TCP",
+     "targetPort": 6379
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "redis"
+   },
+   "sessionAffinity": "None",
+   "type": "ClusterIP"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ },
+ {
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+   "annotations": {},
+   "creationTimestamp": "2026-10-18T18:06:40Z",
+   "name": "payments-api",
+   "namespace": "payments",
+   "resourceVersion": "629",
+   "uid": "ea3b7d6f-3930-487d-bb87-d01a424f6cdd"
+  },
+  "spec": {
+   "clusterIP": "10.96.187.52",
+   "clusterIPs": [
+    "10.96.187.52"
+   ],
+   "externalTrafficPolicy": "Cluster",
+   "internalTrafficPolicy": "Cluster",
+   "ipFamilies": [
+    "IPv4"
+   ],
+   "ipFamilyPolicy": "SingleStack",
+   "ports": [
+    {
+     "name": "grpc",
+     "nodePort": 31525,
+     "port": 9090,
+     "protocol": "TCP",
+     "targetPort": 9090
+    }
+   ],
+   "selector": {
+    "app.kubernetes.io/name": "payments-api"
+   },
+   "sessionAffinity": "None",
+   "type": "NodePort"
+  },
+  "status": {
+   "loadBalancer": {}
+  }
+ }
+]

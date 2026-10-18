@@ -1,0 +1,11 @@
+[
+ {
+  "name": "shop-landing",
+  "namespace": "frontend",
+  "revision": "2",
+  "updated": "2026-10-18 20:09:55.039044441 +0200 CEST",
+  "status": "deployed",
+  "chart": "demo-app-0.1.0",
+  "app_version": "1.27"
+ }
+]

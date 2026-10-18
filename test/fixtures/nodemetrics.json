@@ -1,0 +1,67 @@
+[
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "kind": "NodeMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:13:21Z",
+   "labels": {
+    "beta.kubernetes.io/arch": "amd64",
+    "beta.kubernetes.io/os": "linux",
+    "kubernetes.io/arch": "amd64",
+    "kubernetes.io/hostname": "kubexplorer-control-plane",
+    "kubernetes.io/os": "linux",
+    "node-role.kubernetes.io/control-plane": "",
+    "node.kubernetes.io/exclude-from-external-load-balancers": ""
+   },
+   "name": "kubexplorer-control-plane"
+  },
+  "timestamp": "2026-10-18T18:12:58Z",
+  "usage": {
+   "cpu": "164352837n",
+   "memory": "713500Ki"
+  },
+  "window": "10.027s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "kind": "NodeMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:13:21Z",
+   "labels": {
+    "beta.kubernetes.io/arch": "amd64",
+    "beta.kubernetes.io/os": "linux",
+    "kubernetes.io/arch": "amd64",
+    "kubernetes.io/hostname": "kubexplorer-worker",
+    "kubernetes.io/os": "linux"
+   },
+   "name": "kubexplorer-worker"
+  },
+  "timestamp": "2026-10-18T18:13:02Z",
+  "usage": {
+   "cpu": "44838905n",
+   "memory": "202088Ki"
+  },
+  "window": "20.023s"
+ },
+ {
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "kind": "NodeMetrics",
+  "metadata": {
+   "creationTimestamp": "2026-10-18T18:13:21Z",
+   "labels": {
+    "beta.kubernetes.io/arch": "amd64",
+    "beta.kubernetes.io/os": "linux",
+    "kubernetes.io/arch": "amd64",
+    "kubernetes.io/hostname": "kubexplorer-worker2",
+    "kubernetes.io/os": "linux"
+   },
+   "name": "kubexplorer-worker2"
+  },
+  "timestamp": "2026-10-18T18:13:02Z",
+  "usage": {
+   "cpu": "86546919n",
+   "memory": "385124Ki"
+  },
+  "window": "20.047s"
+ }
+]
