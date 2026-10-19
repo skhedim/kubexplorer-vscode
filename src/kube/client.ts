@@ -7,6 +7,18 @@ export interface ListOptions {
   fieldSelector?: string;
 }
 
+/** A kind read by listMany, with its Kind to sort the items of the combined list. */
+export interface NamedKind extends KindTarget {
+  kindName: string;
+}
+
+export interface ManyResult {
+  /** Items per kubectlName. */
+  items: Record<string, KubeObject[]>;
+  /** Kinds the cluster does not serve (CRD not installed). */
+  missing: string[];
+}
+
 export interface Stoppable {
   stop(): void;
 }
@@ -22,6 +34,11 @@ export interface ExecSpec {
 export interface KubeClient {
   listContexts(): Promise<ContextInfo[]>;
   list(context: string, kind: KindTarget, opts: ListOptions): Promise<KubeObject[]>;
+  /**
+   * Lists several kinds in every namespace (or one) with a single request per cluster (`kubectl get a,b,c`): the
+   * cheap way to look at many clusters. Kinds the cluster does not serve are reported, not failed.
+   */
+  listMany(context: string, kinds: NamedKind[], opts?: { namespace?: string }): Promise<ManyResult>;
   getYaml(context: string, target: ObjectTarget): Promise<string>;
   /** Replaces an object with the given YAML (`kubectl replace`): conflicts are detected through resourceVersion. */
   replaceYaml(context: string, yaml: string): Promise<string>;

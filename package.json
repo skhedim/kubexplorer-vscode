@@ -127,6 +127,12 @@
         "icon": "$(dashboard)"
       },
       {
+        "command": "kubexplorer.openFleet",
+        "title": "%command.openFleet%",
+        "category": "KubeXplorer",
+        "icon": "$(server-environment)"
+      },
+      {
         "command": "kubexplorer.openResource",
         "title": "%command.openResource%",
         "category": "KubeXplorer"
@@ -422,6 +428,11 @@
           "group": "navigation@3"
         },
         {
+          "command": "kubexplorer.openFleet",
+          "when": "view == kubexplorer.clusters",
+          "group": "navigation@0"
+        },
+        {
           "command": "kubexplorer.refresh",
           "when": "view == kubexplorer.clusters",
           "group": "navigation@1"
@@ -438,6 +449,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "kubexplorer.openFleet",
+          "when": "view == kubexplorer.clusters && viewItem == fleetGroup",
+          "group": "inline"
+        },
+        {
+          "command": "kubexplorer.openFleet",
+          "when": "view == kubexplorer.clusters && viewItem == fleetGroup",
+          "group": "1_main@1"
+        },
         {
           "command": "kubexplorer.openOverview",
           "when": "view == kubexplorer.clusters && viewItem =~ /^cluster/",
@@ -667,6 +688,47 @@
           "type": "string",
           "default": "busybox:1.37",
           "markdownDescription": "%config.debug.image%"
+        },
+        "kubexplorer.fleet.groups": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "prod": [
+              "*prod*"
+            ],
+            "dev": [
+              "*dev*"
+            ]
+          },
+          "markdownDescription": "%config.fleet.groups%"
+        },
+        "kubexplorer.fleet.contexts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*"
+          ],
+          "markdownDescription": "%config.fleet.contexts%"
+        },
+        "kubexplorer.fleet.concurrency": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 32,
+          "markdownDescription": "%config.fleet.concurrency%"
+        },
+        "kubexplorer.fleet.refreshInterval": {
+          "type": "number",
+          "default": 120,
+          "minimum": 30,
+          "markdownDescription": "%config.fleet.refreshInterval%"
         },
         "kubexplorer.prometheus": {
           "type": "string",

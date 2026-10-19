@@ -1307,3 +1307,71 @@ body[data-protection="readOnly"] .app {
   margin-top: 4px;
   font-size: 0.85em;
 }
+
+/* ---------- Fleet ---------- */
+.title-row .count .spinner.small {
+  display: inline-block;
+  vertical-align: middle;
+}
+.chips {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--kx-border-faint);
+  border-radius: 4px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 3px;
+  font: inherit;
+  color: var(--kx-fg);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  background: var(--kx-row-hover);
+}
+.chip.active {
+  color: var(--kx-button-fg);
+  background: var(--kx-button-bg);
+}
+.select {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--kx-input-border);
+  border-radius: 2px;
+  font: inherit;
+  color: var(--kx-input-fg);
+  background: var(--kx-input-bg);
+}
+.fleet-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  border-bottom: 1px solid var(--kx-border-faint);
+}
+.fleet-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  color: var(--kx-fg-dim);
+  background: transparent;
+  cursor: pointer;
+}
+.fleet-tab:hover {
+  color: var(--kx-fg-strong);
+}
+.fleet-tab.active {
+  color: var(--kx-fg-strong);
+  border-bottom-color: var(--kx-accent);
+}

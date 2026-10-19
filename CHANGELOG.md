@@ -23,6 +23,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   (`kubexplorer.protectedContextsMode`).
 - Saving a YAML document (Ctrl+S, or **Apply to Cluster** in the editor title) opens the diff against the object on
   the cluster, under a dialog to apply or cancel.
+- **Fleet**: many clusters at once. The Clusters view groups the contexts (`kubexplorer.fleet.groups`, prod and
+  dev by default); the Fleet tab shows each cluster, compares the Flux objects across the clusters of a group to find
+  drifts (revisions, chart versions, missing, suspended, behind their source), reconciles, suspends or resumes them
+  on several clusters, aggregates the diagnostics and searches the clusters.
 - **Diagnostics**, like Popeye: rules that report broken objects, risky configurations and things worth a look,
   with a health score, also published in the Problems view of VS Code.
 - Secret values can be edited in place in the details drawer.

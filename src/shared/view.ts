@@ -12,6 +12,8 @@ export interface ResourceRef {
   resource: string;
   namespace?: string;
   name: string;
+  /** An object of another cluster (fleet): opened in a tab of that cluster. */
+  context?: string;
 }
 
 export interface Brick {
@@ -207,4 +209,27 @@ export interface OverviewData {
   tables: OverviewTable[];
   /** Shown instead of the content when the page has nothing to show (e.g. Flux is not installed). */
   empty?: string;
+}
+
+// ---------- Fleet ----------
+
+export type FleetTab = "clusters" | "flux" | "diagnostics" | "search";
+
+export interface FleetView {
+  tab: FleetTab;
+  /** Groups with at least one cluster, and the one shown (null: every cluster). */
+  groups: string[];
+  group: string | null;
+  /** Only the clusters or objects with a problem. */
+  problemsOnly: boolean;
+  /** Clusters shown. */
+  clusters: number;
+  /** A scan, diagnostics or search in progress. */
+  progress?: { label: string; done: number; total: number };
+  /** When the shown clusters were scanned, e.g. "2m ago". */
+  updated?: string;
+  searchKinds: { id: string; label: string }[];
+  searchKind: string;
+  searchQuery: string;
+  data: OverviewData;
 }

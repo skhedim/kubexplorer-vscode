@@ -1,7 +1,7 @@
 // Routes every call to the demo client or to kubectl depending on the target context,
 // and serves virtual lists (Helm, port forwards) from their own sources.
 
-import type { ExecSpec, KubeClient, ListOptions, Stoppable, VirtualSource, WatchEventType } from "./client";
+import type { ExecSpec, KubeClient, ListOptions, ManyResult, NamedKind, Stoppable, VirtualSource, WatchEventType } from "./client";
 import { DEMO_CONTEXT, DemoClient } from "./demo";
 import { type ContextInfo, errorMessage, type KindTarget, type KubeObject, type Logger, type LogOptions, type ObjectTarget } from "./types";
 
@@ -43,6 +43,10 @@ export class RoutingClient implements KubeClient {
   list(context: string, kind: KindTarget, opts: ListOptions): Promise<KubeObject[]> {
     const source = this.opts.virtualSources?.[kind.kubectlName];
     return source ? source.list(context, opts) : this.pick(context).list(context, kind, opts);
+  }
+
+  listMany(context: string, kinds: NamedKind[], opts?: { namespace?: string }): Promise<ManyResult> {
+    return this.pick(context).listMany(context, kinds, opts);
   }
 
   watch(

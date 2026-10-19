@@ -1,0 +1,53 @@
+# The application every cluster of the mini fleet runs, rendered per cluster by setup.sh (__TAG__, __CHART__,
+# __SUSPEND__): podinfo from Git (Kustomization) and from a Helm repository (HelmRelease).
+apiVersion: v1
+kind: Namespace
+metadata: { name: apps }
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  interval: 5m
+  url: https://github.com/stefanprodan/podinfo
+  ref: { tag: "__TAG__" }
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  suspend: __SUSPEND__
+  interval: 5m
+  sourceRef: { kind: GitRepository, name: podinfo }
+  path: ./kustomize
+  targetNamespace: apps
+  prune: true
+  patches:
+    # One replica is enough for a laptop.
+    - target: { kind: HorizontalPodAutoscaler, name: podinfo }
+      patch: |
+        - op: replace
+          path: /spec/minReplicas
+          value: 1
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: { name: podinfo, namespace: flux-system }
+spec:
+  interval: 30m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: { name: podinfo-helm, namespace: flux-system }
+spec:
+  interval: 10m
+  targetNamespace: apps
+  chart:
+    spec:
+      chart: podinfo
+      version: "__CHART__"
+      sourceRef: { kind: HelmRepository, name: podinfo }
+  values:
+    replicaCount: 1
+    resources: { requests: { cpu: 10m, memory: 16Mi } }

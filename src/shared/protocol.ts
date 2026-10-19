@@ -1,12 +1,15 @@
 // Messages exchanged between a resource tab (webview) and the extension.
 
 import type { Protection } from "./protection";
-import type { ActionId, ColumnDef, Details, MetricsData, OverviewData, ResourceRef, Row } from "./view";
+import type { ActionId, ColumnDef, Details, FleetTab, FleetView, MetricsData, OverviewData, ResourceRef, Row } from "./view";
 
 export type Appearance = "vscode" | "freelens";
 
-/** page: an overview page other than the cluster one ("flux", "karpenter"). */
-export type PanelTarget = { kind: "list"; resource: string } | { kind: "overview"; page?: string };
+/** page: an overview page other than the cluster one ("flux", "karpenter"). fleet: every cluster. */
+export type PanelTarget = { kind: "list"; resource: string } | { kind: "overview"; page?: string } | { kind: "fleet" };
+
+/** What a tab of one cluster shows. */
+export type ClusterTarget = Exclude<PanelTarget, { kind: "fleet" }>;
 
 interface BaseViewInit {
   context: string;
@@ -31,7 +34,11 @@ export interface OverviewViewInit extends BaseViewInit {
   mode: "overview";
 }
 
-export type ViewInit = ListViewInit | OverviewViewInit;
+export interface FleetViewInit extends BaseViewInit {
+  mode: "fleet";
+}
+
+export type ViewInit = ListViewInit | OverviewViewInit | FleetViewInit;
 
 export interface NamespaceFilter {
   available: string[];
@@ -47,6 +54,9 @@ export type HostMessage =
   /** live: the list is followed in real time (watch) rather than polled. */
   | { type: "rows"; rows: Row[]; loading: boolean; error?: string; live?: boolean }
   | { type: "overview"; data: OverviewData; loading: boolean; error?: string; live?: boolean }
+  | { type: "fleet"; view: FleetView }
+  /** Shows an object in the drawer (opened from another tab, e.g. the fleet). */
+  | { type: "reveal"; ref: ResourceRef }
   /** Details of the object shown in the drawer; null when the object is gone. */
   | { type: "details"; details: Details | null; error?: string }
   /** Usage charts of the object shown in the drawer; null when it has none. */
@@ -68,6 +78,12 @@ export type WebviewMessage =
   /** An action on the checked rows (BULK_ACTIONS). */
   | { type: "bulkAction"; action: ActionId; refs: ResourceRef[] }
   | { type: "openResource"; resource: string }
+  /** An object of another cluster (ref.context), opened in a tab of that cluster. */
+  | { type: "openInCluster"; ref: ResourceRef }
+  /** Fleet tab: what it shows. */
+  | { type: "fleetState"; tab?: FleetTab; group?: string | null; problemsOnly?: boolean; searchKind?: string }
+  /** Fleet tab: scan the clusters, run their diagnostics, or search them. */
+  | { type: "fleetRun"; what: "scan" | "diagnose" | "search"; query?: string }
   | { type: "revealSecret"; ref: ResourceRef; key: string }
   /** A Secret value edited in the drawer; it reaches the extension only when saved. */
   | { type: "updateSecret"; ref: ResourceRef; key: string; value: string }

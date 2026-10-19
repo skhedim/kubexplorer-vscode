@@ -42,8 +42,14 @@ from GitHub (with a broken and a suspended Kustomization), kwok simulates the no
 scrapes cAdvisor. Run `./dev-cluster/addons/karpenter/apply.sh` again to refresh its events, which expire after an
 hour.
 
-Integration tests and screenshot scripts only ever use `test/.kubeconfig-kind`: they cannot reach your other
-clusters.
+`dev-cluster/fleet/setup.sh` adds a mini fleet for the Fleet tab: four single-node kind clusters
+(`fleet-prod-1`, `fleet-prod-2`, `fleet-dev-1`, `fleet-dev-2`, about 1 GB of memory each) running Flux (source,
+kustomize and helm controllers) and podinfo, with drifts: a suspended Kustomization in prod, older versions on
+`fleet-dev-1`, a failing Kustomization only on `fleet-dev-2`. It does not change the current context of your
+kubeconfig; `dev-cluster/fleet/setup.sh --delete` removes it.
+
+Integration tests and screenshot scripts only ever use `test/.kubeconfig-kind` and, when the mini fleet exists,
+`test/.kubeconfig-fleet`: they cannot reach your other clusters.
 
 ## Scripts
 

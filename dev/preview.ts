@@ -1,6 +1,6 @@
 // Browser preview: the real webview and the real PanelController, on the demo cluster.
 // The URL picks the tab: ?resource=pods (default), ?resource=overview, ?appearance=freelens, ?theme=light,
-// ?protection=confirm or readOnly (a protected context).
+// ?protection=confirm or readOnly (a protected context), ?resource=fleet (a simulated fleet).
 // Usage charts use the synthetic demo metrics.
 
 import { DEMO_CONTEXT, DemoClient } from "../src/kube/demo";
@@ -14,6 +14,7 @@ import { ResourceRegistry } from "../src/resources/registry";
 import type { Protection } from "../src/shared/protection";
 import type { Appearance, HostMessage, WebviewMessage } from "../src/shared/protocol";
 import { startWebview } from "../src/webview/index";
+import { startFleetPreview } from "./previewFleet";
 
 const params = new URLSearchParams(location.search);
 const resource = params.get("resource") ?? "pods";
@@ -33,33 +34,36 @@ const hostLog = (message: string) => {
   if (el) el.textContent = message;
 };
 
-const controller = new PanelController({
-  context: DEMO_CONTEXT,
-  target: menuTarget(resource),
-  registry,
-  metrics: new MetricsService({ backend: new DemoMetrics(), client, registry, history: new MetricsHistory(), log: nullLogger }),
-  store,
-  client,
-  log: nullLogger,
-  appearance,
-  protection,
-  namespaces: { available, selected: [] },
-  host: {
-    post: (msg: HostMessage) => window.postMessage(msg, "*"),
-    runAction: (_ctx, action, ref, container) =>
-      hostLog(`action ${action} → ${ref.resource}/${ref.name}${container ? ` (${container})` : ""}`),
-    rowMenu: (_ctx, ref, actions) => hostLog(`native quick pick: ${actions.join(", ")} for ${ref.name}`),
-    bulkAction: (_ctx, action, refs) => hostLog(`native confirmation: ${action} ${refs.length} object(s)`),
-    openResource: (_ctx, r) => (location.search = `?resource=${r}&appearance=${appearance}`),
-    setNamespaces: (_ctx, namespaces) => controller.setNamespaceFilter({ available, selected: namespaces }),
-    refresh: () => store.refresh(),
-    copyText: (text) => hostLog(`copied ${text.length} characters`),
-    updateSecret: async (_ctx, ref, key, value) => {
-      hostLog(`kubectl replace: ${ref.name}, ${key} = ${value.length} characters`);
-      return true;
+const post = (msg: HostMessage) => window.postMessage(msg, "*");
+const panelController = () =>
+  new PanelController({
+    context: DEMO_CONTEXT,
+    target: menuTarget(resource),
+    registry,
+    metrics: new MetricsService({ backend: new DemoMetrics(), client, registry, history: new MetricsHistory(), log: nullLogger }),
+    store,
+    client,
+    log: nullLogger,
+    appearance,
+    protection,
+    namespaces: { available, selected: [] },
+    host: {
+      post: (msg: HostMessage) => window.postMessage(msg, "*"),
+      runAction: (_ctx, action, ref, container) =>
+        hostLog(`action ${action} → ${ref.resource}/${ref.name}${container ? ` (${container})` : ""}`),
+      rowMenu: (_ctx, ref, actions) => hostLog(`native quick pick: ${actions.join(", ")} for ${ref.name}`),
+      bulkAction: (_ctx, action, refs) => hostLog(`native confirmation: ${action} ${refs.length} object(s)`),
+      openResource: (_ctx, r) => (location.search = `?resource=${r}&appearance=${appearance}`),
+      setNamespaces: (_ctx, namespaces) => controller.setNamespaceFilter({ available, selected: namespaces }),
+      refresh: () => store.refresh(),
+      copyText: (text) => hostLog(`copied ${text.length} characters`),
+      updateSecret: async (_ctx, ref, key, value) => {
+        hostLog(`kubectl replace: ${ref.name}, ${key} = ${value.length} characters`);
+        return true;
+      },
     },
-  },
-});
+  });
+const controller = resource === "fleet" ? startFleetPreview(registry, appearance, post, hostLog) : panelController();
 
 startWebview({
   postMessage: (msg: WebviewMessage) => controller.onMessage(msg),

@@ -11,12 +11,15 @@ import { RoutingClient } from "./kube/routing";
 import { ResourceStore } from "./kube/store";
 import { errorMessage } from "./kube/types";
 import { PORT_FORWARDS } from "./kube/virtualKinds";
+import { FleetScanner } from "./panel/fleetScanner";
 import { MetricsHistory, MetricsService } from "./panel/metrics";
+import { groupOf, groupOrder } from "./resources/fleet";
 import { menuOpen, menuTarget } from "./resources/menu";
 import { ResourceRegistry } from "./resources/registry";
 import type { PanelTarget } from "./shared/protocol";
 import { ALL_ACTIONS, type ActionId } from "./shared/view";
 import { ResourceActions, toTarget } from "./vscode/actions";
+import { FleetActions } from "./vscode/fleetActions";
 import { ClustersView } from "./vscode/clustersView";
 import { ClusterState } from "./vscode/clusterState";
 import { config } from "./vscode/config";
@@ -24,6 +27,7 @@ import { DESCRIBE_SCHEME, DescribeProvider, ReadonlyDocuments, ResourceFileSyste
 import { createLogger } from "./vscode/logger";
 import { ResourcePanels, VIEW_TYPE } from "./vscode/panels";
 import { ProblemsView } from "./vscode/problems";
+import { globMatch } from "./shared/protection";
 import { ContextGuard } from "./vscode/protection";
 import { type ResourceNode, ResourcesView } from "./vscode/resourcesView";
 import { KubeStatusBar } from "./vscode/statusBar";
@@ -54,6 +58,23 @@ export async function activate(context: vscode.ExtensionContext) {
   const guard = new ContextGuard();
   const problems = new ProblemsView();
   const files = new ResourceFileSystem(client, registry, store, documents, guard, log);
+  // The fleet: the contexts matching kubexplorer.fleet.contexts, in groups (kubexplorer.fleet.groups).
+  const scanner = new FleetScanner({
+    client,
+    registry,
+    members: () => {
+      const patterns = config.fleetContexts();
+      const groups = config.fleetGroups();
+      const order = groupOrder(groups);
+      return state.contexts
+        .filter((c) => patterns.some((p) => globMatch(p, c.name)))
+        .map((c) => ({ context: c.name, group: groupOf(c.name, groups) }))
+        .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.context.localeCompare(b.context));
+    },
+    concurrency: config.fleetConcurrency,
+    log,
+  });
+  const fleetActions = new FleetActions({ client, registry, scanner, guard, log });
   const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, files, guard, log });
   const panels = new ResourcePanels(context.extensionUri, {
     registry,
@@ -66,10 +87,13 @@ export async function activate(context: vscode.ExtensionContext) {
     crds,
     guard,
     problems,
+    scanner,
+    fleetActions,
+    fleetGroups: () => groupOrder(config.fleetGroups()),
     log,
   });
 
-  const clustersView = new ClustersView(state, guard);
+  const clustersView = new ClustersView(state, guard, scanner);
   const resourcesView = new ResourcesView(state, crds, registry, log);
   const clustersTree = vscode.window.createTreeView("kubexplorer.clusters", { treeDataProvider: clustersView });
   const resourcesTree = vscode.window.createTreeView<ResourceNode>("kubexplorer.resources", { treeDataProvider: resourcesView });
@@ -198,6 +222,10 @@ export async function activate(context: vscode.ExtensionContext) {
       if (enabled) await state.setActive(DEMO_CONTEXT);
     }),
     vscode.commands.registerCommand("kubexplorer.showLog", () => channel.show()),
+    // From the title of the Clusters view (every cluster), or from a group.
+    vscode.commands.registerCommand("kubexplorer.openFleet", (arg?: string | { group: string }) =>
+      panels.openFleet(typeof arg === "string" ? arg : (arg?.group ?? null)),
+    ),
     // Ctrl+S in the YAML of an object: review the diff, then apply or cancel.
     vscode.commands.registerCommand("kubexplorer.applyDocument", async (uri?: vscode.Uri) => {
       const document = uri
@@ -217,7 +245,22 @@ export async function activate(context: vscode.ExtensionContext) {
   await state.reloadContexts();
   updateResourcesDescription();
   // Exposed for the integration tests (vscode.extensions.getExtension(...).exports).
-  return { state, registry, store, client, helm, portForwards, panels, clustersView, resourcesView, metrics, actions, guard };
+  return {
+    state,
+    registry,
+    store,
+    client,
+    helm,
+    portForwards,
+    panels,
+    clustersView,
+    resourcesView,
+    metrics,
+    actions,
+    guard,
+    scanner,
+    fleetActions,
+  };
 }
 
 export type KubeXplorerApi = Awaited<ReturnType<typeof activate>>;

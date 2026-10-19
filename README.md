@@ -12,7 +12,22 @@ leaving the editor.
 
 ## Features
 
-- **Clusters view**: every context of your kubeconfig, with a colored avatar like the Freelens hotbar.
+- **Clusters view**: every context of your kubeconfig, with a colored avatar like the Freelens hotbar, grouped by
+  fleet group (`prod`, `dev`… from `kubexplorer.fleet.groups`), with the state of each cluster after a fleet scan.
+- **Fleet**, for many clusters managed with Flux (**Open Fleet** in the Clusters view, or on a group):
+  - **Clusters**: one row per cluster (reachable, Kubernetes and Flux versions, nodes, Kustomizations and Helm
+    releases ready, revision of its sources, diagnostics), a card per group;
+  - **Flux**: every Flux object across the clusters, with its drifts: not ready, suspended, behind its source,
+    missing on clusters of its group, or running another revision or chart version than the rest of its group (the
+    groups are compared separately: prod and dev may differ on purpose). Its details list each cluster;
+    **Reconcile**, **Suspend** and **Resume** run on every cluster, a group, the failing ones or the clusters you pick;
+  - **Diagnostics**: the rules of the Diagnostics page on every cluster, the most errors first;
+  - **Search**: workloads, images, pods, services, ingresses (name or host), Config Maps, namespaces or Flux
+    objects across the clusters; a result opens in a tab of its cluster.
+
+  A scan reads the nodes and the Flux objects of a cluster with a single `kubectl` request, a few clusters at a
+  time, only while the Fleet tab is visible; diagnostics and searches run on demand.
+
 - **Resources view**: the Freelens side menu (Workloads, Config, Network, Storage, Namespaces, Events, Helm,
   Access Control) and your Custom Resources, discovered on the cluster. The Flux and Karpenter sections show up
   when their CRDs are installed.
@@ -69,6 +84,8 @@ leaving the editor.
 | ![Secrets](docs/images/secrets.png)       | ![Helm releases](docs/images/helm.png)                          |
 | **Flux overview**                         | **Flux Kustomization, with its inventory**                      |
 | ![Flux](docs/images/flux-overview.png)    | ![Flux Kustomization](docs/images/flux-kustomizations.png)      |
+| **Fleet: every cluster**                  | **Fleet: a Flux object across the clusters, with its drift**    |
+| ![Fleet](docs/images/fleet.png)           | ![Fleet Flux](docs/images/fleet-flux.png)                       |
 | **Karpenter dashboard**                   | **Karpenter NodePool**                                          |
 | ![Karpenter](docs/images/karpenter.png)   | ![Karpenter NodePool](docs/images/karpenter-nodepool.png)       |
 
@@ -95,21 +112,25 @@ Without a cluster at hand, run **KubeXplorer: Show/Hide Demo Cluster** to explor
 
 ## Settings
 
-| Setting                             | Default        | Description                                                                                                    |
-| ----------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------- |
-| `kubexplorer.kubectlPath`           | `kubectl`      | Path to kubectl.                                                                                               |
-| `kubexplorer.helmPath`              | `helm`         | Path to helm.                                                                                                  |
-| `kubexplorer.watch`                 | `true`         | Follow lists in real time. When disabled, lists are polled.                                                    |
-| `kubexplorer.pollInterval`          | `5`            | Polling interval (seconds) for lists that cannot be watched.                                                   |
-| `kubexplorer.reuseTab`              | `true`         | Reuse the current tab when opening another resource type.                                                      |
-| `kubexplorer.appearance`            | `vscode`       | `vscode` follows your color theme; `freelens` uses the Freelens dark palette.                                  |
-| `kubexplorer.confirmApply`          | `true`         | Ask before applying a saved YAML document.                                                                     |
-| `kubexplorer.protectedContexts`     | `["*prod*"]`   | Contexts to protect (patterns, `*` matches any text): framed in red, changes confirmed by typing a name.       |
-| `kubexplorer.protectedContextsMode` | `confirm`      | `confirm`: type the name of the target of each change; `readOnly`: no change at all, no shell.                 |
-| `kubexplorer.logs.tailLines`        | `500`          | Past log lines shown when opening logs.                                                                        |
-| `kubexplorer.debug.image`           | `busybox:1.37` | Default image of the ephemeral containers of **Debug...**.                                                     |
-| `kubexplorer.prometheus`            | (empty)        | Prometheus of the usage charts, as `namespace/service:port`; empty detects it; `off` uses metrics-server only. |
-| `kubexplorer.demoCluster`           | `false`        | Add an offline demo cluster to the Clusters view.                                                              |
+| Setting                             | Default                                  | Description                                                                                                    |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `kubexplorer.kubectlPath`           | `kubectl`                                | Path to kubectl.                                                                                               |
+| `kubexplorer.helmPath`              | `helm`                                   | Path to helm.                                                                                                  |
+| `kubexplorer.watch`                 | `true`                                   | Follow lists in real time. When disabled, lists are polled.                                                    |
+| `kubexplorer.pollInterval`          | `5`                                      | Polling interval (seconds) for lists that cannot be watched.                                                   |
+| `kubexplorer.reuseTab`              | `true`                                   | Reuse the current tab when opening another resource type.                                                      |
+| `kubexplorer.appearance`            | `vscode`                                 | `vscode` follows your color theme; `freelens` uses the Freelens dark palette.                                  |
+| `kubexplorer.confirmApply`          | `true`                                   | Ask before applying a saved YAML document.                                                                     |
+| `kubexplorer.protectedContexts`     | `["*prod*"]`                             | Contexts to protect (patterns, `*` matches any text): framed in red, changes confirmed by typing a name.       |
+| `kubexplorer.protectedContextsMode` | `confirm`                                | `confirm`: type the name of the target of each change; `readOnly`: no change at all, no shell.                 |
+| `kubexplorer.logs.tailLines`        | `500`                                    | Past log lines shown when opening logs.                                                                        |
+| `kubexplorer.debug.image`           | `busybox:1.37`                           | Default image of the ephemeral containers of **Debug...**.                                                     |
+| `kubexplorer.prometheus`            | (empty)                                  | Prometheus of the usage charts, as `namespace/service:port`; empty detects it; `off` uses metrics-server only. |
+| `kubexplorer.fleet.groups`          | `{"prod": ["*prod*"], "dev": ["*dev*"]}` | Fleet groups: name → context patterns; the others are in `other`.                                              |
+| `kubexplorer.fleet.contexts`        | `["*"]`                                  | Contexts the Fleet tab scans (patterns).                                                                       |
+| `kubexplorer.fleet.concurrency`     | `8`                                      | Clusters read at the same time (one `kubectl` process each).                                                   |
+| `kubexplorer.fleet.refreshInterval` | `120`                                    | Seconds between two scans while the Fleet tab is visible.                                                      |
+| `kubexplorer.demoCluster`           | `false`                                  | Add an offline demo cluster to the Clusters view.                                                              |
 
 The **Output › KubeXplorer** channel logs every kubectl and helm command (set its level with **Developer: Set Log
 Level...**).
@@ -119,7 +140,10 @@ Level...**).
 - KubeXplorer never changes the current context of your kubeconfig: every command passes `--context` explicitly.
 - Destructive actions (delete, scale to zero, restart, rollback, uninstall, apply) ask for confirmation and name
   the target context. On protected contexts (`kubexplorer.protectedContexts`), every change asks you to type the
-  name of its target, or is refused in `readOnly` mode.
+  name of its target, or is refused in `readOnly` mode. Fleet actions leave the read-only clusters out, and ask to
+  type the name of the object when one of the clusters is protected.
+- The Fleet tab reads the clusters of `kubexplorer.fleet.contexts` (nodes and Flux objects) only while it is
+  visible, and never changes them unless you run an action.
 - Secret values are never sent to the UI, except the one you reveal, and are never stored.
 - In untrusted workspaces, `kubexplorer.kubectlPath` and `kubexplorer.helmPath` are ignored if set by the
   workspace, so opening a repository cannot make KubeXplorer run an arbitrary binary.

@@ -10,13 +10,19 @@ import type { HelmClient } from "../kube/helm";
 import type { ResourceStore } from "../kube/store";
 import type { Logger } from "../kube/types";
 import { PanelController, type PanelHost } from "../panel/controller";
+import { FleetController } from "../panel/fleetController";
+import type { FleetScanner } from "../panel/fleetScanner";
 import type { MetricsService } from "../panel/metrics";
 import type { ResourceRegistry } from "../resources/registry";
 import { shortContextName } from "../shared/clusterNames";
-import type { HostMessage, PanelTarget, PersistedState, WebviewMessage } from "../shared/protocol";
+import { menuTarget } from "../resources/menu";
+import type { Protection } from "../shared/protection";
+import type { Appearance, HostMessage, NamespaceFilter, PanelTarget, PersistedState, WebviewMessage } from "../shared/protocol";
+import type { ResourceRef } from "../shared/view";
 import type { ResourceActions } from "./actions";
 import type { ClusterState } from "./clusterState";
 import { config } from "./config";
+import type { FleetActions } from "./fleetActions";
 import type { ProblemsView } from "./problems";
 import type { ContextGuard } from "./protection";
 
@@ -33,7 +39,23 @@ export interface PanelsDeps {
   crds: CrdCatalog;
   guard: ContextGuard;
   problems: ProblemsView;
+  scanner: FleetScanner;
+  fleetActions: FleetActions;
+  /** Fleet groups, in display order. */
+  fleetGroups(): string[];
   log: Logger;
+}
+
+/** What a tab runs: the controller of a cluster tab, or of the Fleet tab. */
+interface TabController {
+  title(): string;
+  onMessage(msg: WebviewMessage): void;
+  setVisible(visible: boolean): void;
+  setAppearance(appearance: Appearance): void;
+  setProtection(protection: Protection): void;
+  setNamespaceFilter(filter: NamespaceFilter): void;
+  reveal(ref: ResourceRef): void;
+  dispose(): void;
 }
 
 export interface ActiveTab {
@@ -43,7 +65,7 @@ export interface ActiveTab {
 
 interface Tab {
   panel: vscode.WebviewPanel;
-  controller: PanelController;
+  controller: TabController;
   context: string;
   target: PanelTarget;
   /** Replaced by the next resource opened from the Resources view. */
@@ -52,6 +74,7 @@ interface Tab {
 
 function sameTarget(a: PanelTarget, b: PanelTarget): boolean {
   if (a.kind === "overview") return b.kind === "overview" && a.page === b.page;
+  if (a.kind === "fleet") return b.kind === "fleet";
   return b.kind === "list" && a.resource === b.resource;
 }
 
@@ -84,8 +107,11 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
     ];
   }
 
-  /** Opens (or reveals) a tab. newTab: keep the current tabs and open a dedicated one. */
-  open(context: string, target: PanelTarget, opts: { newTab?: boolean } = {}): void {
+  /**
+   * Opens (or reveals) a tab. newTab: keep the current tabs and open a dedicated one. reveal: an object to show in
+   * its drawer.
+   */
+  open(context: string, target: PanelTarget, opts: { newTab?: boolean; reveal?: ResourceRef } = {}): void {
     if (target.kind === "list" && !this.d.registry.get(target.resource)) {
       void vscode.window.showWarningMessage(vscode.l10n.t("Unknown resource type: {0}", target.resource));
       return;
@@ -94,6 +120,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
     if (existing) {
       if (opts.newTab) existing.reusable = false;
       existing.panel.reveal();
+      if (opts.reveal) existing.controller.reveal(opts.reveal);
       return;
     }
     const reuse = !opts.newTab && config.reuseTab();
@@ -101,10 +128,39 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
     if (reusable) {
       this.retarget(reusable, context, target);
       reusable.panel.reveal();
+      if (opts.reveal) reusable.controller.reveal(opts.reveal);
       return;
     }
     const panel = vscode.window.createWebviewPanel(VIEW_TYPE, "KubeXplorer", vscode.ViewColumn.Active, this.webviewOptions());
-    this.attach(panel, context, target, reuse);
+    const tab = this.attach(panel, context, target, reuse);
+    if (opts.reveal) tab.controller.reveal(opts.reveal);
+  }
+
+  /** Opens the Fleet tab (a single one), showing a group or every cluster. */
+  openFleet(group: string | null = null): void {
+    const existing = [...this.tabs].find((t) => t.target.kind === "fleet");
+    if (existing) {
+      (existing.controller as FleetController).showGroup(group);
+      existing.panel.title = existing.controller.title();
+      existing.panel.reveal();
+      return;
+    }
+    const panel = vscode.window.createWebviewPanel(VIEW_TYPE, "KubeXplorer", vscode.ViewColumn.Active, this.webviewOptions());
+    this.attach(panel, "", { kind: "fleet" }, false, group);
+  }
+
+  /** Opens an object of another cluster (or one of its overview pages), making that cluster the active one. */
+  openInCluster(ref: ResourceRef): void {
+    const context = ref.context;
+    if (!context) return;
+    void this.d.state.setActive(context);
+    if (ref.resource.startsWith("overview")) this.open(context, menuTarget(ref.resource));
+    else if (this.d.registry.get(ref.resource))
+      this.open(
+        context,
+        { kind: "list", resource: ref.resource },
+        { reveal: { resource: ref.resource, namespace: ref.namespace, name: ref.name } },
+      );
   }
 
   /** Restores the tabs that were open when VS Code was closed. */
@@ -116,7 +172,8 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       return;
     }
     panel.webview.options = this.webviewOptions();
-    this.attach(panel, saved.context, saved.target, config.reuseTab() && ![...this.tabs].some((t) => t.reusable));
+    const fleet = saved.target.kind === "fleet";
+    this.attach(panel, saved.context, saved.target, !fleet && config.reuseTab() && ![...this.tabs].some((t) => t.reusable));
   }
 
   private webviewOptions(): vscode.WebviewPanelOptions & vscode.WebviewOptions {
@@ -124,9 +181,9 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
     return { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")] };
   }
 
-  private attach(panel: vscode.WebviewPanel, context: string, target: PanelTarget, reusable: boolean): void {
+  private attach(panel: vscode.WebviewPanel, context: string, target: PanelTarget, reusable: boolean, group: string | null = null): Tab {
     panel.iconPath = vscode.Uri.joinPath(this.extensionUri, "media", "tab-icon.svg");
-    const tab: Tab = { panel, context, target, reusable, controller: this.createController(panel, context, target) };
+    const tab: Tab = { panel, context, target, reusable, controller: this.createController(panel, context, target, group) };
     this.tabs.add(tab);
     this.load(tab);
 
@@ -143,6 +200,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       subscriptions.forEach((s) => s.dispose());
       this.tabs.delete(tab);
     });
+    return tab;
   }
 
   /** Shows another resource type in an existing tab. */
@@ -156,15 +214,34 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
 
   /** (Re)loads the webview of a tab: it starts fresh and sends "ready" to its controller. */
   private load(tab: Tab): void {
-    void this.d.state.loadNamespaces(tab.context);
-    tab.panel.title = `${tab.controller.title()} · ${shortContextName(tab.context)}`;
+    if (tab.target.kind === "fleet") tab.panel.title = tab.controller.title();
+    else {
+      void this.d.state.loadNamespaces(tab.context);
+      tab.panel.title = `${tab.controller.title()} · ${shortContextName(tab.context)}`;
+    }
     tab.panel.webview.html = this.html(tab.panel.webview);
     tab.controller.setVisible(tab.panel.visible);
     if (tab.panel.active) this.activeEmitter.fire({ context: tab.context, target: tab.target });
   }
 
-  private createController(panel: vscode.WebviewPanel, context: string, target: PanelTarget): PanelController {
+  private createController(panel: vscode.WebviewPanel, context: string, target: PanelTarget, group: string | null = null): TabController {
     const { state, actions, store } = this.d;
+    if (target.kind === "fleet") {
+      return new FleetController({
+        scanner: this.d.scanner,
+        host: {
+          post: (msg: HostMessage) => void panel.webview.postMessage(msg),
+          openInCluster: (ref) => this.openInCluster(ref),
+          fluxAction: (action, row) => void this.d.fleetActions.flux(action, row),
+          copyText: (text) => void actions.copyText(text),
+        },
+        groups: () => this.d.fleetGroups(),
+        refreshIntervalMs: () => config.fleetRefreshIntervalMs(),
+        appearance: config.appearance(),
+        log: this.d.log,
+        group,
+      });
+    }
     const host: PanelHost = {
       post: (msg: HostMessage) => void panel.webview.postMessage(msg),
       runAction: (ctx, action, ref, container) => void actions.run(action, { context: ctx, ref, container }),

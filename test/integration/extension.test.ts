@@ -6,8 +6,13 @@ import { execFileSync } from "node:child_process";
 import * as vscode from "vscode";
 import type { KubeXplorerApi } from "../../src/extension";
 import type { Snapshot } from "../../src/kube/store";
+import { buildMatrix } from "../../src/resources/fleet";
 
 const CONTEXT = "kind-kubexplorer";
+/** The mini fleet, when dev-cluster/fleet/setup.sh created it. */
+const FLEET = (process.env.KUBECONFIG ?? "").includes(".kubeconfig-fleet")
+  ? ["kind-fleet-dev-1", "kind-fleet-dev-2", "kind-fleet-prod-1", "kind-fleet-prod-2"]
+  : [];
 const kubectl = (...args: string[]) => execFileSync("kubectl", ["--context", CONTEXT, ...args], { env: process.env }).toString();
 
 async function waitFor<T>(probe: () => T | Promise<T>, what: string, timeoutMs = 20_000): Promise<NonNullable<T>> {
@@ -37,7 +42,11 @@ describe("KubeXplorer in VS Code", function () {
   let api: KubeXplorerApi;
 
   before(async () => {
-    assert.ok(process.env.KUBECONFIG?.endsWith(".kubeconfig-kind"), "integration tests must run with the dedicated kind kubeconfig");
+    const files = (process.env.KUBECONFIG ?? "").split(":");
+    assert.ok(
+      files.length && files.every((f) => /test\/\.kubeconfig-(kind|fleet)$/.test(f)),
+      "integration tests must run with the dedicated kind kubeconfigs",
+    );
     const extension = vscode.extensions.getExtension<KubeXplorerApi>("skhedim.kubexplorer");
     assert.ok(extension, "extension not found");
     api = await extension.activate();
@@ -57,13 +66,16 @@ describe("KubeXplorer in VS Code", function () {
     }
   });
 
-  it("lists the kind context and activates it", () => {
+  it("lists the kind contexts and activates the current one", () => {
+    const names = api.state.contexts.map((c) => c.name);
+    assert.ok(names.includes(CONTEXT));
+    // Next to it, only the clusters of the mini fleet (dev-cluster/fleet/setup.sh), when created.
     assert.deepEqual(
-      api.state.contexts.map((c) => c.name),
-      [CONTEXT],
+      names.filter((n) => n !== CONTEXT),
+      FLEET,
     );
     assert.equal(api.state.active, CONTEXT);
-    assert.match(String(api.clustersView.getTreeItem(api.state.contexts[0]).description), /active/);
+    assert.match(String(api.clustersView.getTreeItem(api.state.contexts.find((c) => c.name === CONTEXT)!).description), /active/);
   });
 
   it("mirrors the Freelens menu in the Resources view, with Flux and Karpenter when installed", async () => {
@@ -488,5 +500,90 @@ describe("KubeXplorer in VS Code", function () {
       );
       assert.ok(Date.parse(requestedAt) >= before - 1000, `${name}: ${requestedAt}`);
     }
+  });
+  describe("the fleet (dev-cluster/fleet/setup.sh)", function () {
+    before(function () {
+      if (!FLEET.length) this.skip();
+    });
+
+    it("groups the clusters by prod and dev in the Clusters view", async () => {
+      const roots = api.clustersView.getChildren();
+      assert.deepEqual(
+        roots.map((r) => ("group" in r ? r.group : r.name)),
+        ["prod", "dev", "other"],
+      );
+      assert.deepEqual(
+        api.clustersView.getChildren(roots[0]).map((c) => ("name" in c ? c.name : "")),
+        ["kind-fleet-prod-1", "kind-fleet-prod-2"],
+      );
+    });
+
+    it("scans the fleet and finds its drifts", async function () {
+      this.timeout(120_000);
+      await api.scanner.scan();
+      const scans = api.scanner.list();
+      for (const context of FLEET) assert.equal(api.scanner.get(context)?.status, "ok", `${context}: ${api.scanner.get(context)?.error}`);
+      assert.deepEqual(
+        FLEET.map((c) => api.scanner.get(c)?.flux?.components?.["kustomize-controller"]?.startsWith("v")),
+        FLEET.map(() => true),
+      );
+      const rows = buildMatrix(scans);
+      const row = (resource: string, name: string) => rows.find((r) => r.resource === resource && r.name === name)!;
+      // fleet-dev-1 runs older versions than fleet-dev-2; prod runs the same everywhere.
+      await waitFor(
+        async () => {
+          await api.scanner.scan(FLEET);
+          return buildMatrix(api.scanner.list())
+            .find((r) => r.resource === "flux:gitrepositories" && r.name === "podinfo")
+            ?.drift.includes("2 revisions in dev");
+        },
+        "the revision drift of podinfo in dev",
+        90_000,
+      );
+      assert.ok(row("flux:kustomizations", "podinfo").drift.includes("1 suspended"));
+      assert.deepEqual(row("flux:kustomizations", "redis").missing, ["kind-fleet-dev-1"]);
+      // The other group is not compared with the fleet: kind-kubexplorer has its own objects.
+      assert.ok(!row("flux:kustomizations", "podinfo").missing.includes(CONTEXT));
+    });
+
+    it("reconciles a Flux object on several clusters", async () => {
+      const podinfo = buildMatrix(api.scanner.list()).find((r) => r.resource === "flux:helmreleases" && r.name === "podinfo-helm")!;
+      const before = Date.now();
+      const targets = ["kind-fleet-dev-1", "kind-fleet-dev-2"];
+      const result = await api.fleetActions.run("reconcile", podinfo, targets);
+      assert.deepEqual(result, { ok: 2, failures: [] });
+      for (const context of targets) {
+        const requestedAt = execFileSync(
+          "kubectl",
+          [
+            "--context",
+            context,
+            "-n",
+            "flux-system",
+            "get",
+            "helmreleases.helm.toolkit.fluxcd.io",
+            "podinfo-helm",
+            "-o",
+            "jsonpath={.metadata.annotations.reconcile\\.fluxcd\\.io/requestedAt}",
+          ],
+          { env: process.env },
+        ).toString();
+        assert.ok(Date.parse(requestedAt) >= before - 1000, `${context}: ${requestedAt}`);
+      }
+    });
+
+    it("opens the Fleet tab, and an object of a cluster in that cluster", async () => {
+      await vscode.commands.executeCommand("kubexplorer.openFleet", { group: "dev" });
+      await waitFor(() => kubexplorerTabs().find((t) => t === "Fleet: dev"), "Fleet tab");
+      api.panels.openInCluster({
+        context: "kind-fleet-prod-1",
+        resource: "flux:kustomizations",
+        namespace: "flux-system",
+        name: "podinfo",
+      });
+      await waitFor(() => api.state.active === "kind-fleet-prod-1", "active cluster");
+      await waitFor(() => kubexplorerTabs().find((t) => t.startsWith("Kustomizations")), "Kustomizations tab");
+      await api.state.setActive(CONTEXT);
+    });
   });
 });

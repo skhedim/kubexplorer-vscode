@@ -88,6 +88,17 @@ describe("Flux status (getConditionText of the Freelens extension)", () => {
     expect(fluxState(withConditions([{ type: "Ready", status: "False" }], { suspend: true }))).toBe("Suspended");
   });
 
+  it("reports a failed reconcile that Flux retries as not ready, not in progress", () => {
+    expect(
+      fluxState(
+        withConditions([
+          { type: "Reconciling", status: "True", reason: "ProgressingWithRetry" },
+          { type: "Ready", status: "False", reason: "ArtifactFailed" },
+        ]),
+      ),
+    ).toBe("Not Ready");
+  });
+
   it("uses the reconcile annotation of the Flux Operator kinds", () => {
     const instance: KubeObject = {
       apiVersion: "fluxcd.controlplane.io/v1",
@@ -101,7 +112,7 @@ describe("Flux status (getConditionText of the Freelens extension)", () => {
     const kustomizations = fixture("flux-kustomizations");
     expect(fluxState(byName(kustomizations, "podinfo"))).toBe("Ready");
     expect(fluxState(byName(kustomizations, "suspended"))).toBe("Suspended");
-    expect(["Not Ready", "In Progress"]).toContain(fluxState(byName(kustomizations, "broken-path")));
+    expect(fluxState(byName(kustomizations, "broken-path"))).toBe("Not Ready");
   });
 });
 

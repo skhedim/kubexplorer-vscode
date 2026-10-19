@@ -3,7 +3,17 @@
 
 import type { Protection } from "../shared/protection";
 import type { Appearance, HostMessage, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
-import { type ActionId, BULK_ACTIONS, type Details, type MetricsData, type OverviewData, type ResourceRef, type Row } from "../shared/view";
+import {
+  type ActionId,
+  BULK_ACTIONS,
+  type Details,
+  type FleetTab,
+  type FleetView,
+  type MetricsData,
+  type OverviewData,
+  type ResourceRef,
+  type Row,
+} from "../shared/view";
 import { renderMetrics, tooltipHtml, valuesAt } from "./chart";
 import { checkbox, codicon, data, esc } from "./dom";
 import { ACTION_META, renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
@@ -31,6 +41,7 @@ export class App {
   private live = false;
   private error?: string;
   private overview?: OverviewData;
+  private fleet?: FleetView;
   private ns: NamespaceFilter = { available: [], selected: [] };
   private nsMenuOpen = false;
   private checked = new Set<string>();
@@ -96,6 +107,11 @@ export class App {
       case "namespaces":
         this.ns = msg.filter;
         break;
+      case "fleet":
+        this.fleet = msg.view;
+        break;
+      case "reveal":
+        return this.showDetails(msg.ref, false);
       case "rows":
         this.rows = msg.rows;
         this.loading = msg.loading;
@@ -183,9 +199,11 @@ export class App {
 
   /** Updates a region when its HTML changed; returns whether it did. */
   private region(id: string, html: string): boolean {
-    if (this.rendered.get(id) === html) return false;
+    const el = document.getElementById(id);
+    // A region inside another one (e.g. the fleet status in the header) exists only once that one is rendered.
+    if (!el || this.rendered.get(id) === html) return false;
     this.rendered.set(id, html);
-    document.getElementById(id)!.innerHTML = html;
+    el.innerHTML = html;
     return true;
   }
 
@@ -225,6 +243,7 @@ export class App {
   private header(rows: Row[]): string {
     const v = this.view;
     if (!v) return "";
+    if (v.mode === "fleet") return this.fleetHeader();
     const isList = v.mode === "list";
     const total = `${this.rows.length} ${this.rows.length === 1 ? "item" : "items"}`;
     const count = isList ? (rows.length === this.rows.length ? total : `${rows.length} of ${total}`) : "";
@@ -249,6 +268,81 @@ export class App {
       }
       ${codicon("refresh", { action: "refresh", title: "Refresh" })}
     </div>`;
+  }
+
+  // ---------------- Fleet ----------------
+
+  private fleetHeader(): string {
+    const f = this.fleet;
+    if (!f) return `<div class="title-row"><h1>Fleet</h1></div>`;
+    const chip = (label: string, active: boolean, attrs: Record<string, unknown>, title?: string) =>
+      `<button type="button" class="chip${active ? " active" : ""}" aria-pressed="${active}"${title ? ` title="${esc(title)}"` : ""} ${data(attrs)}>${label}</button>`;
+    const tabs: [FleetTab, string, string][] = [
+      ["clusters", "server-environment", "Clusters"],
+      ["flux", "sync", "Flux"],
+      ["diagnostics", "checklist", "Diagnostics"],
+      ["search", "search", "Search"],
+    ];
+    const groups =
+      f.groups.length > 1
+        ? `<span class="chips" role="group" aria-label="Group">${chip("All", f.group === null, { action: "fleet-group", group: "" })}${f.groups
+            .map((g) => chip(esc(g), f.group === g, { action: "fleet-group", group: g }))
+            .join("")}</span>`
+        : "";
+    const searchTab = f.tab === "search";
+    const kinds = searchTab
+      ? `<select id="fleet-kind" class="select" aria-label="Kind">${f.searchKinds
+          .map((k) => `<option value="${esc(k.id)}"${k.id === f.searchKind ? " selected" : ""}>${esc(k.label)}</option>`)
+          .join("")}</select>`
+      : "";
+    const placeholder = searchTab ? "Name, image or host… then Enter" : `Filter ${f.tab}…`;
+    const run =
+      f.tab === "diagnostics"
+        ? `<button type="button" class="button" ${data({ action: "fleet-run", what: "diagnose" })}>${codicon("play")} Run diagnostics</button>`
+        : searchTab
+          ? `<button type="button" class="button" ${data({ action: "fleet-run", what: "search" })}>${codicon("search")} Search</button>`
+          : "";
+    return `
+    <div class="title-row">
+      <h1>${esc(this.view?.title ?? "Fleet")}</h1>
+      <span class="count" id="r-fleet-status"></span>
+      <span class="spacer"></span>
+      ${groups}
+      ${f.tab !== "search" ? chip(`${codicon("warning")} Problems only`, f.problemsOnly, { action: "fleet-problems" }, "Only the clusters or objects with a problem") : ""}
+      ${kinds}
+      <label class="search">${codicon("search")}<input id="search" type="text" placeholder="${esc(placeholder)}" value="${esc(this.ui.search)}" spellcheck="false" aria-label="${searchTab ? "Search the clusters" : "Filter"}">${
+        this.ui.search ? codicon("close", { action: "clear-search", title: "Clear" }) : ""
+      }</label>
+      ${run}
+      ${codicon("refresh", { action: "fleet-run", title: "Scan the clusters now", attrs: { what: "scan" } })}
+    </div>
+    <div class="fleet-tabs" role="tablist">${tabs
+      .map(
+        ([id, icon, label]) =>
+          `<button type="button" role="tab" class="fleet-tab${f.tab === id ? " active" : ""}" aria-selected="${f.tab === id}" ${data({ action: "fleet-tab", tab: id })}>${codicon(icon)} ${label}</button>`,
+      )
+      .join("")}</div>`;
+  }
+
+  private fleetStatus(): string {
+    const f = this.fleet;
+    if (!f) return "";
+    const progress = f.progress
+      ? ` · <span class="spinner small"></span> ${esc(f.progress.label)} ${f.progress.done}/${f.progress.total}`
+      : f.updated
+        ? ` · ${esc(f.updated)}`
+        : "";
+    return `${f.clusters} ${f.clusters === 1 ? "cluster" : "clusters"}${progress}`;
+  }
+
+  /** The data of the tab, its rows filtered by the text of the search box (but on the Search tab). */
+  private fleetData(f: FleetView): OverviewData {
+    const terms = f.tab === "search" ? [] : this.ui.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return f.data;
+    return {
+      ...f.data,
+      tables: f.data.tables.map((t) => ({ ...t, rows: t.rows.filter((r) => terms.every((term) => r.search.includes(term))) })),
+    };
   }
 
   private protectionPill(context: string): string {
@@ -283,6 +377,7 @@ export class App {
     const spinner = `<div class="empty"><div class="spinner"></div></div>`;
     const v = this.view;
     if (!v) return spinner;
+    if (v.mode === "fleet") return this.fleet ? renderOverview(this.fleetData(this.fleet), "", this.details?.uid) : spinner;
     if (v.mode === "overview") return this.overview ? renderOverview(this.overview, v.context, this.details?.uid) : spinner;
     if (this.loading && !this.rows.length) return spinner;
     if (this.error && !this.rows.length) return `<div class="empty error">${codicon("error")}<div>${esc(this.error)}</div></div>`;
@@ -310,7 +405,9 @@ export class App {
     const drawerScroll = document.querySelector(".drawer-content")?.scrollTop ?? 0;
 
     const rows = this.visibleRows();
-    this.region("r-header", this.header(rows));
+    // The status of the fleet (progress, last scan) changes often: its own region keeps the controls still.
+    if (this.region("r-header", this.header(rows))) this.rendered.delete("r-fleet-status");
+    if (this.view?.mode === "fleet") this.region("r-fleet-status", this.fleetStatus());
     this.region("r-body", this.body(rows));
     this.renderDrawer();
 
@@ -494,6 +591,10 @@ export class App {
       this.render();
     });
     this.root.addEventListener("mousedown", (ev) => this.onDragStart(ev));
+    this.root.addEventListener("change", (ev) => {
+      const t = ev.target as HTMLSelectElement;
+      if (t.id === "fleet-kind") this.post({ type: "fleetState", searchKind: t.value });
+    });
     this.root.addEventListener("mousemove", (ev) => this.onChartHover(ev));
     this.root.addEventListener("mouseout", (ev) => {
       const svg = (ev.target as Element).closest?.(".chart-svg");
@@ -506,6 +607,10 @@ export class App {
     const target = ev.target as HTMLElement;
     if (target.classList?.contains("secret-editor")) return this.onSecretEditorKey(ev, target.dataset.key!);
     const inInput = target.tagName === "INPUT";
+    if (ev.key === "Enter" && target.id === "search" && this.fleet?.tab === "search") {
+      ev.preventDefault();
+      return this.post({ type: "fleetRun", what: "search", query: this.ui.search });
+    }
     if (ev.key === "Escape") {
       if (this.nsMenuOpen) this.nsMenuOpen = false;
       else if (inInput && this.ui.search) this.ui.search = "";
@@ -565,11 +670,27 @@ export class App {
     const d = el.dataset;
     const ref = d.ref ? (JSON.parse(d.ref) as ResourceRef) : undefined;
     switch (d.action) {
+      case "fleet-tab":
+        this.ui.search = "";
+        this.post({ type: "fleetState", tab: d.tab as FleetTab });
+        return;
+      case "fleet-group":
+        this.post({ type: "fleetState", group: d.group || null });
+        return;
+      case "fleet-problems":
+        this.post({ type: "fleetState", problemsOnly: !this.fleet?.problemsOnly });
+        return;
+      case "fleet-run":
+        this.post({ type: "fleetRun", what: d.what as "scan" | "diagnose" | "search", query: this.ui.search });
+        return;
       case "open-row":
-        if (ref) this.showDetails(this.ui.selected && this.details?.uid === d.uid ? null : ref, false);
+        // An object of another cluster (fleet) opens in a tab of that cluster.
+        if (ref?.context) this.post({ type: "openInCluster", ref });
+        else if (ref) this.showDetails(this.ui.selected && this.details?.uid === d.uid ? null : ref, false);
         return;
       case "open-ref":
-        if (ref) this.showDetails(ref, true);
+        if (ref?.context) this.post({ type: "openInCluster", ref });
+        else if (ref) this.showDetails(ref, true);
         return;
       case "details-back":
         this.showDetails(this.history.pop() ?? null, false);

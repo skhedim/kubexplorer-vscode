@@ -12,7 +12,7 @@ import type { OverviewPage } from "../resources/overview";
 import { overviewPage, type ResourceRegistry } from "../resources/registry";
 import { decodeBase64 } from "../shared/encoding";
 import { allowedActions, type Protection } from "../shared/protection";
-import type { Appearance, HostMessage, NamespaceFilter, PanelTarget, ViewInit, WebviewMessage } from "../shared/protocol";
+import type { Appearance, ClusterTarget, HostMessage, NamespaceFilter, ViewInit, WebviewMessage } from "../shared/protocol";
 import type { ActionId, Details, ResourceRef, Row } from "../shared/view";
 import type { MetricsService } from "./metrics";
 
@@ -34,7 +34,7 @@ export interface PanelHost {
 
 export interface PanelDeps {
   context: string;
-  target: PanelTarget;
+  target: ClusterTarget;
   registry: ResourceRegistry;
   store: ResourceStore;
   client: KubeClient;
@@ -65,6 +65,8 @@ export class PanelController implements Disposable {
   private visible = false;
   private ready = false;
   private selected: ResourceRef | null = null;
+  /** An object to show in the drawer once the webview is ready (opened from another tab). */
+  private pendingReveal?: ResourceRef;
   private detailsGeneration = 0;
   private lastSnapshot?: Snapshot;
   private rowContext: RowContext = { related: {} };
@@ -87,7 +89,7 @@ export class PanelController implements Disposable {
     return this.d.context;
   }
 
-  get target(): PanelTarget {
+  get target(): ClusterTarget {
     return this.d.target;
   }
 
@@ -129,6 +131,7 @@ export class PanelController implements Disposable {
         host.post({ type: "init", view: this.init(), appearance: this.d.appearance });
         host.post({ type: "namespaces", filter: this.d.namespaces });
         this.resubscribe();
+        if (this.pendingReveal) this.reveal(this.pendingReveal);
         break;
       case "refresh":
         host.refresh(context);
@@ -178,6 +181,16 @@ export class PanelController implements Disposable {
     this.d.namespaces = filter;
     if (this.ready) this.d.host.post({ type: "namespaces", filter });
     if (changed) this.resubscribe();
+  }
+
+  /** Shows an object in the drawer (e.g. opened from the Fleet tab). */
+  reveal(ref: ResourceRef): void {
+    if (!this.ready) {
+      this.pendingReveal = ref;
+      return;
+    }
+    this.pendingReveal = undefined;
+    this.d.host.post({ type: "reveal", ref });
   }
 
   setAppearance(appearance: Appearance): void {

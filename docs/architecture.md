@@ -34,10 +34,14 @@ src/
     menu.ts             The Freelens side menu (with the Flux and Karpenter menus), shown by the Resources view.
     overview.ts         Overview pages; the cluster one: usage, status donuts and warning events.
     diagnostics.ts      Diagnostics rules (Popeye-like) and their overview page.
+    fleet.ts            Fleet groups, compact summaries of a cluster, the Flux matrix and its drifts, search kinds.
+    fleetViews.ts       The tabs and details of the Fleet tab, as overview data.
     format.ts           Ages, cells and the metadata block shared by every drawer.
   panel/
     controller.ts       Logic of one tab: subscriptions while visible, rows, details, charts, secret reveal.
     metrics.ts          Usage charts: Prometheus, or the metrics-server samples collected in memory.
+    fleetScanner.ts     Reads the clusters of the fleet (one request each, bounded concurrency), diagnostics, search.
+    fleetController.ts  Logic of the Fleet tab.
   shared/             Contracts shared by the extension host and the webview.
     view.ts             Generic view model: columns, typed cells, detail sections.
     protocol.ts         HostMessage / WebviewMessage, persisted webview state.
@@ -52,6 +56,7 @@ src/
     terminals.ts        Logs (Pseudoterminal) of a pod or a workload, shells (kubectl exec), debug containers.
     documents.ts        kubexplorer:/ file system (save = diff, confirmation, kubectl replace; decoded Secrets),
                         describe and read-only documents.
+    fleetActions.ts     Flux actions on several clusters: pick, confirm, run with progress.
     problems.ts         The Problems view: the problems of a Diagnostics tab, on the YAML document of each object.
     protection.ts       ContextGuard: confirmations by typed name on protected contexts, refusals on read-only ones.
     clusterState.ts     Active cluster and namespaces per context (persisted).

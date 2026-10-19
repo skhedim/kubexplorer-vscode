@@ -47,9 +47,11 @@ export function fluxState(o: KubeObject): FluxState {
   if (fluxSuspended(o)) return "Suspended";
   const conditions: Condition[] = o.status?.conditions ?? [];
   if (!conditions.length) return "Unknown";
-  // Reconciling=True: a reconcile is in progress, even if Ready still reflects the previous one.
-  if (conditions.some((c) => c.type === "Reconciling" && c.status === "True")) return "In Progress";
   const ready = conditions.find((c) => c.type === "Ready");
+  const reconciling = conditions.find((c) => c.type === "Reconciling" && c.status === "True");
+  // Reconciling=True: a reconcile is in progress, even if Ready still reflects the previous one; but
+  // ProgressingWithRetry means it failed and is retried later: as long as Ready is False, it is not ready.
+  if (reconciling && !(reconciling.reason === "ProgressingWithRetry" && ready?.status === "False")) return "In Progress";
   if (ready) {
     if (ready.status === "True") return "Ready";
     if (conditions.some((c) => c.type === "Stalled" && c.status === "True")) return "Stalled";

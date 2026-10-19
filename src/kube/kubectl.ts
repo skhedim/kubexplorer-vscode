@@ -2,12 +2,27 @@
 // kubeconfig is never relied upon nor modified.
 
 import { execFile, spawn } from "node:child_process";
-import type { ExecSpec, KubeClient, ListOptions, Stoppable, WatchEventType } from "./client";
+import type { ExecSpec, KubeClient, ListOptions, ManyResult, NamedKind, Stoppable, WatchEventType } from "./client";
 import { JsonStreamParser } from "./jsonStream";
 import type { ContextInfo, KindTarget, KubeObject, Logger, LogOptions, ObjectTarget } from "./types";
 
 const MAX_BUFFER = 128 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
+/** listMany reads remote clusters: an unreachable one must not hold a slot for long. */
+const REQUEST_TIMEOUT = "20s";
+const MANY_TIMEOUT_MS = 25_000;
+
+/** Sorts the items of a combined list by requested kind (Kind, then API group when two kinds share a Kind). */
+export function groupByKind(items: KubeObject[], kinds: NamedKind[]): Record<string, KubeObject[]> {
+  const out: Record<string, KubeObject[]> = Object.fromEntries(kinds.map((k) => [k.kubectlName, []]));
+  for (const item of items) {
+    const group = item.apiVersion?.includes("/") ? item.apiVersion.split("/")[0] : "";
+    const candidates = kinds.filter((k) => k.kindName === item.kind);
+    const kind = candidates.length > 1 ? candidates.find((k) => k.kubectlName.split(".").slice(1).join(".") === group) : candidates[0];
+    if (kind) out[kind.kubectlName].push(item);
+  }
+  return out;
+}
 
 /** Keeps the useful error lines only (kubectl often repeats the same line, prefixed by klog headers). */
 export function cleanStderr(stderr: string): string {
@@ -118,6 +133,35 @@ export class KubectlClient implements KubeClient {
   async list(context: string, kind: KindTarget, opts: ListOptions): Promise<KubeObject[]> {
     const items: KubeObject[] = JSON.parse(await this.run(this.listArgs(context, kind, opts))).items ?? [];
     return items.filter((o) => this.inNamespaces(kind, opts, o));
+  }
+
+  async listMany(context: string, kinds: NamedKind[], opts: { namespace?: string } = {}): Promise<ManyResult> {
+    const missing: string[] = [];
+    let wanted = [...kinds];
+    while (wanted.length) {
+      const args = [
+        "--context",
+        context,
+        "get",
+        wanted.map((k) => k.kubectlName).join(","),
+        "-o",
+        "json",
+        `--request-timeout=${REQUEST_TIMEOUT}`,
+      ];
+      args.push(...(opts.namespace ? ["-n", opts.namespace] : ["--all-namespaces"]));
+      try {
+        const items: KubeObject[] = JSON.parse(await this.run(args, { timeoutMs: MANY_TIMEOUT_MS })).items ?? [];
+        return { items: groupByKind(items, wanted), missing };
+      } catch (err) {
+        // One kind the cluster does not serve fails the whole request: drop it and ask again.
+        const type = /doesn't have a resource type "([^"]+)"/.exec(err instanceof Error ? err.message : "")?.[1];
+        const unknown = type && wanted.find((k) => k.kubectlName === type || k.kubectlName.split(".")[0] === type);
+        if (!unknown) throw err;
+        missing.push(unknown.kubectlName);
+        wanted = wanted.filter((k) => k !== unknown);
+      }
+    }
+    return { items: {}, missing };
   }
 
   watch(

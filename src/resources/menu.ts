@@ -1,7 +1,7 @@
 // The Freelens side menu, rendered by the Resources view, with the menus of the Flux and Karpenter
 // extensions of Freelens, shown when their CRDs are installed.
 
-import type { PanelTarget } from "../shared/protocol";
+import type { ClusterTarget, PanelTarget } from "../shared/protocol";
 
 export interface MenuEntry {
   id: string;
@@ -16,7 +16,7 @@ export interface MenuEntry {
 }
 
 /** The tab an `open` value opens. */
-export function menuTarget(open: string): PanelTarget {
+export function menuTarget(open: string): ClusterTarget {
   if (open === "overview") return { kind: "overview" };
   if (open.startsWith("overview:")) return { kind: "overview", page: open.slice("overview:".length) };
   return { kind: "list", resource: open };
@@ -25,6 +25,7 @@ export function menuTarget(open: string): PanelTarget {
 /** The `open` value of a tab (to select its menu entry). */
 export function menuOpen(target: PanelTarget): string {
   if (target.kind === "list") return target.resource;
+  if (target.kind === "fleet") return "fleet";
   return target.page ? `overview:${target.page}` : "overview";
 }
 

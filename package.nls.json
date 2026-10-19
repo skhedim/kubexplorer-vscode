@@ -16,6 +16,7 @@
   "command.copyContextName": "Copy Context Name",
   "command.toggleDemoCluster": "Show/Hide Demo Cluster",
   "command.showLog": "Show Log",
+  "command.openFleet": "Open Fleet",
   "command.applyDocument": "Apply to Cluster",
   "action.logs": "Logs",
   "action.shell": "Shell",
@@ -53,6 +54,10 @@
   "config.protectedContextsMode.readOnly": "No change is allowed: the actions that change the cluster, and shells, are hidden; YAML documents open read-only.",
   "config.logs.tailLines": "Number of past log lines shown when opening logs.",
   "config.debug.image": "Default image of the ephemeral containers of **Debug** (`kubectl debug`).",
+  "config.fleet.groups": "Groups of clusters of the fleet: group name → context patterns (`*` matches any text). A context belongs to the first group that matches, or to `other`. The Clusters view shows the contexts by group, and the Fleet tab compares the clusters of a group.",
+  "config.fleet.contexts": "Contexts the Fleet tab scans (patterns, `*` matches any text). Opening the Fleet tab reads these clusters (nodes and Flux objects), never changes them.",
+  "config.fleet.concurrency": "Clusters the Fleet tab reads at the same time (each read is one `kubectl` process). The diagnostics of the fleet use half of it.",
+  "config.fleet.refreshInterval": "Seconds between two scans of the fleet, while the Fleet tab is visible. Nothing is scanned when it is hidden or closed.",
   "config.prometheus": "Prometheus service of the usage charts, as `namespace/service:port` (e.g. `monitoring/prometheus-server:80`), reached through the API server proxy. Empty: detected among the services of the cluster. `off`: use only the samples of metrics-server.",
   "config.demoCluster": "Add a fictitious, offline demo cluster to the Clusters view."
 }

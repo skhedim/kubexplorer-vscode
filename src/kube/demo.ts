@@ -2,7 +2,7 @@
 // through exactly the same mapping code as a real cluster.
 // No Node.js imports: it is also bundled into the browser preview.
 
-import type { ExecSpec, KubeClient, ListOptions, Stoppable } from "./client";
+import type { ExecSpec, KubeClient, ListOptions, ManyResult, NamedKind, Stoppable } from "./client";
 import type { ContextInfo, KindTarget, KubeObject, LogOptions, ObjectTarget } from "./types";
 
 export const DEMO_CONTEXT = "kubexplorer-demo";
@@ -436,6 +436,15 @@ export class DemoClient implements KubeClient {
       items = items.filter((o) => pairs.every(([k, v]) => o.metadata.labels?.[k] === v));
     }
     return this.delay(structuredClone(items));
+  }
+
+  async listMany(context: string, kinds: NamedKind[], opts: { namespace?: string } = {}): Promise<ManyResult> {
+    const served = kinds.filter((k) => this.objects.has(k.kubectlName) || k.kubectlName.endsWith(".metrics.k8s.io"));
+    const lists = await Promise.all(served.map((k) => this.list(context, k, { namespaces: opts.namespace ? [opts.namespace] : [] })));
+    return {
+      items: Object.fromEntries(served.map((k, i) => [k.kubectlName, lists[i].map((o) => ({ ...o, kind: k.kindName }))])),
+      missing: kinds.filter((k) => !served.includes(k)).map((k) => k.kubectlName),
+    };
   }
 
   async getYaml(_context: string, t: ObjectTarget): Promise<string> {

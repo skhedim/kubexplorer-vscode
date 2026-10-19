@@ -62,6 +62,17 @@ export class ContextGuard implements vscode.Disposable {
     return (await vscode.window.showWarningMessage(c.question, { modal: true, detail: c.detail }, c.verb)) === c.verb;
   }
 
+  /**
+   * Confirms a change on several clusters, read-only ones already left out: the name to type when one of them is
+   * protected, a modal dialog (when `modal`) otherwise.
+   */
+  async confirmMany(contexts: string[], c: Confirmation): Promise<boolean> {
+    const guarded = contexts.filter((ctx) => this.protection(ctx) === "confirm");
+    if (guarded.length) return this.typed(vscode.l10n.t("{0} protected cluster(s)", guarded.length), c);
+    if (!c.modal) return true;
+    return (await vscode.window.showWarningMessage(c.question, { modal: true, detail: c.detail }, c.verb)) === c.verb;
+  }
+
   private async typed(context: string, c: Confirmation): Promise<boolean> {
     const hint = vscode.l10n.t("Type {0} to confirm", `"${c.expected}"`);
     const value = await vscode.window.showInputBox({

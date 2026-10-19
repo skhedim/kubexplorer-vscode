@@ -2,9 +2,9 @@
 // against the development kind cluster only (dedicated KUBECONFIG).
 //   npm run test:integration   (downloads VS Code once)
 //   node scripts/vscode-screenshots.mjs
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
@@ -44,7 +44,10 @@ const app = await electron.launch({
   // Variables inherited from a parent VS Code (ELECTRON_RUN_AS_NODE, VSCODE_*) prevent the launch.
   env: {
     ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(ELECTRON_|VSCODE_)/.test(k))),
-    KUBECONFIG: join(root, "test", ".kubeconfig-kind"),
+    // The kind cluster, and the mini fleet when created (dev-cluster/fleet/setup.sh).
+    KUBECONFIG: [join(root, "test", ".kubeconfig-kind"), join(root, "test", ".kubeconfig-fleet")]
+      .filter((f) => existsSync(f))
+      .join(delimiter),
   },
 });
 const page = await app.firstWindow();
@@ -162,6 +165,20 @@ try {
   await webview().locator('.row:has-text("default")').first().click();
   await webview().locator(".drawer .table").first().waitFor({ timeout: 30_000 });
   await shot("karpenter-nodepool");
+
+  // The Fleet tab, on the mini fleet.
+  if (existsSync(join(root, "test", ".kubeconfig-fleet"))) {
+    await page.keyboard.press("F1");
+    await page.keyboard.type("KubeXplorer: Open Fleet");
+    await page.keyboard.press("Enter");
+    await webview().locator('.overview-table .row:not(.head):has-text("kind-fleet-prod-1")').waitFor({ timeout: 90_000 });
+    await webview().locator(".count:not(:has(.spinner))").waitFor({ timeout: 90_000 });
+    await shot("fleet");
+    await webview().locator('[data-action="fleet-tab"][data-tab="flux"]').click();
+    await webview().locator('.overview-table .row:has-text("GitRepository podinfo")').first().click();
+    await webview().locator(".drawer .table.grid").waitFor({ timeout: 30_000 });
+    await shot("fleet-flux");
+  }
 } catch (err) {
   await page.screenshot({ path: join(root, "screenshots", "error.png") }).catch(() => undefined);
   throw err;

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { FleetGroups } from "../resources/fleet";
 import type { ProtectionMode } from "../shared/protection";
 import type { Appearance } from "../shared/protocol";
 
@@ -23,5 +24,9 @@ export const config = {
   protectedContexts: (): string[] => settings().get<string[]>("protectedContexts", ["*prod*"]),
   protectedContextsMode: (): ProtectionMode => settings().get<ProtectionMode>("protectedContextsMode", "confirm"),
   debugImage: (): string => settings().get<string>("debug.image") || "busybox:1.37",
+  fleetGroups: (): FleetGroups => settings().get<FleetGroups>("fleet.groups", { prod: ["*prod*"], dev: ["*dev*"] }),
+  fleetContexts: (): string[] => settings().get<string[]>("fleet.contexts", ["*"]),
+  fleetConcurrency: (): number => Math.min(32, Math.max(1, settings().get<number>("fleet.concurrency", 8))),
+  fleetRefreshIntervalMs: (): number => Math.max(30, settings().get<number>("fleet.refreshInterval", 120)) * 1000,
   setDemoCluster: (enabled: boolean): Thenable<void> => settings().update("demoCluster", enabled, vscode.ConfigurationTarget.Global),
 };
