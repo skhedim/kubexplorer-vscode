@@ -75,6 +75,7 @@ describe("KubeXplorer in VS Code", function () {
       roots.map((r) => r.label),
       [
         "Cluster",
+        "Diagnostics",
         "Nodes",
         "Workloads",
         "Config",
@@ -110,6 +111,27 @@ describe("KubeXplorer in VS Code", function () {
       const group = await api.resourcesView.getChildren(custom.find((c) => c.label === "kustomize.toolkit.fluxcd.io"));
       assert.equal(group[0].open, "flux:kustomizations");
     }
+  });
+
+  it("diagnoses the cluster, in its tab and in the Problems view", async () => {
+    const problems = () => vscode.languages.getDiagnostics().filter(([uri]) => uri.scheme === "kubexplorer");
+    await vscode.commands.executeCommand("kubexplorer.openResource", "overview:diagnostics");
+    await waitFor(() => kubexplorerTabs().find((t) => t.startsWith("Diagnostics")), "diagnostics tab");
+    // fraud-scorer crashes on the development cluster: its pod and its Deployment are reported.
+    const [uri, diagnostics] = await waitFor(
+      () => problems().find(([u]) => u.path === "/kind-kubexplorer/deployments/payments/fraud-scorer.yaml"),
+      "problems of fraud-scorer",
+      30_000,
+    );
+    assert.ok(
+      diagnostics.some((d) => d.severity === vscode.DiagnosticSeverity.Error && d.code === "workload-down"),
+      uri.toString(),
+    );
+    // A problem opens the YAML of its object.
+    const doc = await vscode.workspace.openTextDocument(uri);
+    assert.match(doc.getText(), /kind: Deployment/);
+    await closeAllEditors();
+    await waitFor(() => problems().every(([, d]) => d.length === 0), "problems cleared");
   });
 
   it("reuses the current tab when opening another resource type", async () => {

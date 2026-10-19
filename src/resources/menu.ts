@@ -32,6 +32,7 @@ const entry = (id: string, label: string): MenuEntry => ({ id, label, open: id }
 
 export const MENU: MenuEntry[] = [
   { id: "cluster", label: "Cluster", icon: "dashboard", open: "overview" },
+  { id: "diagnostics", label: "Diagnostics", icon: "checklist", open: "overview:diagnostics" },
   { id: "nodes", label: "Nodes", icon: "server", open: "nodes" },
   {
     id: "workloads",

@@ -97,6 +97,10 @@ try {
   await webview().locator(".overview-usage .gauge").first().waitFor({ timeout: 60_000 });
   await shot("overview");
 
+  await tree("Diagnostics").click();
+  await webview().locator(".overview-table .row:not(.head)").first().waitFor({ timeout: 60_000 });
+  await shot("diagnostics");
+
   await tree("Pods").click();
   await firstRow().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(2500); // metrics

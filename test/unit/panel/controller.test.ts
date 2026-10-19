@@ -26,6 +26,7 @@ function setup(resource: string, protection?: Protection) {
     refresh: vi.fn(),
     copyText: vi.fn(),
     updateSecret: vi.fn(async () => true),
+    reportProblems: vi.fn(),
   };
   const client = new DemoClient();
   const registry = new ResourceRegistry();
@@ -152,6 +153,19 @@ describe("PanelController", () => {
     expect(messages[0]).toEqual({ type: "protection", protection: "readOnly" });
     const after = await until("rows");
     expect(after.rows[0].actions).toEqual(["logs", "edit", "describe", "copyName"]);
+  });
+
+  it("publishes the problems of the Diagnostics page once loaded, and clears them when closed", async () => {
+    const { controller, host, until, start } = setup("overview:diagnostics");
+    start();
+    const overview = await until("overview", (m) => !m.loading);
+    expect(overview.data.cards![0].title).toBe("Health");
+    await vi.waitFor(() => expect(host.reportProblems).toHaveBeenCalled());
+    const [context, problems] = vi.mocked(host.reportProblems!).mock.calls.at(-1)!;
+    expect(context).toBe(DEMO_CONTEXT);
+    expect(problems.some((p) => p.ref.name === "fraud-scorer" && p.severity === "error")).toBe(true);
+    controller.dispose();
+    expect(host.reportProblems).toHaveBeenLastCalledWith(DEMO_CONTEXT, []);
   });
 
   it("builds the overview from every list", async () => {

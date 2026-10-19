@@ -17,6 +17,7 @@ import type { HostMessage, PanelTarget, PersistedState, WebviewMessage } from ".
 import type { ResourceActions } from "./actions";
 import type { ClusterState } from "./clusterState";
 import { config } from "./config";
+import type { ProblemsView } from "./problems";
 import type { ContextGuard } from "./protection";
 
 export const VIEW_TYPE = "kubexplorer.resource";
@@ -31,6 +32,7 @@ export interface PanelsDeps {
   metrics: MetricsService;
   crds: CrdCatalog;
   guard: ContextGuard;
+  problems: ProblemsView;
   log: Logger;
 }
 
@@ -176,6 +178,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       },
       copyText: (text) => void actions.copyText(text),
       updateSecret: (ctx, ref, key, value) => actions.updateSecretValue(ctx, ref, key, value),
+      reportProblems: (ctx, problems) => this.d.problems.report(ctx, problems),
     };
     return new PanelController({
       context,

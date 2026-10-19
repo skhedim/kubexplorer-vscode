@@ -4,6 +4,7 @@
 import type { KubeObject } from "../kube/types";
 import { cpuMillis, memoryBytes } from "../kube/quantity";
 import type { ClusterUsage, Donut, DonutSlice, OverviewData, Row, Tone } from "../shared/view";
+import type { Problem } from "./diagnostics";
 import { fmtCpu, fmtMemory } from "./metrics";
 import { events } from "./cluster";
 import { podStatus, podStatusTone } from "./pods";
@@ -25,6 +26,8 @@ export interface OverviewPage {
   /** The list whose error is shown as the page error. */
   primary?: string;
   build(input: OverviewInput): OverviewData;
+  /** Problems found by the page, published in the Problems view of VS Code. */
+  problems?(input: OverviewInput): Problem[];
 }
 
 /** Events table of an overview, newest first. */

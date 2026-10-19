@@ -7,6 +7,7 @@ import type { HelmClient } from "../kube/helm";
 import type { ResourceStore, Snapshot } from "../kube/store";
 import { type Disposable, errorMessage, type KubeObject, type Logger } from "../kube/types";
 import { type DetailContext, indexRelated, type RowContext } from "../resources/descriptor";
+import type { Problem } from "../resources/diagnostics";
 import type { OverviewPage } from "../resources/overview";
 import { overviewPage, type ResourceRegistry } from "../resources/registry";
 import { decodeBase64 } from "../shared/encoding";
@@ -25,6 +26,8 @@ export interface PanelHost {
   setNamespaces(context: string, namespaces: string[]): void;
   refresh(context: string): void;
   copyText(text: string): void;
+  /** Problems found by a page (Diagnostics), for the Problems view; an empty list clears them. */
+  reportProblems?(context: string, problems: Problem[]): void;
   /** Changes one value of a Secret, after the confirmations of the context; false when cancelled. */
   updateSecret(context: string, ref: ResourceRef, key: string, value: string): Promise<boolean>;
 }
@@ -315,9 +318,12 @@ export class PanelController implements Disposable {
       }
       const loading = watched.some((r) => this.overviewLists.get(r)?.loading ?? true);
       const live = watched.every((r) => this.overviewLists.get(r)?.live);
-      const built = page.build({ lists, errors, missing: this.overviewMissing });
+      const input = { lists, errors, missing: this.overviewMissing };
+      const built = page.build(input);
       const data = { ...built, tables: built.tables.map((t) => ({ ...t, rows: t.rows.map((r) => this.allowedRow(r)) })) };
       this.d.host.post({ type: "overview", data, loading, error: page.primary ? errors[page.primary] : undefined, live });
+      // Once every list is loaded: partial lists would report objects as missing.
+      if (page.problems && !loading) this.d.host.reportProblems?.(this.d.context, page.problems(input));
       if (this.selected && !loading) this.scheduleDetails();
     });
   }
@@ -426,5 +432,7 @@ export class PanelController implements Disposable {
   dispose(): void {
     this.unsubscribe();
     clearTimeout(this.detailsTimer);
+    // The problems of a closed Diagnostics tab would go stale in the Problems view.
+    if (this.d.target.kind === "overview" && this.page().problems) this.d.host.reportProblems?.(this.d.context, []);
   }
 }

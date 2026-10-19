@@ -33,6 +33,7 @@ src/
     registry.ts         Built-in kinds, CRDs registered at runtime, and the overview pages.
     menu.ts             The Freelens side menu (with the Flux and Karpenter menus), shown by the Resources view.
     overview.ts         Overview pages; the cluster one: usage, status donuts and warning events.
+    diagnostics.ts      Diagnostics rules (Popeye-like) and their overview page.
     format.ts           Ages, cells and the metadata block shared by every drawer.
   panel/
     controller.ts       Logic of one tab: subscriptions while visible, rows, details, charts, secret reveal.
@@ -51,6 +52,7 @@ src/
     terminals.ts        Logs (Pseudoterminal) of a pod or a workload, shells (kubectl exec), debug containers.
     documents.ts        kubexplorer:/ file system (save = diff, confirmation, kubectl replace; decoded Secrets),
                         describe and read-only documents.
+    problems.ts         The Problems view: the problems of a Diagnostics tab, on the YAML document of each object.
     protection.ts       ContextGuard: confirmations by typed name on protected contexts, refusals on read-only ones.
     clusterState.ts     Active cluster and namespaces per context (persisted).
     statusBar.ts, config.ts, logger.ts

@@ -20,6 +20,11 @@ leaving the editor.
   drawer with links between objects, multi-namespace filtering, and bulk actions on the checked rows (restart,
   scale, reconcile, suspend, resume, delete). Opening another resource type
   reuses the current tab; **Open in New Tab** keeps one.
+- **Diagnostics**, like Popeye: what is broken (crash loops, image pulls, rollouts stuck, services without ready
+  pods, ingresses or pods referencing missing objects, nodes not ready…), what puts the applications at risk (no
+  resource requests, floating image tags, OOM kills, autoscalers at their maximum, budgets blocking drains…) and what
+  is worth a look (unused ConfigMaps, cordoned nodes…), with a health score per category. The problems also show up
+  in the **Problems** view of VS Code: clicking one opens the YAML of its object.
 - **Cluster overview**: CPU and memory usage against requests and allocatable capacity, workload status charts and
   the latest warning events.
 - **Usage charts**: CPU, memory, network and filesystem over the last hour at the top of the details of pods,
@@ -54,6 +59,8 @@ leaving the editor.
   WSL or remote sessions.
 - **Native VS Code UI**: context menus, quick picks, modal confirmations, status bar items, theme colors and
   keyboard navigation. The `freelens` appearance brings back the original Freelens palette.
+
+![Diagnostics](docs/images/diagnostics.png)
 
 | Workloads and details                     | Logs in the terminal, native context menu                       |
 | ----------------------------------------- | --------------------------------------------------------------- |

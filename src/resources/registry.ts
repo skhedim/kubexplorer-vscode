@@ -18,6 +18,7 @@ import {
 } from "./config";
 import { crdDescriptor, crdResourceId, customresourcedefinitions } from "./crd";
 import type { ResourceDescriptor } from "./descriptor";
+import { diagnosticsPage } from "./diagnostics";
 import { FLUX_KINDS, fluxOverview } from "./flux";
 import { helmcharts, helmreleases } from "./helm";
 import { KARPENTER_KINDS } from "./karpenter";
@@ -75,7 +76,7 @@ const BUILT_IN: ResourceDescriptor[] = [
   ...KARPENTER_KINDS,
 ];
 
-const OVERVIEW_PAGES: OverviewPage[] = [fluxOverview, karpenterOverview];
+const OVERVIEW_PAGES: OverviewPage[] = [fluxOverview, karpenterOverview, diagnosticsPage];
 
 /** An overview page; the cluster overview when `id` is missing or unknown. */
 export function overviewPage(id: string | undefined): OverviewPage {

@@ -23,6 +23,7 @@ import { config } from "./vscode/config";
 import { DESCRIBE_SCHEME, DescribeProvider, ReadonlyDocuments, ResourceFileSystem, VIEW_SCHEME, YAML_SCHEME } from "./vscode/documents";
 import { createLogger } from "./vscode/logger";
 import { ResourcePanels, VIEW_TYPE } from "./vscode/panels";
+import { ProblemsView } from "./vscode/problems";
 import { ContextGuard } from "./vscode/protection";
 import { type ResourceNode, ResourcesView } from "./vscode/resourcesView";
 import { KubeStatusBar } from "./vscode/statusBar";
@@ -51,9 +52,22 @@ export async function activate(context: vscode.ExtensionContext) {
   const terminals = new Terminals(client);
   const documents = new ReadonlyDocuments();
   const guard = new ContextGuard();
+  const problems = new ProblemsView();
   const files = new ResourceFileSystem(client, registry, store, documents, guard, log);
   const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, files, guard, log });
-  const panels = new ResourcePanels(context.extensionUri, { registry, store, client, helm, state, actions, metrics, crds, guard, log });
+  const panels = new ResourcePanels(context.extensionUri, {
+    registry,
+    store,
+    client,
+    helm,
+    state,
+    actions,
+    metrics,
+    crds,
+    guard,
+    problems,
+    log,
+  });
 
   const clustersView = new ClustersView(state, guard);
   const resourcesView = new ResourcesView(state, crds, registry, log);
@@ -89,6 +103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     terminals,
     documents,
     guard,
+    problems,
     panels,
     clustersView,
     resourcesView,
