@@ -153,6 +153,31 @@ describe("KubeXplorer in VS Code", function () {
     await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", undefined, vscode.ConfigurationTarget.Global);
   });
 
+  it("applies a YAML document with its Apply command (Ctrl+S)", async () => {
+    await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", false, vscode.ConfigurationTarget.Global);
+    try {
+      await vscode.commands.executeCommand("kubexplorer.resource.edit", {
+        context: CONTEXT,
+        ref: { resource: "configmaps", namespace: "frontend", name: "web-app-config" },
+      });
+      const editor = await waitFor(
+        () => vscode.window.visibleTextEditors.find((e) => e.document.uri.scheme === "kubexplorer"),
+        "YAML editor",
+      );
+      const doc = editor.document;
+      const stamp = `apply-${Date.now()}`;
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(doc.uri, new vscode.Range(0, 0, doc.lineCount, 0), doc.getText().replace(/APP_ENV: \S+/, `APP_ENV: ${stamp}`));
+      await vscode.workspace.applyEdit(edit);
+      await vscode.commands.executeCommand("kubexplorer.applyDocument");
+      assert.equal(doc.isDirty, false);
+      assert.equal(kubectl("-n", "frontend", "get", "configmap", "web-app-config", "-o", "jsonpath={.data.APP_ENV}"), stamp);
+    } finally {
+      kubectl("-n", "frontend", "patch", "configmap", "web-app-config", "-p", '{"data":{"APP_ENV":"production"}}');
+      await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   it("opens kubectl describe as a read-only document", async () => {
     await vscode.commands.executeCommand("kubexplorer.resource.describe", {
       context: CONTEXT,
@@ -176,12 +201,17 @@ describe("KubeXplorer in VS Code", function () {
       "-o",
       "jsonpath={.items[0].metadata.name}",
     );
-    await vscode.commands.executeCommand("kubexplorer.resource.logs", {
+    const done = vscode.commands.executeCommand("kubexplorer.resource.logs", {
       context: CONTEXT,
       ref: { resource: "pods", namespace: "frontend", name: pod },
       container: "log-shipper",
     });
-    const terminal = await waitFor(() => vscode.window.terminals.find((t) => t.name === `Logs: ${pod} › log-shipper`), "logs terminal");
+    const terminal = await waitFor(async () => {
+      // A container that restarted asks first for its current or previous logs.
+      await vscode.commands.executeCommand("workbench.action.acceptSelectedQuickOpenItem");
+      return vscode.window.terminals.find((t) => t.name === `Logs: ${pod} › log-shipper`);
+    }, "logs terminal");
+    await done;
     terminal.dispose();
   });
 
@@ -296,5 +326,145 @@ describe("KubeXplorer in VS Code", function () {
       });
     }
     assert.equal((await api.client.list(CONTEXT, api.registry.require("portforwards"), { namespaces: [] })).length, 0);
+  });
+  it("follows the logs of every pod of a workload", async () => {
+    await vscode.commands.executeCommand("kubexplorer.resource.logs", {
+      context: CONTEXT,
+      ref: { resource: "deployments", namespace: "frontend", name: "web-app" },
+      container: "log-shipper",
+    });
+    const terminal = await waitFor(
+      () => vscode.window.terminals.find((t) => t.name === "Logs: deployment/web-app › log-shipper"),
+      "workload logs terminal",
+    );
+    terminal.dispose();
+    // The stream itself: lines of several pods, prefixed with their name.
+    const pods = new Set<string>();
+    const stream = api.client.streamLogs(
+      CONTEXT,
+      {
+        namespace: "frontend",
+        pod: "deployment/web-app",
+        selector: "app.kubernetes.io/name=web-app",
+        container: "log-shipper",
+        previous: false,
+        follow: false,
+        tailLines: 5,
+      },
+      (chunk) => [...chunk.matchAll(/^\[pod\/([^/]+)\//gm)].forEach((m) => pods.add(m[1])),
+      () => undefined,
+    );
+    try {
+      await waitFor(() => pods.size >= 2, "log lines of two pods");
+    } finally {
+      stream.stop();
+    }
+  });
+
+  it("edits the values of a Secret in clear", async () => {
+    const name = `it-decoded-${Date.now()}`;
+    kubectl("-n", "payments", "create", "secret", "generic", name, "--from-literal=password=s3cr3t", "--from-literal=user=admin");
+    await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", false, vscode.ConfigurationTarget.Global);
+    try {
+      await vscode.commands.executeCommand("kubexplorer.resource.editDecoded", {
+        context: CONTEXT,
+        ref: { resource: "secrets", namespace: "payments", name },
+      });
+      const editor = await waitFor(
+        () => vscode.window.visibleTextEditors.find((e) => e.document.uri.path.endsWith(`${name} (decoded).yaml`)),
+        "decoded Secret editor",
+      );
+      const doc = editor.document;
+      assert.match(doc.getText(), /stringData:\n {2}password: "s3cr3t"\n {2}user: "admin"/);
+      assert.doesNotMatch(doc.getText(), /czNjcjN0/);
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(doc.uri, new vscode.Range(0, 0, doc.lineCount, 0), doc.getText().replace('"s3cr3t"', '"changed: #1"'));
+      await vscode.workspace.applyEdit(edit);
+      assert.ok(await doc.save(), "the save must succeed");
+      const data = JSON.parse(kubectl("-n", "payments", "get", "secret", name, "-o", "jsonpath={.data}"));
+      assert.equal(Buffer.from(data.password, "base64").toString(), "changed: #1");
+      assert.equal(Buffer.from(data.user, "base64").toString(), "admin");
+    } finally {
+      kubectl("-n", "payments", "delete", "secret", name, "--wait=false");
+      await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  it("changes one value of a Secret, edited in the drawer", async () => {
+    const name = `it-value-${Date.now()}`;
+    kubectl("-n", "payments", "create", "secret", "generic", name, "--from-literal=password=old", "--from-literal=user=admin");
+    try {
+      const saved = await api.actions.updateSecretValue(
+        CONTEXT,
+        { resource: "secrets", namespace: "payments", name },
+        "password",
+        "nouvé\nau",
+      );
+      assert.equal(saved, true);
+      const data = JSON.parse(kubectl("-n", "payments", "get", "secret", name, "-o", "jsonpath={.data}"));
+      assert.equal(Buffer.from(data.password, "base64").toString(), "nouvé\nau");
+      assert.equal(Buffer.from(data.user, "base64").toString(), "admin");
+    } finally {
+      kubectl("-n", "payments", "delete", "secret", name, "--wait=false");
+    }
+  });
+
+  it("refuses changes on a read-only context", async () => {
+    const settings = vscode.workspace.getConfiguration("kubexplorer");
+    await settings.update("protectedContexts", ["kind-*"], vscode.ConfigurationTarget.Global);
+    await settings.update("protectedContextsMode", "readOnly", vscode.ConfigurationTarget.Global);
+    const restartedAt = () =>
+      kubectl("-n", "frontend", "get", "deployment", "web-app", "-o", "jsonpath={.spec.template.metadata.annotations}");
+    const before = restartedAt();
+    try {
+      assert.equal(api.guard.protection(CONTEXT), "readOnly");
+      await vscode.commands.executeCommand("kubexplorer.resource.delete", {
+        context: CONTEXT,
+        ref: { resource: "configmaps", namespace: "frontend", name: "web-app-config" },
+      });
+      await api.actions.runMany(CONTEXT, "restart", [
+        { resource: "deployments", namespace: "frontend", name: "web-app" },
+        { resource: "deployments", namespace: "payments", name: "payments-api" },
+      ]);
+      assert.equal(kubectl("-n", "frontend", "get", "configmap", "web-app-config", "-o", "name").trim(), "configmap/web-app-config");
+      assert.equal(restartedAt(), before);
+      // YAML documents open read-only.
+      await vscode.commands.executeCommand("kubexplorer.resource.edit", {
+        context: CONTEXT,
+        ref: { resource: "configmaps", namespace: "frontend", name: "web-app-config" },
+      });
+      const editor = await waitFor(
+        () => vscode.window.visibleTextEditors.find((e) => e.document.uri.scheme === "kubexplorer"),
+        "YAML editor",
+      );
+      assert.equal((await vscode.workspace.fs.stat(editor.document.uri)).permissions, vscode.FilePermission.Readonly);
+    } finally {
+      await settings.update("protectedContexts", undefined, vscode.ConfigurationTarget.Global);
+      await settings.update("protectedContextsMode", undefined, vscode.ConfigurationTarget.Global);
+    }
+    assert.equal(api.guard.protection(CONTEXT), "none");
+  });
+
+  it("asks Flux to reconcile several objects at once", async function () {
+    if (!kubectl("get", "crds", "-o", "name").includes("kustomizations.kustomize.toolkit.fluxcd.io")) this.skip();
+    const before = Date.now();
+    const names = ["podinfo", "broken-path"];
+    await api.actions.runMany(
+      CONTEXT,
+      "reconcile",
+      names.map((name) => ({ resource: "flux:kustomizations", namespace: "flux-system", name })),
+    );
+    for (const name of names) {
+      const requestedAt = kubectl(
+        "-n",
+        "flux-system",
+        "get",
+        "kustomizations.kustomize.toolkit.fluxcd.io",
+        name,
+        "-o",
+        "jsonpath={.metadata.annotations.reconcile\\.fluxcd\\.io/requestedAt}",
+      );
+      assert.ok(Date.parse(requestedAt) >= before - 1000, `${name}: ${requestedAt}`);
+    }
   });
 });

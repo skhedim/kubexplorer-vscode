@@ -60,7 +60,7 @@ export const deployments = defineResource({
     { id: "replicas", title: "Replicas", grow: 0.6, value: (o) => String(o.spec?.replicas ?? 0), sort: (o) => o.spec?.replicas ?? 0 },
   ],
   endColumns: [{ id: "conditions", title: "Conditions", grow: 1.6, value: (o) => conditionTags(o.status?.conditions, true) }],
-  actions: ["scale", "restart"],
+  actions: ["logs", "scale", "restart"],
   items: (o) => {
     const s = o.status ?? {};
     const desired = o.spec?.replicas ?? 0;
@@ -93,7 +93,7 @@ export const statefulsets = defineResource({
     { id: "pods", title: "Pods", grow: 0.6, value: (o) => readyCell(o.status?.readyReplicas ?? 0, o.spec?.replicas ?? 0) },
     { id: "replicas", title: "Replicas", grow: 0.6, value: (o) => String(o.spec?.replicas ?? 0), sort: (o) => o.spec?.replicas ?? 0 },
   ],
-  actions: ["scale", "restart"],
+  actions: ["logs", "scale", "restart"],
   items: (o) => [
     { name: "Selector", value: labelTags(o.spec?.selector?.matchLabels) },
     { name: "Service", value: link("Service", o.spec?.serviceName, o.metadata.namespace) },
@@ -119,7 +119,7 @@ export const daemonsets = defineResource({
     { id: "pods", title: "Pods", grow: 0.6, value: (o) => readyCell(o.status?.numberReady ?? 0, o.status?.desiredNumberScheduled ?? 0) },
     { id: "nodeSelector", title: "Node Selector", grow: 1.2, value: (o) => labelTags(o.spec?.template?.spec?.nodeSelector), sort: false },
   ],
-  actions: ["restart"],
+  actions: ["logs", "restart"],
   items: (o) => [
     { name: "Selector", value: labelTags(o.spec?.selector?.matchLabels) },
     { name: "Images", value: images(o) },
@@ -151,7 +151,7 @@ export const replicasets = defineResource({
     },
     { id: "owner", title: "Controlled By", grow: 1, value: (o) => ownerCell(o) },
   ],
-  actions: ["scale"],
+  actions: ["logs", "scale"],
   items: (o) => [
     { name: "Selector", value: labelTags(o.spec?.selector?.matchLabels) },
     { name: "Images", value: images(o) },
@@ -179,6 +179,7 @@ export const jobs = defineResource({
     { id: "owner", title: "Controlled By", grow: 1, value: (o) => ownerCell(o) },
   ],
   endColumns: [{ id: "status", title: "Status", grow: 0.7, value: jobStatus }],
+  actions: ["logs"],
   items: (o) => [
     { name: "Status", value: jobStatus(o) },
     {

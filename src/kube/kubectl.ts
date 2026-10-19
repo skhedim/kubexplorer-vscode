@@ -189,11 +189,7 @@ export class KubectlClient implements KubeClient {
   }
 
   streamLogs(context: string, o: LogOptions, onData: (chunk: string) => void, onEnd: (error?: string) => void): Stoppable {
-    const args = ["--context", context, "-n", o.namespace, "logs", o.pod, `--tail=${o.tailLines}`, "--timestamps"];
-    args.push(...(o.container ? ["-c", o.container] : ["--all-containers", "--prefix"]));
-    if (o.previous) args.push("--previous");
-    else if (o.follow) args.push("-f");
-    return spawnStream(this.kubectlPath(), args, this.log, onData, onEnd);
+    return spawnStream(this.kubectlPath(), logArgs(context, o), this.log, onData, onEnd);
   }
 
   execSpec(context: string, namespace: string, pod: string, container: string): ExecSpec {
@@ -205,4 +201,29 @@ export class KubectlClient implements KubeClient {
       ],
     };
   }
+
+  debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec {
+    return { shellPath: this.kubectlPath(), shellArgs: debugArgs(context, namespace, pod, container, image) };
+  }
+}
+
+/** Concurrent log streams of a workload (pods × containers), beyond the kubectl default of 5. */
+const MAX_LOG_REQUESTS = 50;
+
+export function logArgs(context: string, o: LogOptions): string[] {
+  const args = ["--context", context, "-n", o.namespace, "logs"];
+  // Lines of several pods are prefixed with [pod/name/container].
+  if (o.selector) args.push("-l", o.selector, "--prefix", `--max-log-requests=${MAX_LOG_REQUESTS}`);
+  else args.push(o.pod);
+  args.push(`--tail=${o.tailLines}`, "--timestamps");
+  if (o.container) args.push("-c", o.container);
+  else args.push("--all-containers", ...(o.selector ? [] : ["--prefix"]));
+  if (o.previous) args.push("--previous");
+  else if (o.follow) args.push("-f");
+  return args;
+}
+
+/** `kubectl debug`: an ephemeral container sharing the process namespace of `container`, attached to the terminal. */
+export function debugArgs(context: string, namespace: string, pod: string, container: string, image: string): string[] {
+  return ["--context", context, "-n", namespace, "debug", pod, "-it", `--image=${image}`, `--target=${container}`];
 }

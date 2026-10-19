@@ -47,7 +47,10 @@ export interface ObjectTarget extends KindTarget {
 
 export interface LogOptions {
   namespace: string;
+  /** A pod; with `selector`, the name of the workload (e.g. "deployment/web"), for display. */
   pod: string;
+  /** Label selector: the logs of every matching pod, like stern. */
+  selector?: string;
   /** Undefined means every container, with prefixed lines. */
   container?: string;
   previous: boolean;

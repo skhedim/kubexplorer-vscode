@@ -10,8 +10,9 @@ import { type DetailContext, indexRelated, type RowContext } from "../resources/
 import type { OverviewPage } from "../resources/overview";
 import { overviewPage, type ResourceRegistry } from "../resources/registry";
 import { decodeBase64 } from "../shared/encoding";
+import { allowedActions, type Protection } from "../shared/protection";
 import type { Appearance, HostMessage, NamespaceFilter, PanelTarget, ViewInit, WebviewMessage } from "../shared/protocol";
-import type { ActionId, ResourceRef } from "../shared/view";
+import type { ActionId, Details, ResourceRef, Row } from "../shared/view";
 import type { MetricsService } from "./metrics";
 
 /** What the controller delegates to its host (VS Code: dialogs, terminals, commands). */
@@ -19,11 +20,13 @@ export interface PanelHost {
   post(msg: HostMessage): void;
   runAction(context: string, action: ActionId, ref: ResourceRef, container?: string): void;
   rowMenu(context: string, ref: ResourceRef, actions: ActionId[]): void;
-  deleteMany(context: string, refs: ResourceRef[]): void;
+  bulkAction(context: string, action: ActionId, refs: ResourceRef[]): void;
   openResource(context: string, resource: string): void;
   setNamespaces(context: string, namespaces: string[]): void;
   refresh(context: string): void;
   copyText(text: string): void;
+  /** Changes one value of a Secret, after the confirmations of the context; false when cancelled. */
+  updateSecret(context: string, ref: ResourceRef, key: string, value: string): Promise<boolean>;
 }
 
 export interface PanelDeps {
@@ -41,6 +44,8 @@ export interface PanelDeps {
   metrics?: MetricsService;
   /** Installed CRDs: overview pages skip the optional kinds that are missing. */
   crds?: CrdCatalog;
+  /** A read-only context hides the actions that change the cluster. */
+  protection?: Protection;
 }
 
 /** Refresh of the displayed ages: with a watch, a list only changes when the cluster does. */
@@ -88,17 +93,23 @@ export class PanelController implements Disposable {
   }
 
   title(): string {
-    return this.d.target.kind === "overview" ? this.page().title : this.d.registry.require(this.d.target.resource).title;
+    const { target } = this.d;
+    return target.kind === "overview" ? this.page().title : this.d.registry.require(target.resource).title;
+  }
+
+  private get protection(): Protection {
+    return this.d.protection ?? "none";
   }
 
   private init(): ViewInit {
-    if (this.d.target.kind === "overview") return { mode: "overview", context: this.d.context, title: this.page().title };
-    const desc = this.d.registry.require(this.d.target.resource);
+    const { context, target } = this.d;
+    const base = { context, target, protection: this.protection, title: this.title() };
+    if (target.kind === "overview") return { mode: "overview", ...base };
+    const desc = this.d.registry.require(target.resource);
     return {
       mode: "list",
-      context: this.d.context,
+      ...base,
       resource: desc.id,
-      title: desc.title,
       kindName: desc.kindName,
       namespaced: desc.namespaced,
       columns: desc.columns,
@@ -135,14 +146,17 @@ export class PanelController implements Disposable {
       case "rowMenu":
         host.rowMenu(context, msg.ref, msg.actions);
         break;
-      case "deleteMany":
-        host.deleteMany(context, msg.refs);
+      case "bulkAction":
+        host.bulkAction(context, msg.action, msg.refs);
         break;
       case "openResource":
         host.openResource(context, msg.resource);
         break;
       case "revealSecret":
         void this.revealSecret(msg.ref, msg.key);
+        break;
+      case "updateSecret":
+        void this.updateSecret(msg.ref, msg.key, msg.value);
         break;
       case "copyText":
         host.copyText(msg.text);
@@ -166,6 +180,29 @@ export class PanelController implements Disposable {
   setAppearance(appearance: Appearance): void {
     this.d.appearance = appearance;
     if (this.ready) this.d.host.post({ type: "appearance", appearance });
+  }
+
+  /** The protection of the context changed (settings): the header and the offered actions follow. */
+  setProtection(protection: Protection): void {
+    if (protection === this.protection) return;
+    this.d.protection = protection;
+    if (!this.ready) return;
+    this.d.host.post({ type: "protection", protection });
+    this.queueRows();
+    if (this.d.target.kind === "overview") this.queueOverview();
+    if (this.selected) void this.pushDetails();
+  }
+
+  /** Without the actions a read-only context refuses. */
+  private allowedRow(row: Row): Row {
+    return { ...row, actions: allowedActions(row.actions, this.protection) };
+  }
+
+  private allowedDetails(details: Details): Details {
+    const sections = details.sections.map((s) =>
+      s.type === "group" && s.actions ? { ...s, actions: s.actions.filter((a) => allowedActions([a.action], this.protection).length) } : s,
+    );
+    return { ...details, actions: allowedActions(details.actions, this.protection), sections };
   }
 
   private unsubscribe(): void {
@@ -243,7 +280,7 @@ export class PanelController implements Disposable {
       if (!snap) return;
       this.d.host.post({
         type: "rows",
-        rows: snap.items.map((o) => desc.toRow(o, this.rowContext)),
+        rows: snap.items.map((o) => this.allowedRow(desc.toRow(o, this.rowContext))),
         loading: snap.loading,
         error: snap.error,
         live: snap.live,
@@ -278,7 +315,8 @@ export class PanelController implements Disposable {
       }
       const loading = watched.some((r) => this.overviewLists.get(r)?.loading ?? true);
       const live = watched.every((r) => this.overviewLists.get(r)?.live);
-      const data = page.build({ lists, errors, missing: this.overviewMissing });
+      const built = page.build({ lists, errors, missing: this.overviewMissing });
+      const data = { ...built, tables: built.tables.map((t) => ({ ...t, rows: t.rows.map((r) => this.allowedRow(r)) })) };
       this.d.host.post({ type: "overview", data, loading, error: page.primary ? errors[page.primary] : undefined, live });
       if (this.selected && !loading) this.scheduleDetails();
     });
@@ -325,7 +363,7 @@ export class PanelController implements Disposable {
       const desc = this.d.registry.get(ref.resource);
       if (!desc) throw new Error(`Unsupported resource type: ${ref.resource}`);
       const obj = await this.findObject(ref);
-      const details = obj ? await desc.details(obj, this.detailContext()) : null;
+      const details = obj ? this.allowedDetails(await desc.details(obj, this.detailContext())) : null;
       if (generation !== this.detailsGeneration) return;
       this.d.host.post({ type: "details", details });
       if (obj && desc.metrics && this.d.metrics) this.startMetrics(obj.metadata.uid);
@@ -373,6 +411,15 @@ export class PanelController implements Disposable {
       this.d.host.post({ type: "secretValue", uid: secret.metadata.uid, key, value: decodeBase64(raw) });
     } catch (err) {
       this.d.host.post({ type: "secretValue", uid: "", key, error: errorMessage(err) });
+    }
+  }
+
+  private async updateSecret(ref: ResourceRef, key: string, value: string): Promise<void> {
+    try {
+      const saved = await this.d.host.updateSecret(this.d.context, ref, key, value);
+      this.d.host.post({ type: "secretUpdated", key, saved });
+    } catch (err) {
+      this.d.host.post({ type: "secretUpdated", key, saved: false, error: errorMessage(err) });
     }
   }
 

@@ -37,6 +37,7 @@ export const secrets = defineResource({
     { id: "keys", title: "Keys", grow: 1.5, value: keys },
     { id: "type", title: "Type", grow: 1, value: (o) => o.type ?? "" },
   ],
+  actions: ["editDecoded"],
   items: (o) => [{ name: "Type", value: o.type ?? "" }],
   // Values are never part of the view model: only keys and sizes. The webview asks for one decoded
   // value when the user clicks its reveal button (see PanelController.revealSecret).

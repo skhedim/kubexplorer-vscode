@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { ProtectionMode } from "../shared/protection";
 import type { Appearance } from "../shared/protocol";
 
 const CONFIG_SECTION = "kubexplorer";
@@ -19,5 +20,8 @@ export const config = {
   logTailLines: (): number => settings().get<number>("logs.tailLines", 500),
   demoCluster: (): boolean => settings().get<boolean>("demoCluster", false),
   prometheus: (): string => settings().get<string>("prometheus", ""),
+  protectedContexts: (): string[] => settings().get<string[]>("protectedContexts", ["*prod*"]),
+  protectedContextsMode: (): ProtectionMode => settings().get<ProtectionMode>("protectedContextsMode", "confirm"),
+  debugImage: (): string => settings().get<string>("debug.image") || "busybox:1.37",
   setDemoCluster: (enabled: boolean): Thenable<void> => settings().update("demoCluster", enabled, vscode.ConfigurationTarget.Global),
 };

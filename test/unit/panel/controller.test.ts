@@ -9,21 +9,23 @@ import { PanelController, type PanelHost } from "../../../src/panel/controller";
 import { MetricsHistory, MetricsService } from "../../../src/panel/metrics";
 import { menuTarget } from "../../../src/resources/menu";
 import { ResourceRegistry } from "../../../src/resources/registry";
+import type { Protection } from "../../../src/shared/protection";
 import type { HostMessage } from "../../../src/shared/protocol";
 
 type Message<T extends HostMessage["type"]> = Extract<HostMessage, { type: T }>;
 
-function setup(resource: string) {
+function setup(resource: string, protection?: Protection) {
   const messages: HostMessage[] = [];
   const host: PanelHost = {
     post: (m) => messages.push(m),
     runAction: vi.fn(),
     rowMenu: vi.fn(),
-    deleteMany: vi.fn(),
+    bulkAction: vi.fn(),
     openResource: vi.fn(),
     setNamespaces: vi.fn(),
     refresh: vi.fn(),
     copyText: vi.fn(),
+    updateSecret: vi.fn(async () => true),
   };
   const client = new DemoClient();
   const registry = new ResourceRegistry();
@@ -38,6 +40,7 @@ function setup(resource: string) {
     host,
     log: nullLogger,
     appearance: "vscode",
+    protection,
     namespaces: { available: [], selected: [] },
   });
   const until = async <T extends HostMessage["type"]>(type: T, accept: (m: Message<T>) => boolean = () => true): Promise<Message<T>> => {
@@ -101,6 +104,54 @@ describe("PanelController", () => {
     expect(host.runAction).toHaveBeenCalledWith(DEMO_CONTEXT, "logs", ref, "c");
     controller.onMessage({ type: "copyText", text: "x" });
     expect(host.copyText).toHaveBeenCalledWith("x");
+  });
+
+  it("saves a Secret value through the host, and reports the outcome to the webview", async () => {
+    const { controller, host, until } = setup("secrets");
+    const ref = { resource: "secrets", namespace: "payments", name: "payments-db" };
+    controller.onMessage({ type: "updateSecret", ref, key: "password", value: "n3w" });
+    expect(host.updateSecret).toHaveBeenCalledWith(DEMO_CONTEXT, ref, "password", "n3w");
+    expect(await until("secretUpdated")).toEqual({ type: "secretUpdated", key: "password", saved: true });
+    vi.mocked(host.updateSecret).mockRejectedValueOnce(new Error("Conflict"));
+    controller.onMessage({ type: "updateSecret", ref, key: "password", value: "x" });
+    expect(await until("secretUpdated", (m) => !!m.error)).toMatchObject({ saved: false, error: "Conflict" });
+  });
+
+  it("forwards bulk actions on the checked rows", () => {
+    const { controller, host } = setup("deployments");
+    const refs = [
+      { resource: "deployments", namespace: "a", name: "b" },
+      { resource: "deployments", namespace: "a", name: "c" },
+    ];
+    controller.onMessage({ type: "bulkAction", action: "restart", refs });
+    expect(host.bulkAction).toHaveBeenCalledWith(DEMO_CONTEXT, "restart", refs);
+  });
+
+  it("hides the actions that change the cluster on a read-only context", async () => {
+    const { controller, messages, until, start } = setup("pods", "readOnly");
+    start();
+    expect(messages.find((m) => m.type === "init")).toMatchObject({ view: { protection: "readOnly" } });
+    const { rows } = await until("rows", (m) => !m.loading);
+    expect(rows[0].actions).toEqual(["logs", "portForward", "edit", "describe", "copyName"]);
+    controller.onMessage({ type: "showDetails", ref: rows[0].ref });
+    const { details } = await until("details", (m) => m.details !== null);
+    expect(details!.actions).not.toContain("delete");
+    const groups = details!.sections.flatMap((s) => (s.type === "group" ? (s.actions ?? []).map((a) => a.action) : []));
+    expect(groups).toContain("logs");
+    expect(groups).not.toContain("shell");
+    expect(groups).not.toContain("debug");
+  });
+
+  it("follows a change of protection: the header, then the actions", async () => {
+    const { controller, messages, until, start } = setup("deployments");
+    start();
+    const before = await until("rows", (m) => !m.loading);
+    expect(before.rows[0].actions).toContain("restart");
+    messages.length = 0;
+    controller.setProtection("readOnly");
+    expect(messages[0]).toEqual({ type: "protection", protection: "readOnly" });
+    const after = await until("rows");
+    expect(after.rows[0].actions).toEqual(["logs", "edit", "describe", "copyName"]);
   });
 
   it("builds the overview from every list", async () => {

@@ -17,9 +17,10 @@ import type {
 } from "../shared/view";
 import { checkbox, codicon, data, esc } from "./dom";
 
-const ACTION_META: Record<ActionId, { icon: string; title: string }> = {
+export const ACTION_META: Record<ActionId, { icon: string; title: string }> = {
   logs: { icon: "output", title: "Logs" },
   shell: { icon: "terminal", title: "Shell" },
+  debug: { icon: "debug", title: "Debug" },
   portForward: { icon: "plug", title: "Forward Port" },
   openBrowser: { icon: "link-external", title: "Open in Browser" },
   rollback: { icon: "discard", title: "Rollback" },
@@ -34,6 +35,7 @@ const ACTION_META: Record<ActionId, { icon: string; title: string }> = {
   suspend: { icon: "debug-pause", title: "Suspend" },
   resume: { icon: "debug-continue", title: "Resume" },
   edit: { icon: "edit", title: "Edit YAML" },
+  editDecoded: { icon: "unlock", title: "Edit Decoded Values" },
   describe: { icon: "info", title: "Describe" },
   copyName: { icon: "copy", title: "Copy Name" },
   delete: { icon: "trash", title: "Delete" },
@@ -150,15 +152,42 @@ function renderValue(item: DetailItem): string {
     : rendered.join(" ");
 }
 
-/** Secret values revealed by the user for the object shown in the drawer (kept in memory only). */
+/** Secret values revealed or edited by the user for the object shown in the drawer (kept in memory only). */
 export interface SecretView {
   ref: ResourceRef;
   values: ReadonlyMap<string, string>;
   pending: ReadonlySet<string>;
   errors: ReadonlyMap<string, string>;
+  /** Values being edited (draft per key), and those being saved. */
+  drafts: ReadonlyMap<string, string>;
+  saving: ReadonlySet<string>;
+  /** false on a read-only context. */
+  editable: boolean;
+}
+
+/** A value edited in place: Ctrl+Enter saves, Escape cancels. */
+function renderSecretEditor(item: DetailItem, key: string, draft: string, secrets: SecretView): string {
+  const saving = secrets.saving.has(key);
+  const error = secrets.errors.get(key);
+  const rows = Math.min(12, Math.max(1, draft.split("\n").length));
+  // Empty: the app sets the value (the draft) through the DOM, so typing never changes this HTML.
+  const editor = `<textarea class="secret-editor" data-key="${esc(key)}" rows="${rows}" spellcheck="false" aria-label="Value of ${esc(key)}"${saving ? " disabled" : ""}></textarea>`;
+  const actions =
+    codicon("check", {
+      action: "save-secret",
+      title: "Save (Ctrl+Enter)",
+      cls: saving ? "pending" : undefined,
+      attrs: { key, ref: secrets.ref },
+    }) + codicon("close", { action: "cancel-secret", title: "Cancel (Escape)", attrs: { key } });
+  const note = error
+    ? `<span class="tone-error">${esc(error)}</span>`
+    : `<span class="secret-hint">Ctrl+Enter to save · Escape to cancel</span>`;
+  return `<div class="drawer-item secret-item editing"><span class="name">${esc(item.name)}</span><span class="value"><span class="secret-body">${editor}${note}</span><span class="secret-actions">${actions}</span></span></div>`;
 }
 
 function renderSecret(item: DetailItem, key: string, secrets: SecretView): string {
+  const draft = secrets.drafts.get(key);
+  if (draft !== undefined) return renderSecretEditor(item, key, draft, secrets);
   const value = secrets.values.get(key);
   const revealed = value !== undefined;
   const toggle = codicon(revealed ? "eye-closed" : "eye", {
@@ -168,11 +197,14 @@ function renderSecret(item: DetailItem, key: string, secrets: SecretView): strin
     attrs: { key, ref: secrets.ref },
   });
   const copy = revealed ? codicon("copy", { action: "copy-secret", title: "Copy value", attrs: { key } }) : "";
+  const editButton = secrets.editable
+    ? codicon("edit", { action: "edit-secret", title: "Edit value", attrs: { key, ref: secrets.ref } })
+    : "";
   const error = secrets.errors.get(key);
   const body = revealed
     ? `<pre class="block secret-value">${esc(value)}</pre>`
     : `<span class="secret-mask" aria-label="Hidden value">••••••••</span> ${renderValue(item)}${error ? ` <span class="tone-error">${esc(error)}</span>` : ""}`;
-  return `<div class="drawer-item secret-item"><span class="name">${esc(item.name)}</span><span class="value"><span class="secret-body">${body}</span><span class="secret-actions">${toggle}${copy}</span></span></div>`;
+  return `<div class="drawer-item secret-item"><span class="name">${esc(item.name)}</span><span class="value"><span class="secret-body">${body}</span><span class="secret-actions">${toggle}${copy}${editButton}</span></span></div>`;
 }
 
 function renderItems(items: DetailItem[], secrets?: SecretView): string {
@@ -228,6 +260,7 @@ function renderGrid(columns: ColumnDef[], rows: Cell[][], empty: string): string
 const DRAWER_ACTIONS: ActionId[] = [
   "logs",
   "shell",
+  "debug",
   "portForward",
   "openBrowser",
   "scale",
@@ -241,6 +274,7 @@ const DRAWER_ACTIONS: ActionId[] = [
   "rollback",
   "install",
   "edit",
+  "editDecoded",
   "stop",
   "delete",
 ];

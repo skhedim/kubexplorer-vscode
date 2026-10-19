@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { avatarSvg, contextColor, contextInitials, shortContextName } from "../../../src/shared/clusterNames";
-import { decodeBase64 } from "../../../src/shared/encoding";
+import { decodeBase64, encodeBase64 } from "../../../src/shared/encoding";
 import { colorizeLogLine } from "../../../src/shared/logFormat";
 
 describe("colorizeLogLine", () => {
@@ -12,12 +12,33 @@ describe("colorizeLogLine", () => {
 
   it("colors container prefixes and warnings", () => {
     const line = colorizeLogLine("[pod/a/nginx] 2026-10-18T10:00:00Z WARN slow");
-    expect(line).toContain("\x1b[36m[pod/a/nginx] \x1b[0m");
+    expect(line).toContain("[pod/a/nginx] \x1b[0m");
+    expect(line.startsWith("\x1b[")).toBe(true);
     expect(line).toContain("\x1b[33mWARN slow\x1b[0m");
+  });
+
+  it("gives each pod of a workload a stable color, never the error or warning ones", () => {
+    const color = (pod: string) => {
+      const line = colorizeLogLine(`[pod/${pod}/app] 2026-10-18T10:00:00Z ok`);
+      return line.slice(2, line.indexOf("m"));
+    };
+    const pods = ["web-7d4f9", "web-x2m8k", "web-q5n3c", "web-a1b2c", "web-z9y8x"];
+    expect(pods.map(color)).toEqual(pods.map(color));
+    expect(new Set(pods.map(color)).size).toBeGreaterThan(1);
+    for (const c of pods.map(color)) expect(["31", "33"]).not.toContain(c);
   });
 
   it("leaves plain lines untouched", () => {
     expect(colorizeLogLine("plain")).toBe("plain");
+  });
+});
+
+describe("encodeBase64", () => {
+  it("encodes the UTF-8 bytes, like Kubernetes", () => {
+    for (const text of ["payments", "mot de passe é ✓", "", "a\nb"]) {
+      expect(encodeBase64(text)).toBe(Buffer.from(text, "utf8").toString("base64"));
+      expect(decodeBase64(encodeBase64(text))).toBe(text);
+    }
   });
 });
 

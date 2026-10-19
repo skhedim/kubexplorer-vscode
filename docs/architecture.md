@@ -17,6 +17,7 @@ src/
     crds.ts             Installed CRDs per cluster (cached): optional kinds are shown only when installed.
     prometheus.ts       Prometheus detection and range queries through the API server proxy; demo metrics.
     portForward.ts      kubectl port-forward processes.
+    secretYaml.ts       The YAML of a Secret with its text values decoded under stringData.
     jsonStream.ts       Splits the JSON stream of kubectl --watch.
     quantity.ts         Kubernetes quantities (CPU, memory).
     models.ts           Shapes of the Kubernetes sub-objects the descriptors read.
@@ -39,14 +40,18 @@ src/
   shared/             Contracts shared by the extension host and the webview.
     view.ts             Generic view model: columns, typed cells, detail sections.
     protocol.ts         HostMessage / WebviewMessage, persisted webview state.
+    protection.ts       Protected contexts: pattern matching, actions refused on read-only contexts.
+    diff.ts             Line diff of a YAML document against the cluster, summarized for the apply confirmation.
     logFormat.ts, encoding.ts, clusterNames.ts
   webview/            UI of the tabs: framework-free HTML rendering by regions; SVG charts (chart.ts).
   vscode/             VS Code integration.
     clustersView.ts, resourcesView.ts   Tree views.
     panels.ts           Webview panels: tab reuse, serializer for restoring tabs after a restart.
     actions.ts          Actions with native dialogs, input boxes and quick picks.
-    terminals.ts        Logs (Pseudoterminal) and shells (kubectl exec).
-    documents.ts        kubexplorer:/ file system (save = kubectl replace), describe and read-only documents.
+    terminals.ts        Logs (Pseudoterminal) of a pod or a workload, shells (kubectl exec), debug containers.
+    documents.ts        kubexplorer:/ file system (save = diff, confirmation, kubectl replace; decoded Secrets),
+                        describe and read-only documents.
+    protection.ts       ContextGuard: confirmations by typed name on protected contexts, refusals on read-only ones.
     clusterState.ts     Active cluster and namespaces per context (persisted).
     statusBar.ts, config.ts, logger.ts
 ```

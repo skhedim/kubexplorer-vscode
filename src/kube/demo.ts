@@ -535,7 +535,9 @@ export class DemoClient implements KubeClient {
           'level=error msg="upstream timeout" upstream=bank-gateway',
         ];
     let i = 0;
-    const line = () => `${new Date(Date.now() - 1000 * (60 - i)).toISOString()} ${msgs[i++ % msgs.length]}\n`;
+    // The logs of a workload: lines of its pods, prefixed like kubectl logs --prefix.
+    const prefix = () => (o.selector ? `[pod/${o.pod.split("/").pop()}-${["7d4f9", "x2m8k", "q5n3c"][i % 3]}/app] ` : "");
+    const line = () => `${prefix()}${new Date(Date.now() - 1000 * (60 - i)).toISOString()} ${msgs[i++ % msgs.length]}\n`;
     const t0 = setTimeout(() => onData(Array.from({ length: crash ? 3 : 40 }, line).join("")), 100);
     if (crash || !o.follow || o.previous) {
       const t1 = setTimeout(() => onEnd(), 250);
@@ -546,6 +548,10 @@ export class DemoClient implements KubeClient {
   }
 
   execSpec(): ExecSpec | undefined {
+    return undefined;
+  }
+
+  debugSpec(): ExecSpec | undefined {
     return undefined;
   }
 }

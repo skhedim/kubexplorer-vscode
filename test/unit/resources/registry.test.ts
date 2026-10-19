@@ -77,6 +77,17 @@ describe("registry", () => {
     expect(items.filter((i) => i.secretKey).map((i) => i.secretKey)).toEqual(Object.keys(secret.data));
   });
 
+  it("offers the logs of every workload with a selector, and decoded editing of Secrets", () => {
+    for (const resource of ["deployments", "statefulsets", "daemonsets", "replicasets", "jobs"]) {
+      for (const o of fixture(resource)) {
+        expect(registry.require(resource).toRow(o).actions, resource).toContain("logs");
+        expect(o.spec?.selector?.matchLabels, `${resource} ${o.metadata.name}`).toBeDefined();
+      }
+    }
+    expect(registry.require("cronjobs").actions).not.toContain("logs");
+    expect(registry.require("secrets").actions).toEqual(["editDecoded", "edit", "describe", "copyName", "delete"]);
+  });
+
   it("finds the pods of a Deployment through its selector", async () => {
     const deployment = fixture("deployments").find((d) => d.metadata.name === "web-app")!;
     let selector: string | undefined;

@@ -38,6 +38,8 @@ export interface KubeClient {
   streamLogs(context: string, opts: LogOptions, onData: (chunk: string) => void, onEnd: (error?: string) => void): Stoppable;
   /** Command to run in a terminal for an interactive shell; undefined when unsupported (demo). */
   execSpec(context: string, namespace: string, pod: string, container: string): ExecSpec | undefined;
+  /** Command to run in a terminal for an ephemeral debug container (`kubectl debug`); undefined when unsupported. */
+  debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec | undefined;
   /**
    * Follows the changes of a list, without its initial state (combine with list()).
    * Returns undefined when unsupported for this context or kind: the caller polls instead.

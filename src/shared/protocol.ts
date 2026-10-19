@@ -1,5 +1,6 @@
 // Messages exchanged between a resource tab (webview) and the extension.
 
+import type { Protection } from "./protection";
 import type { ActionId, ColumnDef, Details, MetricsData, OverviewData, ResourceRef, Row } from "./view";
 
 export type Appearance = "vscode" | "freelens";
@@ -7,11 +8,18 @@ export type Appearance = "vscode" | "freelens";
 /** page: an overview page other than the cluster one ("flux", "karpenter"). */
 export type PanelTarget = { kind: "list"; resource: string } | { kind: "overview"; page?: string };
 
-export interface ListViewInit {
-  mode: "list";
+interface BaseViewInit {
   context: string;
-  resource: string;
+  /** What the tab shows, persisted to restore it after a restart. */
+  target: PanelTarget;
   title: string;
+  /** A protected context (e.g. production) is flagged in the header. */
+  protection?: Protection;
+}
+
+export interface ListViewInit extends BaseViewInit {
+  mode: "list";
+  resource: string;
   kindName: string;
   namespaced: boolean;
   columns: ColumnDef[];
@@ -19,10 +27,8 @@ export interface ListViewInit {
   defaultSort: { col: string; desc: boolean };
 }
 
-export interface OverviewViewInit {
+export interface OverviewViewInit extends BaseViewInit {
   mode: "overview";
-  context: string;
-  title: string;
 }
 
 export type ViewInit = ListViewInit | OverviewViewInit;
@@ -36,6 +42,7 @@ export interface NamespaceFilter {
 export type HostMessage =
   | { type: "init"; view: ViewInit; appearance: Appearance }
   | { type: "appearance"; appearance: Appearance }
+  | { type: "protection"; protection: Protection }
   | { type: "namespaces"; filter: NamespaceFilter }
   /** live: the list is followed in real time (watch) rather than polled. */
   | { type: "rows"; rows: Row[]; loading: boolean; error?: string; live?: boolean }
@@ -45,7 +52,9 @@ export type HostMessage =
   /** Usage charts of the object shown in the drawer; null when it has none. */
   | { type: "metrics"; uid: string; data: MetricsData | null }
   /** Decoded value of one Secret key, sent only on explicit request (revealSecret). */
-  | { type: "secretValue"; uid: string; key: string; value?: string; error?: string };
+  | { type: "secretValue"; uid: string; key: string; value?: string; error?: string }
+  /** Outcome of updateSecret: saved, cancelled (saved false, no error) or failed. */
+  | { type: "secretUpdated"; key: string; saved: boolean; error?: string };
 
 export type WebviewMessage =
   | { type: "ready" }
@@ -56,9 +65,12 @@ export type WebviewMessage =
   | { type: "action"; action: ActionId; ref: ResourceRef; container?: string }
   /** The ⋮ button: the extension offers the actions in a native QuickPick. */
   | { type: "rowMenu"; ref: ResourceRef; actions: ActionId[] }
-  | { type: "deleteMany"; refs: ResourceRef[] }
+  /** An action on the checked rows (BULK_ACTIONS). */
+  | { type: "bulkAction"; action: ActionId; refs: ResourceRef[] }
   | { type: "openResource"; resource: string }
   | { type: "revealSecret"; ref: ResourceRef; key: string }
+  /** A Secret value edited in the drawer; it reaches the extension only when saved. */
+  | { type: "updateSecret"; ref: ResourceRef; key: string; value: string }
   | { type: "copyText"; text: string };
 
 /** Context attached to rows for the native context menus (data-vscode-context). */

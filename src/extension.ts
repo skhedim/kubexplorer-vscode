@@ -9,6 +9,7 @@ import { PortForwardManager } from "./kube/portForward";
 import { MetricsRouter, PrometheusClient } from "./kube/prometheus";
 import { RoutingClient } from "./kube/routing";
 import { ResourceStore } from "./kube/store";
+import { errorMessage } from "./kube/types";
 import { PORT_FORWARDS } from "./kube/virtualKinds";
 import { MetricsHistory, MetricsService } from "./panel/metrics";
 import { menuOpen, menuTarget } from "./resources/menu";
@@ -22,6 +23,7 @@ import { config } from "./vscode/config";
 import { DESCRIBE_SCHEME, DescribeProvider, ReadonlyDocuments, ResourceFileSystem, VIEW_SCHEME, YAML_SCHEME } from "./vscode/documents";
 import { createLogger } from "./vscode/logger";
 import { ResourcePanels, VIEW_TYPE } from "./vscode/panels";
+import { ContextGuard } from "./vscode/protection";
 import { type ResourceNode, ResourcesView } from "./vscode/resourcesView";
 import { KubeStatusBar } from "./vscode/statusBar";
 import { Terminals } from "./vscode/terminals";
@@ -48,10 +50,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const state = new ClusterState(context.globalState, client, log);
   const terminals = new Terminals(client);
   const documents = new ReadonlyDocuments();
-  const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, log });
-  const panels = new ResourcePanels(context.extensionUri, { registry, store, client, helm, state, actions, metrics, crds, log });
+  const guard = new ContextGuard();
+  const files = new ResourceFileSystem(client, registry, store, documents, guard, log);
+  const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, files, guard, log });
+  const panels = new ResourcePanels(context.extensionUri, { registry, store, client, helm, state, actions, metrics, crds, guard, log });
 
-  const clustersView = new ClustersView(state);
+  const clustersView = new ClustersView(state, guard);
   const resourcesView = new ResourcesView(state, crds, registry, log);
   const clustersTree = vscode.window.createTreeView("kubexplorer.clusters", { treeDataProvider: clustersView });
   const resourcesTree = vscode.window.createTreeView<ResourceNode>("kubexplorer.resources", { treeDataProvider: resourcesView });
@@ -84,13 +88,15 @@ export async function activate(context: vscode.ExtensionContext) {
     state,
     terminals,
     documents,
+    guard,
     panels,
     clustersView,
     resourcesView,
     clustersTree,
     resourcesTree,
-    new KubeStatusBar(state),
-    vscode.workspace.registerFileSystemProvider(YAML_SCHEME, new ResourceFileSystem(client, registry, store, log), {
+    new KubeStatusBar(state, guard),
+    files,
+    vscode.workspace.registerFileSystemProvider(YAML_SCHEME, files, {
       isCaseSensitive: true,
     }),
     vscode.workspace.registerTextDocumentContentProvider(DESCRIBE_SCHEME, new DescribeProvider(client, registry)),
@@ -177,6 +183,18 @@ export async function activate(context: vscode.ExtensionContext) {
       if (enabled) await state.setActive(DEMO_CONTEXT);
     }),
     vscode.commands.registerCommand("kubexplorer.showLog", () => channel.show()),
+    // Ctrl+S in the YAML of an object: review the diff, then apply or cancel.
+    vscode.commands.registerCommand("kubexplorer.applyDocument", async (uri?: vscode.Uri) => {
+      const document = uri
+        ? vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString())
+        : vscode.window.activeTextEditor?.document;
+      if (document?.uri.scheme !== YAML_SCHEME) return vscode.commands.executeCommand("workbench.action.files.save");
+      try {
+        await files.apply(document);
+      } catch (err) {
+        void vscode.window.showErrorMessage(vscode.l10n.t("KubeXplorer: {0}", errorMessage(err)));
+      }
+    }),
     ...ALL_ACTIONS.map(resourceCommand),
   );
 
@@ -184,7 +202,7 @@ export async function activate(context: vscode.ExtensionContext) {
   await state.reloadContexts();
   updateResourcesDescription();
   // Exposed for the integration tests (vscode.extensions.getExtension(...).exports).
-  return { state, registry, store, client, helm, portForwards, panels, clustersView, resourcesView, metrics };
+  return { state, registry, store, client, helm, portForwards, panels, clustersView, resourcesView, metrics, actions, guard };
 }
 
 export type KubeXplorerApi = Awaited<ReturnType<typeof activate>>;

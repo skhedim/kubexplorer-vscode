@@ -72,11 +72,15 @@ const firstRow = () => webview().locator(".table .row:not(.head)").first();
 /** An entry of a section of the Resources view (several sections have an "Overview"). */
 const child = async (parent, label) => {
   const rows = page.locator(".pane-body .monaco-list-row");
-  const texts = (await rows.allTextContents()).map((t) => t.trim());
-  const start = texts.indexOf(parent);
-  const i = texts.findIndex((t, j) => j > start && t === label);
-  if (start < 0 || i < 0) throw new Error(`${parent} > ${label} is not in the Resources view`);
-  return rows.nth(i);
+  // The children show up once the section is expanded.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const texts = (await rows.allTextContents()).map((t) => t.trim());
+    const start = texts.indexOf(parent);
+    const i = texts.findIndex((t, j) => j > start && t === label);
+    if (start >= 0 && i >= 0) return rows.nth(i);
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`${parent} > ${label} is not in the Resources view`);
 };
 /** Moves the mouse over the chart of the drawer, to show its tooltip. */
 const hoverChart = async () => {

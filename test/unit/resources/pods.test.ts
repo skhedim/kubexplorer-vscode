@@ -37,7 +37,7 @@ describe("pods (real kind cluster)", () => {
     expect(row.warning).toBeUndefined();
     expect(row.cells.owner).toMatchObject({ link: "ReplicaSet", ref: { resource: "replicasets", namespace: "frontend" } });
     expect(row.cells.node).toMatchObject({ ref: { resource: "nodes", namespace: undefined } });
-    expect(row.actions).toEqual(["logs", "shell", "portForward", "edit", "describe", "copyName", "delete"]);
+    expect(row.actions).toEqual(["logs", "shell", "debug", "portForward", "edit", "describe", "copyName", "delete"]);
   });
 
   it("builds details with one section per container", async () => {

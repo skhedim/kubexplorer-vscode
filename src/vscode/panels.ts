@@ -17,6 +17,7 @@ import type { HostMessage, PanelTarget, PersistedState, WebviewMessage } from ".
 import type { ResourceActions } from "./actions";
 import type { ClusterState } from "./clusterState";
 import { config } from "./config";
+import type { ContextGuard } from "./protection";
 
 export const VIEW_TYPE = "kubexplorer.resource";
 
@@ -29,6 +30,7 @@ export interface PanelsDeps {
   actions: ResourceActions;
   metrics: MetricsService;
   crds: CrdCatalog;
+  guard: ContextGuard;
   log: Logger;
 }
 
@@ -73,6 +75,9 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("kubexplorer.appearance"))
           for (const tab of this.tabs) tab.controller.setAppearance(config.appearance());
+      }),
+      d.guard.onDidChange(() => {
+        for (const tab of this.tabs) tab.controller.setProtection(d.guard.protection(tab.context));
       }),
     ];
   }
@@ -162,7 +167,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       post: (msg: HostMessage) => void panel.webview.postMessage(msg),
       runAction: (ctx, action, ref, container) => void actions.run(action, { context: ctx, ref, container }),
       rowMenu: (ctx, ref, list) => void actions.rowMenu(ctx, ref, list),
-      deleteMany: (ctx, refs) => void actions.deleteMany(ctx, refs),
+      bulkAction: (ctx, action, refs) => void actions.runMany(ctx, action, refs),
       openResource: (ctx, resource) => this.open(ctx, { kind: "list", resource }),
       setNamespaces: (ctx, namespaces) => void state.setNamespaces(ctx, namespaces),
       refresh: (ctx) => {
@@ -170,6 +175,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
         void state.loadNamespaces(ctx, true);
       },
       copyText: (text) => void actions.copyText(text),
+      updateSecret: (ctx, ref, key, value) => actions.updateSecretValue(ctx, ref, key, value),
     };
     return new PanelController({
       context,
@@ -183,6 +189,7 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
       crds: this.d.crds,
       log: this.d.log,
       appearance: config.appearance(),
+      protection: this.d.guard.protection(context),
       namespaces: state.filter(context),
     });
   }

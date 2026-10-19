@@ -34,6 +34,9 @@ class LogsPseudoterminal implements vscode.Pseudoterminal {
     const target = `${o.namespace}/${o.pod}${o.container ? ` › ${o.container}` : ` (${vscode.l10n.t("all containers")})`}`;
     const previous = o.previous ? ` · ${vscode.l10n.t("previous container")}` : "";
     this.write(`${DIM}── ${target} · ${this.context}${previous} ── ${vscode.l10n.t("Ctrl+C: stop · R: restart")}${RESET}\r\n`);
+    // kubectl logs -l follows the pods running when it starts.
+    if (o.selector)
+      this.write(`${DIM}── ${vscode.l10n.t("Pods {0}; press R after a rollout to follow the new ones", o.selector)} ──${RESET}\r\n`);
     this.stream = this.client.streamLogs(
       this.context,
       o,
@@ -97,7 +100,7 @@ export class Terminals implements vscode.Disposable {
   }
 
   showLogs(context: string, opts: LogOptions): void {
-    const key = [context, opts.namespace, opts.pod, opts.container ?? "*", opts.previous].join("|");
+    const key = [context, opts.namespace, opts.pod, opts.selector ?? "", opts.container ?? "*", opts.previous].join("|");
     const existing = this.logs.get(key);
     if (existing) {
       existing.show();
@@ -124,6 +127,21 @@ export class Terminals implements vscode.Disposable {
       shellPath: spec.shellPath,
       shellArgs: spec.shellArgs,
       iconPath: new vscode.ThemeIcon("terminal"),
+      isTransient: true,
+    });
+    terminal.show();
+    return true;
+  }
+
+  /** Opens `kubectl debug` in a terminal; false when the cluster has no debug containers (demo). */
+  showDebug(context: string, namespace: string, pod: string, container: string, image: string): boolean {
+    const spec = this.client.debugSpec(context, namespace, pod, container, image);
+    if (!spec) return false;
+    const terminal = vscode.window.createTerminal({
+      name: vscode.l10n.t("Debug: {0}", `${pod} › ${container}`),
+      shellPath: spec.shellPath,
+      shellArgs: spec.shellArgs,
+      iconPath: new vscode.ThemeIcon("debug"),
       isTransient: true,
     });
     terminal.show();

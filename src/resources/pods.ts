@@ -163,6 +163,7 @@ function containerSection(c: ContainerInfo, usage?: Usage): DetailSection {
       : [
           { action: "logs", container: c.name },
           { action: "shell", container: c.name },
+          { action: "debug", container: c.name },
         ],
     items,
   };
@@ -199,7 +200,7 @@ export const pods = defineResource({
   ],
   endColumns: [{ id: "status", title: "Status", grow: 1, value: (o) => text(podStatus(o), podStatusTone(podStatus(o))) }],
   compact: ["name", "node", "containers", "cpu", "memory", "restarts", "age", "status"],
-  actions: ["logs", "shell", "portForward"],
+  actions: ["logs", "shell", "debug", "portForward"],
   related: ["podmetrics"],
   metrics: async (o) => ({ kind: "pods", namespace: o.metadata.namespace ?? "default", pods: [o] }),
   items: (o, rc) => [

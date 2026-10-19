@@ -159,6 +159,12 @@
         "icon": "$(output)"
       },
       {
+        "command": "kubexplorer.applyDocument",
+        "title": "%command.applyDocument%",
+        "category": "KubeXplorer",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "kubexplorer.resource.logs",
         "title": "%action.logs%",
         "category": "KubeXplorer",
@@ -169,6 +175,12 @@
         "title": "%action.shell%",
         "category": "KubeXplorer",
         "icon": "$(terminal)"
+      },
+      {
+        "command": "kubexplorer.resource.debug",
+        "title": "%action.debug%",
+        "category": "KubeXplorer",
+        "icon": "$(debug)"
       },
       {
         "command": "kubexplorer.resource.portForward",
@@ -247,6 +259,12 @@
         "title": "%action.edit%",
         "category": "KubeXplorer",
         "icon": "$(edit)"
+      },
+      {
+        "command": "kubexplorer.resource.editDecoded",
+        "title": "%action.editDecoded%",
+        "category": "KubeXplorer",
+        "icon": "$(unlock)"
       },
       {
         "command": "kubexplorer.resource.describe",
@@ -364,8 +382,27 @@
           "when": "false"
         },
         {
+          "command": "kubexplorer.resource.debug",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.editDecoded",
+          "when": "false"
+        },
+        {
           "command": "kubexplorer.resource.delete",
           "when": "false"
+        },
+        {
+          "command": "kubexplorer.applyDocument",
+          "when": "resourceScheme == kubexplorer"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "kubexplorer.applyDocument",
+          "when": "resourceScheme == kubexplorer && !activeEditorIsReadonly",
+          "group": "navigation"
         }
       ],
       "view/title": [
@@ -444,49 +481,54 @@
           "group": "1_actions@2"
         },
         {
+          "command": "kubexplorer.resource.debug",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bdebug\\b/",
+          "group": "1_actions@3"
+        },
+        {
           "command": "kubexplorer.resource.portForward",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bportForward\\b/",
-          "group": "1_actions@3"
+          "group": "1_actions@4"
         },
         {
           "command": "kubexplorer.resource.openBrowser",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bopenBrowser\\b/",
-          "group": "1_actions@4"
+          "group": "1_actions@5"
         },
         {
           "command": "kubexplorer.resource.scale",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bscale\\b/",
-          "group": "1_actions@5"
+          "group": "1_actions@6"
         },
         {
           "command": "kubexplorer.resource.restart",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\brestart\\b/",
-          "group": "1_actions@6"
+          "group": "1_actions@7"
         },
         {
           "command": "kubexplorer.resource.trigger",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\btrigger\\b/",
-          "group": "1_actions@7"
+          "group": "1_actions@8"
         },
         {
           "command": "kubexplorer.resource.reconcile",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\breconcile\\b/",
-          "group": "1_actions@8"
+          "group": "1_actions@9"
         },
         {
           "command": "kubexplorer.resource.suspend",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bsuspend\\b/",
-          "group": "1_actions@9"
+          "group": "1_actions@10"
         },
         {
           "command": "kubexplorer.resource.resume",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bresume\\b/",
-          "group": "1_actions@10"
+          "group": "1_actions@11"
         },
         {
           "command": "kubexplorer.resource.install",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\binstall\\b/",
-          "group": "1_actions@11"
+          "group": "1_actions@12"
         },
         {
           "command": "kubexplorer.resource.values",
@@ -509,9 +551,14 @@
           "group": "2_inspect@4"
         },
         {
+          "command": "kubexplorer.resource.editDecoded",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\beditDecoded\\b/",
+          "group": "2_inspect@5"
+        },
+        {
           "command": "kubexplorer.resource.describe",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bdescribe\\b/",
-          "group": "2_inspect@5"
+          "group": "2_inspect@6"
         },
         {
           "command": "kubexplorer.resource.copyName",
@@ -530,6 +577,14 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "kubexplorer.applyDocument",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "resourceScheme == kubexplorer"
+      }
+    ],
     "configuration": {
       "title": "KubeXplorer",
       "properties": {
@@ -579,11 +634,39 @@
           "default": true,
           "markdownDescription": "%config.confirmApply%"
         },
+        "kubexplorer.protectedContexts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*prod*"
+          ],
+          "markdownDescription": "%config.protectedContexts%"
+        },
+        "kubexplorer.protectedContextsMode": {
+          "type": "string",
+          "enum": [
+            "confirm",
+            "readOnly"
+          ],
+          "enumDescriptions": [
+            "%config.protectedContextsMode.confirm%",
+            "%config.protectedContextsMode.readOnly%"
+          ],
+          "default": "confirm",
+          "markdownDescription": "%config.protectedContextsMode%"
+        },
         "kubexplorer.logs.tailLines": {
           "type": "number",
           "default": 500,
           "minimum": 10,
           "markdownDescription": "%config.logs.tailLines%"
+        },
+        "kubexplorer.debug.image": {
+          "type": "string",
+          "default": "busybox:1.37",
+          "markdownDescription": "%config.debug.image%"
         },
         "kubexplorer.prometheus": {
           "type": "string",
@@ -637,7 +720,8 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
   },
   "allowScripts": {
     "esbuild": true,

@@ -49,6 +49,7 @@ export interface ColumnDef {
 export const ALL_ACTIONS = [
   "logs",
   "shell",
+  "debug",
   "portForward",
   "openBrowser",
   "scale",
@@ -62,6 +63,7 @@ export const ALL_ACTIONS = [
   "manifest",
   "install",
   "edit",
+  "editDecoded",
   "describe",
   "copyName",
   "stop",
@@ -69,6 +71,9 @@ export const ALL_ACTIONS = [
 ] as const;
 
 export type ActionId = (typeof ALL_ACTIONS)[number];
+
+/** Actions offered on the checked rows of a list, when every checked row supports them. */
+export const BULK_ACTIONS: ActionId[] = ["restart", "scale", "reconcile", "suspend", "resume", "delete"];
 
 export interface Row {
   uid: string;

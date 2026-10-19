@@ -18,10 +18,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The Flux and Karpenter menus show up only when their CRDs are installed.
 - `dev-cluster/setup.sh --addons` installs Flux, a simulated Karpenter (kwok) and Prometheus on the development
   cluster.
+- Protected contexts (`kubexplorer.protectedContexts`, `*prod*` by default): framed in red in the tabs, the status
+  bar and the Clusters view; every change asks to type the name of its target, or is refused in `readOnly` mode
+  (`kubexplorer.protectedContextsMode`).
+- Saving a YAML document (Ctrl+S, or **Apply to Cluster** in the editor title) opens the diff against the object on
+  the cluster, under a dialog to apply or cancel.
+- Secret values can be edited in place in the details drawer.
+- Logs of workloads (Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs): every pod at once, one color per
+  pod.
+- **Edit Decoded Values** on Secrets: values in clear under `stringData`.
+- **Debug...** on pods: an ephemeral debug container (`kubectl debug`) attached to a terminal (`kubexplorer.debug.image`).
+- Bulk actions on the checked rows: restart, scale, reconcile, suspend, resume and delete.
 
 ### Fixed
 
 - The details drawer no longer blinks when its content refreshes.
+- Reopening the YAML of an object changed on the cluster since its tab was closed showed the previous version.
+- A Flux or Karpenter overview tab restored after a restart showed the cluster overview.
 
 ## [0.1.0] - 2026-10-18
 

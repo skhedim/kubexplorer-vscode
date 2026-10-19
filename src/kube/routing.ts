@@ -100,4 +100,8 @@ export class RoutingClient implements KubeClient {
   execSpec(context: string, namespace: string, pod: string, container: string): ExecSpec | undefined {
     return this.pick(context).execSpec(context, namespace, pod, container);
   }
+
+  debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec | undefined {
+    return this.pick(context).debugSpec(context, namespace, pod, container, image);
+  }
 }

@@ -977,6 +977,35 @@ pre.block {
   color: var(--kx-ok);
   border: 1px solid color-mix(in srgb, var(--kx-ok) 45%, transparent);
 }
+.protected-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #fff;
+  background: var(--kx-error);
+}
+
+/* A protected context (e.g. production): a frame in the error color around the whole tab. */
+body[data-protection="confirm"] .app,
+body[data-protection="readOnly"] .app {
+  box-shadow: inset 0 3px 0 var(--kx-error);
+}
+
+.bulk-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.bulk-count {
+  color: var(--kx-fg-dim);
+  white-space: nowrap;
+}
 .live-dot {
   width: 6px;
   height: 6px;
@@ -1014,6 +1043,34 @@ pre.block {
 }
 .icon-button .pending {
   animation: pulse 1s ease-in-out infinite;
+}
+.secret-editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 26px;
+  max-height: 240px;
+  padding: 3px 6px;
+  resize: vertical;
+  font-family: var(--kx-mono);
+  font-size: 0.95em;
+  color: var(--kx-input-fg);
+  background: var(--kx-input-bg);
+  border: 1px solid var(--kx-input-border);
+  border-radius: 2px;
+}
+.secret-editor:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: -1px;
+}
+.secret-editor:disabled {
+  opacity: 0.6;
+}
+.secret-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85em;
+  color: var(--kx-fg-dim);
 }
 
 /* ---------- Categorical palette (zones, instance types…) ---------- */

@@ -7,11 +7,15 @@ import type { HelmClient } from "../kube/helm";
 import { type ForwardedResource, type PortForward, type PortForwardManager, suggestLocalPort } from "../kube/portForward";
 import type { ResourceStore } from "../kube/store";
 import { errorMessage, type KubeObject, type Logger, type ObjectTarget } from "../kube/types";
+import { selectorString } from "../resources/format";
 import type { ResourceRegistry } from "../resources/registry";
+import { shortContextName } from "../shared/clusterNames";
+import { encodeBase64 } from "../shared/encoding";
 import type { RowMenuContext } from "../shared/protocol";
 import type { ActionId, ResourceRef } from "../shared/view";
 import { config } from "./config";
-import { DESCRIBE_SCHEME, type ReadonlyDocuments, resourceUri, YAML_SCHEME } from "./documents";
+import { DESCRIBE_SCHEME, type ReadonlyDocuments, type ResourceFileSystem, resourceUri, YAML_SCHEME } from "./documents";
+import type { ContextGuard } from "./protection";
 import type { Terminals } from "./terminals";
 
 export interface ActionTarget {
@@ -28,6 +32,8 @@ export interface ActionDeps {
   store: ResourceStore;
   terminals: Terminals;
   documents: ReadonlyDocuments;
+  files: ResourceFileSystem;
+  guard: ContextGuard;
   log: Logger;
 }
 
@@ -51,6 +57,8 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
       return `$(output) ${vscode.l10n.t("Logs")}`;
     case "shell":
       return `$(terminal) ${vscode.l10n.t("Shell")}`;
+    case "debug":
+      return `$(debug) ${vscode.l10n.t("Debug...")}`;
     case "portForward":
       return `$(plug) ${vscode.l10n.t("Forward Port...")}`;
     case "openBrowser":
@@ -77,6 +85,8 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
       return `$(cloud-download) ${vscode.l10n.t("Install...")}`;
     case "edit":
       return `$(edit) ${vscode.l10n.t("Edit YAML")}`;
+    case "editDecoded":
+      return `$(unlock) ${vscode.l10n.t("Edit Decoded Values")}`;
     case "describe":
       return `$(info) ${vscode.l10n.t("Describe")}`;
     case "copyName":
@@ -91,6 +101,21 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
 function display(ref: ResourceRef): string {
   return ref.namespace ? `${ref.namespace}/${ref.name}` : ref.name;
 }
+
+/** The objects of a bulk action, for a confirmation. */
+function listed(refs: ResourceRef[]): string {
+  return refs.slice(0, 8).map(display).join("\n") + (refs.length > 8 ? `\n${vscode.l10n.t("… and {0} more", refs.length - 8)}` : "");
+}
+
+/** Verb of the actions performed by a merge patch (Flux), for confirmations. */
+function patchVerb(action: ActionId): string {
+  if (action === "suspend") return vscode.l10n.t("Suspend");
+  if (action === "resume") return vscode.l10n.t("Resume");
+  return vscode.l10n.t("Reconcile");
+}
+
+/** Images offered for debug containers, after the one of the settings. */
+const DEBUG_IMAGES = ["busybox:1.37", "nicolaka/netshoot"];
 
 const PORT_PATTERN = /^\d+$/;
 const isPort = (s: string) => PORT_PATTERN.test(s) && Number(s) > 0 && Number(s) < 65_536;
@@ -120,6 +145,7 @@ export class ResourceActions {
   /** Runs an action; errors are logged and notified, never propagated to the UI. */
   async run(action: ActionId, target: ActionTarget): Promise<void> {
     try {
+      if (!this.d.guard.allows(target.context, action)) return;
       await this.dispatch(action, target);
     } catch (err) {
       this.reportError(`${action} ${target.ref.resource}/${display(target.ref)} (${target.context})`, err);
@@ -146,6 +172,8 @@ export class ResourceActions {
         return this.logs(context, ref, container);
       case "shell":
         return this.shell(context, ref, container);
+      case "debug":
+        return this.debug(context, ref, container);
       case "portForward":
         return this.portForward(context, ref);
       case "openBrowser": {
@@ -156,8 +184,9 @@ export class ResourceActions {
       case "stop":
         this.d.portForwards.stop(ref.name);
         return;
-      case "edit": {
-        const doc = await vscode.workspace.openTextDocument(resourceUri(YAML_SCHEME, context, ref, "yaml"));
+      case "edit":
+      case "editDecoded": {
+        const doc = await this.d.files.open(resourceUri(YAML_SCHEME, context, ref, "yaml", action === "editDecoded"));
         await vscode.languages.setTextDocumentLanguage(doc, "yaml");
         await vscode.window.showTextDocument(doc, { preview: false });
         return;
@@ -176,6 +205,14 @@ export class ResourceActions {
       case "restart":
         return this.restart(context, ref);
       case "trigger": {
+        const confirmed = await this.d.guard.confirm(context, {
+          question: vscode.l10n.t("Create a Job from CronJob {0}?", display(ref)),
+          detail: vscode.l10n.t("Context: {0}", context),
+          verb: vscode.l10n.t("Trigger Now"),
+          expected: ref.name,
+          modal: false,
+        });
+        if (!confirmed) return;
         const job = await this.d.client.triggerCronJob(context, ref.namespace ?? "default", ref.name);
         void vscode.window.showInformationMessage(vscode.l10n.t("Job {0} created from {1}.", job, ref.name));
         this.d.store.refresh(context);
@@ -201,10 +238,15 @@ export class ResourceActions {
   /** Actions performed by a merge patch of the descriptor (Flux reconcile, suspend and resume). */
   private async patchAction(action: ActionId, context: string, ref: ResourceRef): Promise<void> {
     const descriptor = this.d.registry.require(ref.resource);
-    const build = descriptor.patches[action];
-    if (!build) throw new Error(vscode.l10n.t("{0} does not support this action", descriptor.kindName));
-    const obj = await this.fetch(context, ref);
-    await this.d.client.patch(context, this.objectTarget(ref), build(obj, new Date().toISOString()));
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("{0} {1} {2}?", patchVerb(action), descriptor.kindName, display(ref)),
+      detail: vscode.l10n.t("Context: {0}", context),
+      verb: patchVerb(action),
+      expected: ref.name,
+      modal: false,
+    });
+    if (!confirmed) return;
+    await this.patchOne(action, context, ref);
     const done: Partial<Record<ActionId, string>> = {
       reconcile: vscode.l10n.t("Reconciliation of {0} requested", display(ref)),
       suspend: vscode.l10n.t("{0} suspended", display(ref)),
@@ -212,6 +254,14 @@ export class ResourceActions {
     };
     vscode.window.setStatusBarMessage(`$(check) ${done[action] ?? display(ref)}`, 4000);
     this.d.store.refresh(context);
+  }
+
+  private async patchOne(action: ActionId, context: string, ref: ResourceRef): Promise<void> {
+    const descriptor = this.d.registry.require(ref.resource);
+    const build = descriptor.patches[action];
+    if (!build) throw new Error(vscode.l10n.t("{0} does not support this action", descriptor.kindName));
+    const obj = await this.fetch(context, ref);
+    await this.d.client.patch(context, this.objectTarget(ref), build(obj, new Date().toISOString()));
   }
 
   // ---------------- Pods: containers, logs, shell ----------------
@@ -238,6 +288,7 @@ export class ResourceActions {
   }
 
   private async logs(context: string, ref: ResourceRef, preset?: string): Promise<void> {
+    if (ref.resource !== "pods") return this.workloadLogs(context, ref, preset);
     const pod = await this.fetch(context, ref);
     const container = await this.pickContainer(pod, true, preset);
     if (container === undefined) return;
@@ -268,6 +319,66 @@ export class ResourceActions {
     });
   }
 
+  /** The logs of every pod of a workload, like stern: kubectl logs -l <selector> --prefix. */
+  private async workloadLogs(context: string, ref: ResourceRef, preset?: string): Promise<void> {
+    const obj = await this.fetch(context, ref);
+    const kind = this.d.registry.require(ref.resource).kindName;
+    const selector = selectorString(obj.spec?.selector?.matchLabels);
+    if (!selector) throw new Error(vscode.l10n.t("{0} {1} has no label selector", kind, display(ref)));
+    const template: KubeObject = { metadata: obj.metadata, spec: obj.spec?.template?.spec };
+    const container = await this.pickContainer(template, true, preset);
+    if (container === undefined) return;
+    this.d.terminals.showLogs(context, {
+      namespace: ref.namespace ?? "default",
+      pod: `${kind.toLowerCase()}/${ref.name}`,
+      selector,
+      container: container ?? undefined,
+      previous: false,
+      follow: true,
+      tailLines: config.logTailLines(),
+    });
+  }
+
+  /** An ephemeral container (kubectl debug), sharing the processes of a container of the pod. */
+  private async debug(context: string, ref: ResourceRef, preset?: string): Promise<void> {
+    const pod = await this.fetch(context, ref);
+    const container = await this.pickContainer(pod, false, preset);
+    if (!container) return;
+    const images = [...new Set([config.debugImage(), ...DEBUG_IMAGES])];
+    const pick = await vscode.window.showQuickPick(
+      [
+        ...images.map((image) => ({ label: `$(package) ${image}`, image })),
+        { label: `$(edit) ${vscode.l10n.t("Other image...")}`, image: "" },
+      ],
+      {
+        title: vscode.l10n.t("Debug container for {0}", `${ref.name} › ${container}`),
+        placeHolder: vscode.l10n.t("Image of the ephemeral container"),
+      },
+    );
+    if (!pick) return;
+    let image = pick.image;
+    if (!image) {
+      const value = await vscode.window.showInputBox({
+        title: vscode.l10n.t("Image of the ephemeral container"),
+        placeHolder: "registry/image:tag",
+        validateInput: (v) => (/^\S+$/.test(v.trim()) ? undefined : vscode.l10n.t("An image reference")),
+      });
+      if (!value) return;
+      image = value.trim();
+    }
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Add a debug container to {0}?", display(ref)),
+      detail: vscode.l10n.t("Image {0}, sharing the processes of {1}. Context: {2}", image, container, context),
+      verb: vscode.l10n.t("Debug"),
+      expected: ref.name,
+      modal: false,
+    });
+    if (!confirmed) return;
+    if (!this.d.terminals.showDebug(context, ref.namespace ?? "default", ref.name, container, image)) {
+      void vscode.window.showInformationMessage(vscode.l10n.t("Debug containers are not available on the demo cluster."));
+    }
+  }
+
   private async shell(context: string, ref: ResourceRef, preset?: string): Promise<void> {
     const pod = await this.fetch(context, ref);
     const container = await this.pickContainer(pod, false, preset);
@@ -291,15 +402,14 @@ export class ResourceActions {
     });
     if (value === undefined || Number(value) === current) return;
     const replicas = Number(value);
-    if (replicas === 0) {
-      const scaleDown = vscode.l10n.t("Scale to 0");
-      const ok = await vscode.window.showWarningMessage(
-        vscode.l10n.t("Scale {0} to 0 replicas?", display(ref)),
-        { modal: true, detail: vscode.l10n.t("The workload will be unavailable.") },
-        scaleDown,
-      );
-      if (ok !== scaleDown) return;
-    }
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Scale {0} to {1} replicas?", display(ref), replicas),
+      detail: replicas === 0 ? vscode.l10n.t("The workload will be unavailable.") : vscode.l10n.t("Context: {0}", context),
+      verb: replicas === 0 ? vscode.l10n.t("Scale to 0") : vscode.l10n.t("Scale"),
+      expected: ref.name,
+      modal: replicas === 0,
+    });
+    if (!confirmed) return;
     await this.d.client.scale(context, this.objectTarget(ref), replicas);
     void vscode.window.showInformationMessage(vscode.l10n.t("{0}: {1} → {2} replica(s).", display(ref), current, replicas));
     this.d.store.refresh(context);
@@ -307,13 +417,14 @@ export class ResourceActions {
 
   private async restart(context: string, ref: ResourceRef): Promise<void> {
     const kind = this.d.registry.require(ref.resource).kindName;
-    const restart = vscode.l10n.t("Restart");
-    const ok = await vscode.window.showWarningMessage(
-      vscode.l10n.t("Restart {0} {1}?", kind, display(ref)),
-      { modal: true, detail: vscode.l10n.t("Context: {0}\nSame as kubectl rollout restart.", context) },
-      restart,
-    );
-    if (ok !== restart) return;
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Restart {0} {1}?", kind, display(ref)),
+      detail: vscode.l10n.t("Context: {0}\nSame as kubectl rollout restart.", context),
+      verb: vscode.l10n.t("Restart"),
+      expected: ref.name,
+      modal: true,
+    });
+    if (!confirmed) return;
     await this.d.client.restart(context, this.objectTarget(ref));
     void vscode.window.showInformationMessage(vscode.l10n.t("{0} restarted.", display(ref)));
     this.d.store.refresh(context);
@@ -426,13 +537,14 @@ export class ResourceActions {
       },
     );
     if (!pick) return;
-    const rollback = vscode.l10n.t("Roll Back");
-    const ok = await vscode.window.showWarningMessage(
-      vscode.l10n.t("Roll {0} back to revision {1}?", display(ref), pick.revision),
-      { modal: true, detail: vscode.l10n.t("Context: {0}\nhelm rollback creates a new revision.", context) },
-      rollback,
-    );
-    if (ok !== rollback) return;
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Roll {0} back to revision {1}?", display(ref), pick.revision),
+      detail: vscode.l10n.t("Context: {0}\nhelm rollback creates a new revision.", context),
+      verb: vscode.l10n.t("Roll Back"),
+      expected: ref.name,
+      modal: true,
+    });
+    if (!confirmed) return;
     await this.d.helm.rollback(context, namespace, ref.name, pick.revision);
     void vscode.window.showInformationMessage(vscode.l10n.t("{0} rolled back to revision {1}.", display(ref), pick.revision));
     this.d.store.refresh(context);
@@ -476,12 +588,14 @@ export class ResourceActions {
     ]
       .filter(Boolean)
       .join("\n");
-    const ok = await vscode.window.showWarningMessage(
-      vscode.l10n.t('Install {0} {1} as "{2}"?', ref.name, chart.helm.version, release),
-      { modal: true, detail },
-      installLabel,
-    );
-    if (ok !== installLabel) return;
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t('Install {0} {1} as "{2}"?', ref.name, chart.helm.version, release),
+      detail,
+      verb: installLabel,
+      expected: release,
+      modal: true,
+    });
+    if (!confirmed) return;
     const output = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Installing {0}...", release) },
       () => this.d.helm.install(context, namespace, release, ref.name, chart.helm.version, valuesFile),
@@ -493,16 +607,109 @@ export class ResourceActions {
     if (choice === showReleases) await vscode.commands.executeCommand("kubexplorer.openResource", "helmreleases");
   }
 
-  // ---------------- Deletion ----------------
+  // ---------------- Bulk actions and deletion ----------------
 
-  /** Deletes (in bulk) after a confirmation; errors are notified. */
-  async deleteMany(context: string, refs: ResourceRef[]): Promise<void> {
-    if (!refs.length) return;
-    try {
-      await this.deleteRefs(context, refs);
-    } catch (err) {
-      this.reportError(`delete (${context})`, err);
+  /** An action on the checked rows of a list (BULK_ACTIONS); errors are notified. */
+  async runMany(context: string, action: ActionId, refs: ResourceRef[]): Promise<void> {
+    if (refs.length <= 1) {
+      if (refs.length) await this.run(action, { context, ref: refs[0] });
+      return;
     }
+    try {
+      if (!this.d.guard.allows(context, action)) return;
+      const kind = this.d.registry.require(refs[0].resource).kindName;
+      switch (action) {
+        case "delete":
+          return await this.deleteRefs(context, refs);
+        case "restart":
+          return await this.runEach(
+            context,
+            refs,
+            {
+              question: vscode.l10n.t("Restart {0} objects of kind {1}?", refs.length, kind),
+              verb: vscode.l10n.t("Restart"),
+              note: vscode.l10n.t("Same as kubectl rollout restart."),
+              modal: true,
+            },
+            (ref) => this.d.client.restart(context, this.objectTarget(ref)),
+          );
+        case "scale":
+          return await this.scaleMany(context, refs, kind);
+        case "reconcile":
+        case "suspend":
+        case "resume":
+          return await this.runEach(
+            context,
+            refs,
+            {
+              question: vscode.l10n.t("{0} {1} objects of kind {2}?", patchVerb(action), refs.length, kind),
+              verb: patchVerb(action),
+              // Reconciling only asks Flux to do its job sooner.
+              modal: action !== "reconcile",
+            },
+            (ref) => this.patchOne(action, context, ref),
+          );
+        default:
+          throw new Error(vscode.l10n.t("This action applies to one object at a time"));
+      }
+    } catch (err) {
+      this.reportError(`${action} (${context})`, err);
+    }
+  }
+
+  /**
+   * Confirms then runs an operation on several objects (one at a time), and refreshes the lists.
+   * On a protected context, the name to type is the one of the object, or of the cluster for several.
+   */
+  private async runEach(
+    context: string,
+    refs: ResourceRef[],
+    c: { question: string; verb: string; note?: string; modal: boolean },
+    op: (ref: ResourceRef) => Promise<void>,
+  ): Promise<void> {
+    const confirmed = await this.d.guard.confirm(context, {
+      question: c.question,
+      detail: [listed(refs), "", vscode.l10n.t("Context: {0}", context), ...(c.note ? [c.note] : [])].join("\n"),
+      verb: c.verb,
+      expected: refs.length === 1 ? refs[0].name : shortContextName(context),
+      modal: c.modal,
+    });
+    if (!confirmed) return;
+    const failures: string[] = [];
+    for (const ref of refs) {
+      try {
+        await op(ref);
+      } catch (err) {
+        failures.push(`${display(ref)}: ${errorMessage(err)}`);
+      }
+    }
+    this.d.store.refresh(context);
+    if (failures.length) throw new Error(vscode.l10n.t("The action failed on some objects:\n{0}", failures.join("\n")));
+    vscode.window.setStatusBarMessage(
+      `$(check) ${c.verb}: ${refs.length === 1 ? display(refs[0]) : vscode.l10n.t("{0} objects", refs.length)}`,
+      4000,
+    );
+  }
+
+  private async scaleMany(context: string, refs: ResourceRef[], kind: string): Promise<void> {
+    const value = await vscode.window.showInputBox({
+      title: vscode.l10n.t("Scale {0} objects of kind {1}", refs.length, kind),
+      prompt: vscode.l10n.t("Number of replicas of each one, context {0}", context),
+      validateInput: (v) => (/^\d+$/.test(v.trim()) && Number(v) <= 1000 ? undefined : vscode.l10n.t("An integer between 0 and 1000")),
+    });
+    if (value === undefined) return;
+    const replicas = Number(value);
+    await this.runEach(
+      context,
+      refs,
+      {
+        question: vscode.l10n.t("Scale {0} objects of kind {1} to {2} replicas?", refs.length, kind, replicas),
+        verb: replicas === 0 ? vscode.l10n.t("Scale to 0") : vscode.l10n.t("Scale"),
+        note: replicas === 0 ? vscode.l10n.t("The workloads will be unavailable.") : undefined,
+        modal: true,
+      },
+      (ref) => this.d.client.scale(context, this.objectTarget(ref), replicas),
+    );
   }
 
   private async deleteRefs(context: string, refs: ResourceRef[]): Promise<void> {
@@ -514,28 +721,48 @@ export class ResourceActions {
     const helm = resource === "helmreleases";
     const kind = this.d.registry.require(resource).kindName;
     const verb = helm ? vscode.l10n.t("Uninstall") : vscode.l10n.t("Delete");
-    const listed =
-      refs.slice(0, 8).map(display).join("\n") + (refs.length > 8 ? `\n${vscode.l10n.t("… and {0} more", refs.length - 8)}` : "");
-    const question =
-      refs.length === 1
-        ? vscode.l10n.t("{0} {1} {2}?", verb, kind, display(refs[0]))
-        : vscode.l10n.t("{0} {1} objects of kind {2}?", verb, refs.length, kind);
-    let detail = `${listed}\n\n${vscode.l10n.t("Context: {0}", context)}`;
-    if (helm) detail += `\n${vscode.l10n.t("Every resource of the release will be deleted (helm uninstall).")}`;
-    const ok = await vscode.window.showWarningMessage(question, { modal: true, detail }, verb);
-    if (ok !== verb) return;
-    const failures: string[] = [];
-    for (const ref of refs) {
-      try {
-        if (helm) await this.d.helm.uninstall(context, ref.namespace ?? "default", ref.name);
-        else await this.d.client.delete(context, this.objectTarget(ref));
-      } catch (err) {
-        failures.push(`${display(ref)}: ${errorMessage(err)}`);
-      }
+    await this.runEach(
+      context,
+      refs,
+      {
+        question:
+          refs.length === 1
+            ? vscode.l10n.t("{0} {1} {2}?", verb, kind, display(refs[0]))
+            : vscode.l10n.t("{0} {1} objects of kind {2}?", verb, refs.length, kind),
+        verb,
+        note: helm ? vscode.l10n.t("Every resource of the release will be deleted (helm uninstall).") : undefined,
+        modal: true,
+      },
+      (ref) =>
+        helm ? this.d.helm.uninstall(context, ref.namespace ?? "default", ref.name) : this.d.client.delete(context, this.objectTarget(ref)),
+    );
+  }
+
+  /**
+   * Changes one value of a Secret (edited in the drawer). The whole Secret goes through kubectl replace on
+   * stdin: the value never shows up in a command line, and a concurrent change fails on its resourceVersion.
+   */
+  async updateSecretValue(context: string, ref: ResourceRef, key: string, value: string): Promise<boolean> {
+    if (this.d.guard.protection(context) === "readOnly") {
+      this.d.guard.refuse(context);
+      return false;
     }
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Change {0} in Secret {1}?", key, display(ref)),
+      detail: vscode.l10n.t("Context: {0}", context),
+      verb: vscode.l10n.t("Save"),
+      expected: ref.name,
+      modal: false,
+    });
+    if (!confirmed) return false;
+    const secret = await this.fetch(context, ref);
+    const { managedFields: _, ...metadata } = secret.metadata;
+    const updated = { ...secret, apiVersion: "v1", kind: "Secret", metadata, data: { ...secret.data, [key]: encodeBase64(value) } };
+    await this.d.client.replaceYaml(context, JSON.stringify(updated));
+    this.d.log.info(`Secret ${display(ref)} (${context}): ${key} updated`);
+    vscode.window.setStatusBarMessage(`$(check) ${vscode.l10n.t("{0} updated in {1}", key, display(ref))}`, 4000);
     this.d.store.refresh(context);
-    if (failures.length) throw new Error(vscode.l10n.t("Some objects could not be deleted:\n{0}", failures.join("\n")));
-    vscode.window.setStatusBarMessage(`$(trash) ${refs.length === 1 ? display(refs[0]) : vscode.l10n.t("{0} objects", refs.length)}`, 4000);
+    return true;
   }
 
   /** The ⋮ menu of a row: the same actions as the context menu, in a quick pick. */

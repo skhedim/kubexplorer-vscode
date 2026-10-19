@@ -1,11 +1,12 @@
 // Webview of a resource tab: header, table, details drawer, or overview.
 // The UI state is persisted with setState so that the tab survives a reload of VS Code.
 
+import type { Protection } from "../shared/protection";
 import type { Appearance, HostMessage, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
-import type { ActionId, Details, MetricsData, OverviewData, ResourceRef, Row } from "../shared/view";
+import { type ActionId, BULK_ACTIONS, type Details, type MetricsData, type OverviewData, type ResourceRef, type Row } from "../shared/view";
 import { renderMetrics, tooltipHtml, valuesAt } from "./chart";
 import { checkbox, codicon, data, esc } from "./dom";
-import { renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
+import { ACTION_META, renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
 
 export interface VsCodeApi {
   postMessage(msg: WebviewMessage): void;
@@ -24,6 +25,7 @@ function sameTarget(a: PersistedState["panel"], b: PersistedState["panel"]): boo
 
 export class App {
   private view?: ViewInit;
+  private protection: Protection = "none";
   private rows: Row[] = [];
   private loading = true;
   private live = false;
@@ -40,6 +42,10 @@ export class App {
   private secretValues = new Map<string, string>();
   private secretPending = new Set<string>();
   private secretErrors = new Map<string, string>();
+  /** Values being edited (draft per key), keys being saved, and keys to edit once their value arrives. */
+  private secretDrafts = new Map<string, string>();
+  private secretSaving = new Set<string>();
+  private secretEditRequested = new Set<string>();
   /** Usage charts of the object shown in the drawer (uid of that object). */
   private metrics?: { uid: string; data: MetricsData | null };
   /** Selected chart tab, kept from one object to the next like in Freelens. */
@@ -84,6 +90,9 @@ export class App {
       case "appearance":
         this.setAppearance(msg.appearance);
         break;
+      case "protection":
+        this.setProtection(msg.protection);
+        break;
       case "namespaces":
         this.ns = msg.filter;
         break;
@@ -111,20 +120,33 @@ export class App {
       case "metrics":
         if (msg.uid === this.details?.uid) this.metrics = { uid: msg.uid, data: msg.data };
         break;
-      case "secretValue":
+      case "secretValue": {
         this.secretPending.delete(msg.key);
+        const edit = this.secretEditRequested.delete(msg.key);
         if (msg.error) this.secretErrors.set(msg.key, msg.error);
-        else if (msg.value !== undefined && msg.uid === this.details?.uid) this.secretValues.set(msg.key, msg.value);
+        else if (msg.value !== undefined && msg.uid === this.details?.uid) {
+          this.secretValues.set(msg.key, msg.value);
+          if (edit) return this.startSecretEdit(msg.key, msg.value);
+        }
         break;
+      }
+      case "secretUpdated": {
+        this.secretSaving.delete(msg.key);
+        const draft = this.secretDrafts.get(msg.key);
+        if (msg.error) this.secretErrors.set(msg.key, msg.error);
+        else if (msg.saved && draft !== undefined) {
+          // Saved: the new value stays shown, like a revealed one.
+          this.secretDrafts.delete(msg.key);
+          this.secretValues.set(msg.key, draft);
+        }
+        break;
+      }
     }
     this.render();
   }
 
   private init(view: ViewInit, appearance: Appearance): void {
-    const panel: PersistedState["panel"] = {
-      context: view.context,
-      target: view.mode === "list" ? { kind: "list", resource: view.resource } : { kind: "overview" },
-    };
+    const panel: PersistedState["panel"] = { context: view.context, target: view.target };
     // A reused tab now shows another resource type: start from a clean UI state.
     if (this.ui.panel && !sameTarget(this.ui.panel, panel)) {
       this.ui = { search: "", selected: null, drawerWidth: this.ui.drawerWidth, panel };
@@ -133,6 +155,7 @@ export class App {
     this.ui.panel = panel;
     if (view.mode === "list") this.ui.sort ??= view.defaultSort;
     this.setAppearance(appearance);
+    this.setProtection(view.protection ?? "none");
     this.save();
     if (this.ui.selected) this.showDetails(this.ui.selected, false);
   }
@@ -141,10 +164,19 @@ export class App {
     document.body.dataset.appearance = appearance;
   }
 
+  /** A protected context: a colored frame around the tab, and a pill in the header. */
+  private setProtection(protection: Protection): void {
+    this.protection = protection;
+    document.body.dataset.protection = protection;
+  }
+
   private clearSecrets(): void {
     this.secretValues.clear();
     this.secretPending.clear();
     this.secretErrors.clear();
+    this.secretDrafts.clear();
+    this.secretSaving.clear();
+    this.secretEditRequested.clear();
   }
 
   // ---------------- Rendering ----------------
@@ -204,7 +236,8 @@ export class App {
       ${this.loading && this.rows.length ? `<span class="spinner small" title="Loading"></span>` : ""}
       ${this.live && !this.error ? `<span class="live-pill" title="Updated in real time (kubectl watch)"><span class="live-dot"></span>Live</span>` : ""}
       ${this.error ? `<span class="error-pill" title="${esc(this.error)}">${codicon("warning")} ${esc(this.error.split("\n")[0])}</span>` : ""}
-      ${isList && this.checked.size ? `<button type="button" class="button danger" ${data({ action: "delete-checked" })}>${codicon("trash")} Delete (${this.checked.size})</button>` : ""}
+      ${this.protectionPill(v.context)}
+      ${isList ? this.bulkBar() : ""}
       <span class="spacer"></span>
       ${showNamespaces ? this.namespaceSelect() : ""}
       ${
@@ -216,6 +249,34 @@ export class App {
       }
       ${codicon("refresh", { action: "refresh", title: "Refresh" })}
     </div>`;
+  }
+
+  private protectionPill(context: string): string {
+    if (this.protection === "none") return "";
+    const readOnly = this.protection === "readOnly";
+    const title = readOnly
+      ? `${context} is read-only: the actions that change the cluster are disabled (kubexplorer.protectedContexts)`
+      : `${context} is protected: every change asks you to type the name of its target (kubexplorer.protectedContexts)`;
+    return `<span class="protected-pill" title="${esc(title)}">${codicon(readOnly ? "lock" : "shield")} ${readOnly ? "Read-only" : "Protected"}</span>`;
+  }
+
+  /** The checked rows still listed. */
+  private checkedRows(): Row[] {
+    return this.rows.filter((r) => this.checked.has(r.uid));
+  }
+
+  /** Actions on the checked rows: those every checked row supports. */
+  private bulkBar(): string {
+    const rows = this.checkedRows();
+    if (!rows.length) return "";
+    const actions = BULK_ACTIONS.filter((a) => rows.every((r) => r.actions.includes(a)));
+    const buttons = actions
+      .map(
+        (a) =>
+          `<button type="button" class="button${a === "delete" ? " danger" : ""}" ${data({ action: "bulk", act: a })}>${codicon(ACTION_META[a].icon)} ${esc(ACTION_META[a].title)}</button>`,
+      )
+      .join("");
+    return `<span class="bulk-bar" role="toolbar" aria-label="Actions on the selected items"><span class="bulk-count">${rows.length} selected</span>${buttons}${codicon("close", { action: "uncheck-all", title: "Clear selection" })}</span>`;
   }
 
   private body(rows: Row[]): string {
@@ -241,6 +302,9 @@ export class App {
     const active = document.activeElement as HTMLInputElement | null;
     const searchFocused = active?.id === "search";
     const caret = searchFocused ? active.selectionStart : null;
+    // A Secret value being typed survives a refresh of the drawer, with its caret.
+    const editor = active?.classList.contains("secret-editor") ? active : null;
+    const editorState = editor && { key: editor.dataset.key!, start: editor.selectionStart, end: editor.selectionEnd };
     const bodyEl = document.getElementById("r-body")!;
     const scroll = bodyEl.scrollTop;
     const drawerScroll = document.querySelector(".drawer-content")?.scrollTop ?? 0;
@@ -258,6 +322,15 @@ export class App {
       input?.focus();
       if (caret !== null) input?.setSelectionRange(caret, caret);
     }
+    if (editorState) this.focusSecretEditor(editorState.key, editorState.start, editorState.end);
+  }
+
+  private focusSecretEditor(key: string, start?: number | null, end?: number | null): void {
+    const editor = [...document.querySelectorAll<HTMLTextAreaElement>(".secret-editor")].find((e) => e.dataset.key === key);
+    if (!editor || document.activeElement === editor) return;
+    editor.focus();
+    const length = editor.value.length;
+    editor.setSelectionRange(start ?? length, end ?? length);
   }
 
   /** Opens or closes the drawer frame, then updates its header and content in place. */
@@ -279,11 +352,22 @@ export class App {
         context: this.view?.context ?? "",
         error: this.detailsError,
         loading: this.detailsLoading,
-        secrets: { values: this.secretValues, pending: this.secretPending, errors: this.secretErrors },
+        secrets: {
+          values: this.secretValues,
+          pending: this.secretPending,
+          errors: this.secretErrors,
+          drafts: this.secretDrafts,
+          saving: this.secretSaving,
+          editable: this.protection !== "readOnly",
+        },
       }),
     );
     // The charts placeholder is part of the content: a new content has an empty one.
     if (replaced) this.rendered.delete("r-drawer-metrics");
+    for (const editor of document.querySelectorAll<HTMLTextAreaElement>(".secret-editor")) {
+      const draft = this.secretDrafts.get(editor.dataset.key!) ?? "";
+      if (editor.value !== draft) editor.value = draft;
+    }
     this.renderMetrics();
   }
 
@@ -357,6 +441,39 @@ export class App {
     document.querySelector(".row.selected")?.scrollIntoView({ block: "nearest" });
   }
 
+  /** Edits a value in place, once known: revealed first when hidden. */
+  private editSecret(ref: ResourceRef, key: string): void {
+    const value = this.secretValues.get(key);
+    if (value !== undefined) return this.startSecretEdit(key, value);
+    this.secretErrors.delete(key);
+    this.secretPending.add(key);
+    this.secretEditRequested.add(key);
+    this.post({ type: "revealSecret", ref, key });
+    this.render();
+  }
+
+  private startSecretEdit(key: string, value: string): void {
+    this.secretErrors.delete(key);
+    this.secretDrafts.set(key, value);
+    this.render();
+    this.focusSecretEditor(key);
+  }
+
+  private saveSecret(ref: ResourceRef, key: string): void {
+    const value = this.secretDrafts.get(key);
+    if (value === undefined || this.secretSaving.has(key)) return;
+    this.secretErrors.delete(key);
+    this.secretSaving.add(key);
+    this.post({ type: "updateSecret", ref, key, value });
+    this.render();
+  }
+
+  private cancelSecretEdit(key: string): void {
+    this.secretDrafts.delete(key);
+    this.secretErrors.delete(key);
+    this.render();
+  }
+
   private toggleSecret(ref: ResourceRef, key: string): void {
     if (this.secretValues.delete(key)) return this.render();
     this.secretErrors.delete(key);
@@ -369,6 +486,8 @@ export class App {
     this.root.addEventListener("click", (ev) => this.onClick(ev));
     this.root.addEventListener("input", (ev) => {
       const t = ev.target as HTMLInputElement;
+      // The draft follows the text without rendering, which would move the caret.
+      if (t.classList.contains("secret-editor")) return void this.secretDrafts.set(t.dataset.key!, t.value);
       if (t.id !== "search") return;
       this.ui.search = t.value;
       this.save();
@@ -384,7 +503,9 @@ export class App {
   }
 
   private onKeyDown(ev: KeyboardEvent): void {
-    const inInput = (ev.target as HTMLElement).tagName === "INPUT";
+    const target = ev.target as HTMLElement;
+    if (target.classList?.contains("secret-editor")) return this.onSecretEditorKey(ev, target.dataset.key!);
+    const inInput = target.tagName === "INPUT";
     if (ev.key === "Escape") {
       if (this.nsMenuOpen) this.nsMenuOpen = false;
       else if (inInput && this.ui.search) this.ui.search = "";
@@ -397,6 +518,16 @@ export class App {
     } else if (!inInput && this.ui.selected && (ev.key === "ArrowDown" || ev.key === "ArrowUp")) {
       ev.preventDefault();
       this.moveSelection(ev.key === "ArrowDown" ? 1 : -1);
+    }
+  }
+
+  private onSecretEditorKey(ev: KeyboardEvent, key: string): void {
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      this.cancelSecretEdit(key);
+    } else if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey) && this.details) {
+      ev.preventDefault();
+      this.saveSecret(this.details.ref, key);
     }
   }
 
@@ -456,6 +587,15 @@ export class App {
       case "toggle-secret":
         if (ref && d.key) this.toggleSecret(ref, d.key);
         return;
+      case "edit-secret":
+        if (ref && d.key) this.editSecret(ref, d.key);
+        return;
+      case "save-secret":
+        if (ref && d.key) this.saveSecret(ref, d.key);
+        return;
+      case "cancel-secret":
+        if (d.key) this.cancelSecretEdit(d.key);
+        return;
       case "chart-tab":
         this.chartTab = d.chart ?? this.chartTab;
         this.renderMetrics();
@@ -480,8 +620,14 @@ export class App {
         this.checked = all ? new Set() : new Set(rows.map((r) => r.uid));
         break;
       }
-      case "delete-checked":
-        this.post({ type: "deleteMany", refs: this.rows.filter((r) => this.checked.has(r.uid)).map((r) => r.ref) });
+      case "bulk": {
+        const action = d.act as ActionId;
+        this.post({ type: "bulkAction", action, refs: this.checkedRows().map((r) => r.ref) });
+        // Deleted rows disappear; the other actions keep the selection, to chain them (e.g. scale, then restart).
+        if (action === "delete") this.checked.clear();
+        break;
+      }
+      case "uncheck-all":
         this.checked.clear();
         break;
       case "ns-menu":
