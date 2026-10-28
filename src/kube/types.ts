@@ -43,6 +43,11 @@ export interface KindTarget {
    * setting: what changes slowly or costs much to read (metrics, Helm releases).
    */
   minPollIntervalMs?: number;
+  /**
+   * Only the metadata of the objects is read, when the API can do so (kubectl proxy): lighter, and never the data of
+   * a Secret. The objects are then of kind PartialObjectMetadata.
+   */
+  metadataOnly?: boolean;
 }
 
 export interface ObjectTarget extends KindTarget {

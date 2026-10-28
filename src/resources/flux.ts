@@ -5,7 +5,7 @@
 import type { KubeObject } from "../kube/types";
 import type { ActionId, Cell, ColumnDef, DetailItem, DetailSection, Tone } from "../shared/view";
 import { type ColumnSpec, type DetailContext, defineResource, type ResourceDescriptor, type ResourceSpec } from "./descriptor";
-import { formatAge, formatDate, labelTags, link, mono, text } from "./format";
+import { formatDate, labelTags, link, mono, since, text } from "./format";
 import { eventColumns, eventRows, type OverviewPage } from "./overview";
 
 // ---------- Status (getConditionText of the Freelens extension) ----------
@@ -185,7 +185,7 @@ function artifactItems(o: KubeObject): DetailItem[] {
     { name: "Artifact Revision", value: mono(a.revision ?? "") },
     { name: "Artifact Digest", value: a.digest ? mono(a.digest) : "" },
     { name: "Artifact Size", value: a.size ? `${(a.size / 1024).toFixed(1)} KiB` : "" },
-    { name: "Artifact Updated", value: a.lastUpdateTime ? `${formatAge(a.lastUpdateTime)} ago` : "" },
+    { name: "Artifact Updated", value: since(a.lastUpdateTime, { suffix: " ago" }) },
   ]);
 }
 
@@ -220,7 +220,7 @@ function conditionsSection(o: KubeObject): DetailSection[] {
         c.status,
         c.reason ?? "",
         text(c.message ?? "", undefined, c.message),
-        text(formatAge(c.lastTransitionTime), undefined, c.lastTransitionTime),
+        since(c.lastTransitionTime),
       ]),
       empty: "No condition",
     },
@@ -655,7 +655,7 @@ export const fluxImageRepositories = fluxKind({
     { name: "Authentication Provider", value: o.spec?.provider ?? "" },
     { name: "Image Registry Credentials", value: secretLink(o, o.spec?.secretRef) },
     { name: "Service Account", value: link("ServiceAccount", o.spec?.serviceAccountName, o.metadata.namespace) },
-    { name: "Scan Time", value: o.status?.lastScanResult?.scanTime ? `${formatAge(o.status.lastScanResult.scanTime)} ago` : "" },
+    { name: "Scan Time", value: since(o.status?.lastScanResult?.scanTime, { suffix: " ago" }) },
     { name: "Tag Count", value: String(o.status?.lastScanResult?.tagCount ?? "") },
     { name: "Latest Tags", value: { tags: (o.status?.lastScanResult?.latestTags ?? []).map((t: string) => ({ text: t })) } },
   ],
@@ -732,7 +732,7 @@ export const fluxImageUpdateAutomations = fluxKind({
       id: "lastRun",
       title: "Last Run",
       grow: 0.6,
-      value: (o) => formatAge(o.status?.lastAutomationRunTime),
+      value: (o) => since(o.status?.lastAutomationRunTime),
       sort: (o) => -Date.parse(o.status?.lastAutomationRunTime ?? "0"),
     },
   ],
@@ -747,9 +747,9 @@ export const fluxImageUpdateAutomations = fluxKind({
     { name: "Push Refspec", value: o.spec?.git?.push?.refspec ?? "" },
     { name: "Update Strategy", value: o.spec?.update ? `${o.spec.update.strategy ?? "Setters"} ${o.spec.update.path ?? ""}`.trim() : "" },
     { name: "Policy Selector", value: labelTags(o.spec?.policySelector?.matchLabels) },
-    { name: "Last Run", value: o.status?.lastAutomationRunTime ? `${formatAge(o.status.lastAutomationRunTime)} ago` : "" },
+    { name: "Last Run", value: since(o.status?.lastAutomationRunTime, { suffix: " ago" }) },
     { name: "Last Push Commit", value: mono(o.status?.lastPushCommit ?? "") },
-    { name: "Last Push", value: o.status?.lastPushTime ? `${formatAge(o.status.lastPushTime)} ago` : "" },
+    { name: "Last Push", value: since(o.status?.lastPushTime, { suffix: " ago" }) },
     ...(o.spec?.git?.commit?.messageTemplate ? [{ name: "Message Template", value: o.spec.git.commit.messageTemplate, block: true }] : []),
   ],
 });

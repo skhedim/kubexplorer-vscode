@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { KubeClient, WatchEventType } from "../../../src/kube/client";
+import type { InformHandlers, KubeClient, WatchEventType } from "../../../src/kube/client";
 import { ResourceStore, type Snapshot } from "../../../src/kube/store";
 import { type KubeObject, nullLogger } from "../../../src/kube/types";
 
@@ -67,12 +67,36 @@ describe("ResourceStore", () => {
 
     it("stops when the last subscriber leaves", async () => {
       const list = vi.fn(async () => []);
-      const store = new ResourceStore(pollingClient(list), { pollIntervalMs: () => 1000 }, nullLogger);
+      const store = new ResourceStore(pollingClient(list), { pollIntervalMs: () => 1000, lingerMs: 0 }, nullLogger);
       const subscription = store.watch(key, () => undefined);
       await vi.advanceTimersByTimeAsync(0);
       subscription.dispose();
       await vi.advanceTimersByTimeAsync(10_000);
       expect(list).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps a list a while after its last subscriber, without polling it, and catches up when one comes back", async () => {
+      let version = 1;
+      const list = vi.fn(async () => [obj("a", String(version))]);
+      const store = new ResourceStore(pollingClient(list), { pollIntervalMs: () => 1000, lingerMs: 30_000 }, nullLogger);
+      store.watch(key, () => undefined).dispose();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(store.lingering()).toBe(1);
+      // Nobody looks: no poll.
+      version = 2;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(list).toHaveBeenCalledTimes(1);
+      // Back: the last known items at once, then a list (a poll was missed).
+      const seen: Snapshot[] = [];
+      const back = store.watch(key, (s) => seen.push(s));
+      expect(seen[0]).toMatchObject({ loading: false, items: [obj("a", "1")] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(seen.at(-1)!.items).toEqual([obj("a", "2")]);
+      back.dispose();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(store.lingering()).toBe(0);
     });
 
     it("keeps the last known items on errors", async () => {
@@ -191,13 +215,99 @@ describe("ResourceStore", () => {
       expect(seen.at(-1)!.live).toBe(false);
     });
 
-    it("stops the watch when the last subscriber leaves", async () => {
+    it("stops the watch a while after the last subscriber leaves", async () => {
       const { client, watchers } = watchingClient(() => []);
-      const store = new ResourceStore(client, { pollIntervalMs: () => 5000 }, nullLogger);
+      const store = new ResourceStore(client, { pollIntervalMs: () => 5000, lingerMs: 30_000 }, nullLogger);
       const subscription = store.watch(key, () => undefined);
       await vi.advanceTimersByTimeAsync(0);
       subscription.dispose();
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(watchers[0].stopped).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
       expect(watchers[0].stopped).toBe(true);
+    });
+
+    it("serves a list shown again from its watch, without listing it again", async () => {
+      const { client, list, watchers } = watchingClient(() => [obj("a")]);
+      const store = new ResourceStore(client, { pollIntervalMs: () => 5000, debounceMs: 10 }, nullLogger);
+      store.watch(key, () => undefined).dispose();
+      await vi.advanceTimersByTimeAsync(0);
+      // A change while nobody looks: the watch follows it.
+      watchers[0].emit("ADDED", obj("b"));
+      await vi.advanceTimersByTimeAsync(10_000);
+      const seen: Snapshot[] = [];
+      store.watch(key, (s) => seen.push(s));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(seen[0].items.map((o) => o.metadata.name).sort()).toEqual(["a", "b"]);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(watchers).toHaveLength(1);
+    });
+  });
+
+  describe("with an informer (kubectl proxy)", () => {
+    function informingClient(list: () => KubeObject[] = () => [obj("polled")]) {
+      const informers: { handlers: InformHandlers; stopped: boolean; resyncs: number }[] = [];
+      const client = {
+        list: vi.fn(async () => list()),
+        inform: (_context: string, _kind: unknown, _opts: unknown, handlers: InformHandlers) => {
+          const informer = { handlers, stopped: false, resyncs: 0 };
+          informers.push(informer);
+          return { stop: () => (informer.stopped = true), resync: () => informer.resyncs++ };
+        },
+      } as unknown as KubeClient;
+      return { client, informers };
+    }
+
+    it("follows a list with the informer, without listing nor polling it", async () => {
+      const { client, informers } = informingClient();
+      const store = new ResourceStore(client, { pollIntervalMs: () => 1000, debounceMs: 10 }, nullLogger);
+      const seen: Snapshot[] = [];
+      store.watch(key, (s) => seen.push(s));
+      const { handlers } = informers[0];
+      handlers.sync([obj("a"), obj("b")]);
+      handlers.status(true);
+      handlers.event("DELETED", obj("a"));
+      handlers.event("ADDED", obj("c"));
+      await vi.advanceTimersByTimeAsync(10);
+      expect(seen.at(-1)).toMatchObject({ loading: false, live: true });
+      expect(seen.at(-1)!.items.map((o) => o.metadata.name)).toEqual(["b", "c"]);
+      handlers.status(false, "connection refused");
+      expect(seen.at(-1)).toMatchObject({ live: false, error: "connection refused" });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(client.list).not.toHaveBeenCalled();
+      // Refresh: the informer lists again.
+      store.refresh();
+      expect(informers[0].resyncs).toBe(1);
+    });
+
+    it("polls a list the informer cannot watch, and lists with kubectl one it cannot follow", async () => {
+      const { client, informers } = informingClient();
+      const store = new ResourceStore(client, { pollIntervalMs: () => 1000 }, nullLogger);
+      const seen: Snapshot[] = [];
+      store.watch(key, (s) => seen.push(s));
+      informers[0].handlers.unsupported({ watch: true, message: "the list has no resourceVersion" });
+      expect(informers[0].stopped).toBe(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(seen.at(-1)).toMatchObject({ loading: false, live: false, items: [obj("polled")] });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(client.list).toHaveBeenCalledTimes(2);
+      expect(informers).toHaveLength(1);
+      // A late report of the stopped informer changes nothing.
+      informers[0].handlers.sync([]);
+      expect(seen.at(-1)!.items).toEqual([obj("polled")]);
+    });
+
+    it("keeps the informer of a list without subscribers a while, then stops it", async () => {
+      const { client, informers } = informingClient();
+      const store = new ResourceStore(client, { pollIntervalMs: () => 1000, lingerMs: 30_000 }, nullLogger);
+      store.watch(key, () => undefined).dispose();
+      informers[0].handlers.sync([obj("a")]);
+      const seen: Snapshot[] = [];
+      store.watch(key, (s) => seen.push(s)).dispose();
+      expect(seen[0]).toMatchObject({ loading: false, items: [obj("a")] });
+      expect(informers).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(informers[0].stopped).toBe(true);
     });
   });
 });

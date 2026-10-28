@@ -1,11 +1,14 @@
 // List cache shared by every tab. One entry per (context, kind, namespaces): it lives while it has at
-// least one subscriber, then stops.
+// least one subscriber, then LINGER_MS more (its watch running, no list), so that a tab shown again, or a list opened
+// again, is there at once; then it stops.
 //
-// Updates: a `kubectl get --watch` (real time) when the client supports it, started *before* a full
-// list so that no change falls in between, plus a periodic full resync for safety. Without a watch
-// (demo cluster, virtual lists, APIs that refuse watches), the list is polled instead.
+// Updates, by order of preference:
+// - an informer of the client (one list, then a watch from its resourceVersion, over the kubectl proxy of the cluster);
+// - otherwise a `kubectl get --watch` (real time), started *before* a full list so that no change falls in between,
+//   plus a periodic full resync for safety;
+// - without a watch (demo cluster, virtual lists, APIs that refuse watches), the list is polled.
 
-import type { KubeClient, Stoppable } from "./client";
+import type { Informing, KubeClient, Stoppable } from "./client";
 import { type Disposable, errorMessage, type KindTarget, type KubeObject, type Logger } from "./types";
 
 export interface Snapshot {
@@ -29,6 +32,8 @@ export interface StoreOptions {
   resyncMs?: number;
   /** Bursts of watch events are coalesced into one update. */
   debounceMs?: number;
+  /** An entry without subscribers is kept that long (0: stopped at once). */
+  lingerMs?: number;
 }
 
 type Listener = (snapshot: Snapshot) => void;
@@ -41,6 +46,9 @@ interface Entry {
   timer?: ReturnType<typeof setTimeout>;
   emitTimer?: ReturnType<typeof setTimeout>;
   watch?: Stoppable;
+  informer?: Informing;
+  /** The client has no informer for this list: list and watch it. */
+  noInform: boolean;
   /** The client cannot watch this kind: poll for good. */
   noWatch: boolean;
   /** Consecutive immediate watch failures (e.g. metrics.k8s.io, which refuses watches). */
@@ -51,6 +59,10 @@ interface Entry {
   /** Bumped by forced refreshes: invalidates an obsolete in-flight list. */
   generation: number;
   disposed: boolean;
+  /** Pending end of an entry without subscribers. */
+  lingerTimer?: ReturnType<typeof setTimeout>;
+  /** A list was due while the entry had no subscribers: done when one comes back. */
+  stale: boolean;
 }
 
 /** An object key: its uid, or namespace/name for objects without uid (metrics-server objects). */
@@ -60,7 +72,7 @@ function objectKey(o: KubeObject): string {
 
 function storeKeyId(k: StoreKey): string {
   const ns = k.kind.namespaced ? [...k.namespaces].sort().join(",") : "";
-  return `${k.context}|${k.kind.kubectlName}|${ns}`;
+  return `${k.context}|${k.kind.kubectlName}${k.kind.metadataOnly ? "#metadata" : ""}|${ns}`;
 }
 
 /** True when a is at least as recent as b (resourceVersion is numeric in practice; otherwise a wins). */
@@ -82,7 +94,7 @@ export class ResourceStore implements Disposable {
     opts: StoreOptions,
     private readonly log: Logger,
   ) {
-    this.opts = { resyncMs: 5 * 60_000, debounceMs: 100, ...opts };
+    this.opts = { resyncMs: 5 * 60_000, debounceMs: 100, lingerMs: 30_000, ...opts };
   }
 
   /** Subscribes to a list. The listener receives the current state right away, then every update. */
@@ -95,22 +107,32 @@ export class ResourceStore implements Disposable {
         listeners: new Set(),
         snapshot: { items: [], loading: true },
         objects: new Map(),
+        noInform: false,
         noWatch: false,
         watchFailures: 0,
         inFlight: false,
         generation: 0,
         disposed: false,
+        stale: true,
       };
       this.entries.set(id, entry);
     }
+    clearTimeout(entry.lingerTimer);
+    entry.lingerTimer = undefined;
     entry.listeners.add(listener);
     listener(entry.snapshot);
-    if (entry.listeners.size === 1) void this.list(entry);
+    // A new entry, or one that missed a list while it had no subscribers.
+    if (entry.listeners.size === 1 && entry.stale) this.start(entry);
     const e = entry;
+    let disposed = false;
     return {
       dispose: () => {
+        if (disposed) return;
+        disposed = true;
         e.listeners.delete(listener);
-        if (e.listeners.size === 0) this.close(id, e);
+        if (e.listeners.size || e.disposed) return;
+        if (this.opts.lingerMs > 0) e.lingerTimer = setTimeout(() => this.close(id, e), this.opts.lingerMs);
+        else this.close(id, e);
       },
     };
   }
@@ -119,10 +141,19 @@ export class ResourceStore implements Disposable {
   refresh(context?: string): void {
     for (const entry of this.entries.values()) {
       if (context && entry.key.context !== context) continue;
+      if (entry.informer) {
+        entry.informer.resync();
+        continue;
+      }
       entry.generation++;
       entry.inFlight = false;
       void this.list(entry);
     }
+  }
+
+  /** Lists kept for subscribers to come (see LINGER_MS above), for tests and diagnostics. */
+  lingering(): number {
+    return [...this.entries.values()].filter((e) => !e.listeners.size).length;
   }
 
   dispose(): void {
@@ -133,8 +164,59 @@ export class ResourceStore implements Disposable {
     e.disposed = true;
     clearTimeout(e.timer);
     clearTimeout(e.emitTimer);
+    clearTimeout(e.lingerTimer);
     e.watch?.stop();
-    this.entries.delete(id);
+    e.informer?.stop();
+    if (this.entries.get(id) === e) this.entries.delete(id);
+  }
+
+  /** Starts following a list: with an informer of the client when it has one, else by listing it. */
+  private start(e: Entry): void {
+    if (e.informer) return;
+    if (e.noInform || !this.client.inform) return void this.list(e);
+    const { context, kind, namespaces } = e.key;
+    const informer = this.client.inform(
+      context,
+      kind,
+      { namespaces },
+      {
+        sync: (items) => {
+          if (e.informer !== informer) return;
+          clearTimeout(e.emitTimer);
+          e.objects = new Map(items.map((o) => [objectKey(o), o]));
+          this.emit(e, { loading: false, error: undefined, updatedAt: Date.now() });
+        },
+        event: (type, obj) => {
+          if (e.informer !== informer) return;
+          const key = objectKey(obj);
+          if (type === "DELETED") e.objects.delete(key);
+          else e.objects.set(key, obj);
+          clearTimeout(e.emitTimer);
+          e.emitTimer = setTimeout(() => this.emit(e, { updatedAt: Date.now(), error: undefined }), this.opts.debounceMs);
+        },
+        status: (live, error) => {
+          if (e.informer !== informer) return;
+          if (error) this.log.warn(`Following ${kind.kubectlName} (${context}) failed: ${error}`);
+          // Followed again: the error is over.
+          this.emit(e, error ? { live, error, loading: false } : { live, error: live ? undefined : e.snapshot.error });
+        },
+        unsupported: ({ watch, message }) => {
+          if (e.informer !== informer) return;
+          informer?.stop();
+          e.informer = undefined;
+          e.noInform = true;
+          e.noWatch ||= watch;
+          this.log.info(`${kind.kubectlName} (${context}): ${message}; ${watch ? "polling" : "listing with kubectl"} instead`);
+          void this.list(e);
+        },
+      },
+    );
+    if (!informer) {
+      e.noInform = true;
+      return void this.list(e);
+    }
+    e.informer = informer;
+    e.stale = false;
   }
 
   /** The poll interval of a list: the setting, but never below the floor of its kind. */
@@ -155,6 +237,12 @@ export class ResourceStore implements Disposable {
   private async list(e: Entry): Promise<void> {
     if (e.inFlight || e.disposed) return;
     clearTimeout(e.timer);
+    // Nobody looks: no list (its watch, if any, keeps it current); one is done when a subscriber comes back.
+    if (!e.listeners.size) {
+      e.stale = true;
+      return;
+    }
+    e.stale = false;
     e.inFlight = true;
     const generation = e.generation;
     const { context, kind, namespaces } = e.key;

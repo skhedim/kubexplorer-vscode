@@ -4,7 +4,7 @@ import { PORT_FORWARDS } from "../kube/virtualKinds";
 import type { KubeObject } from "../kube/types";
 import type { Cell } from "../shared/view";
 import { defineResource } from "./descriptor";
-import { formatAge, link, text } from "./format";
+import { link, since, text } from "./format";
 
 const target = (o: KubeObject): Cell =>
   link(o.portForward.resource === "services" ? "Service" : "Pod", o.portForward.name, o.portForward.namespace);
@@ -53,6 +53,6 @@ export const portforwards = defineResource({
     { name: "Remote Port", value: String(o.portForward.remotePort) },
     { name: "Status", value: statusCell(o) },
     ...(o.portForward.error ? [{ name: "Error", value: text(o.portForward.error, "error") }] : []),
-    { name: "Started", value: `${formatAge(o.portForward.startedAt)} ago` },
+    { name: "Started", value: since(o.portForward.startedAt, { suffix: " ago" }) },
   ],
 });

@@ -25,6 +25,8 @@ export interface OverviewPage {
   resources: readonly string[];
   /** The list whose error is shown as the page error. */
   primary?: string;
+  /** Lists of which the page reads the metadata only (see KindTarget.metadataOnly). */
+  metadataOnly?: readonly string[];
   build(input: OverviewInput): OverviewData;
   /** Problems found by the page, published in the Problems view of VS Code. */
   problems?(input: OverviewInput): Problem[];

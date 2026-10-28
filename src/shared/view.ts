@@ -34,6 +34,11 @@ export type Cell =
   | { bricks: Brick[] }
   | { tags: Tag[]; solid?: boolean }
   | { link: string; ref: ResourceRef; title?: string; prefix?: string }
+  /**
+   * The time elapsed since an ISO date ("3h12m"), between an optional prefix and suffix: computed by the webview when it
+   * renders, so that a row or a drawer does not change (nor needs to be sent again) as time passes.
+   */
+  | { since: string; prefix?: string; suffix?: string; tone?: Tone; title?: string }
   /** Gauge (Freelens LineProgress): 0..1 ratio, text next to it, optional marker (e.g. requests). */
   | { bar: number; text: string; tone?: Tone; marker?: number; title?: string };
 

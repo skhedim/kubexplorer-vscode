@@ -1,12 +1,14 @@
 // Entry point: wires the layers (kube → resources → panel → vscode) and registers the commands.
 
 import * as vscode from "vscode";
+import { ApiReader } from "./kube/api";
 import { CrdCatalog } from "./kube/crds";
 import { DEMO_CONTEXT } from "./kube/demo";
 import { HelmCli, HelmRouter, helmSources } from "./kube/helm";
 import { KubectlClient } from "./kube/kubectl";
 import { PortForwardManager } from "./kube/portForward";
 import { MetricsRouter, PrometheusClient } from "./kube/prometheus";
+import { KubectlProxies } from "./kube/proxy";
 import { RoutingClient } from "./kube/routing";
 import { ResourceStore } from "./kube/store";
 import { errorMessage } from "./kube/types";
@@ -38,8 +40,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const helm = new HelmRouter(new HelmCli(config.helmPath, log));
   // A port forward that starts, stops or fails refreshes the Port Forwarding list right away.
   const portForwards = new PortForwardManager(config.kubectlPath, log, () => store.refresh());
+  // Lists and watches of a cluster go through its kubectl proxy, rather than a kubectl process each.
+  const proxies = new KubectlProxies(config.kubectlPath, log);
+  const api = new ApiReader(proxies);
   const client = new RoutingClient(
-    new KubectlClient(config.kubectlPath, log),
+    new KubectlClient(config.kubectlPath, log, api),
     {
       demoEnabled: config.demoCluster,
       watchEnabled: config.watch,
@@ -122,6 +127,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     channel,
     store,
+    proxies,
     portForwards,
     state,
     terminals,
@@ -149,6 +155,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (node) void resourcesTree.reveal(node, { select: true, focus: false });
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("kubexplorer.kubectlPath")) proxies.stop();
       if (e.affectsConfiguration("kubexplorer.demoCluster") || e.affectsConfiguration("kubexplorer.kubectlPath"))
         void state.reloadContexts();
       if (e.affectsConfiguration("kubexplorer.prometheus")) prometheus.invalidate();
@@ -159,6 +166,10 @@ export async function activate(context: vscode.ExtensionContext) {
       crds.invalidate();
       prometheus.invalidate();
       resourcesView.reset();
+      // The kubeconfig may have changed (credentials, servers): fresh proxies, then lists read again through them
+      // (in the same tick: the watches of the old proxies are stopped before they can report an error).
+      proxies.stop();
+      api.invalidate();
       store.refresh();
       if (state.active) void state.loadNamespaces(state.active, true);
     }),
@@ -250,6 +261,7 @@ export async function activate(context: vscode.ExtensionContext) {
     registry,
     store,
     client,
+    proxies,
     helm,
     portForwards,
     panels,

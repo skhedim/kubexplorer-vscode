@@ -6,7 +6,7 @@ import type { Cell } from "../shared/view";
 import { cpuMillis, memoryBytes } from "../kube/quantity";
 import { defineResource } from "./descriptor";
 import { fmtCpu, fmtMemory, nodeUsage, usageBar } from "./metrics";
-import { conditionTags, formatAge, formatBytes, link, mono, text } from "./format";
+import { conditionTags, formatBytes, link, mono, since, text } from "./format";
 import { nodeKarpenterSection } from "./karpenter";
 
 function nodeRoles(o: KubeObject): string {
@@ -153,7 +153,7 @@ export const events = defineResource({
     { id: "count", title: "Count", grow: 0.4, value: (o) => String(o.count ?? 1), sort: (o) => o.count ?? 1 },
   ],
   endColumns: [
-    { id: "lastSeen", title: "Last Seen", grow: 0.5, value: (o) => formatAge(eventTime(o)), sort: (o) => -Date.parse(eventTime(o) ?? "0") },
+    { id: "lastSeen", title: "Last Seen", grow: 0.5, value: (o) => since(eventTime(o)), sort: (o) => -Date.parse(eventTime(o) ?? "0") },
   ],
   items: (o) => [
     { name: "Message", value: o.message ?? "" },
@@ -165,6 +165,6 @@ export const events = defineResource({
     },
     { name: "Source", value: o.source?.component ?? "" },
     { name: "Count", value: String(o.count ?? 1) },
-    { name: "Last Seen", value: `${formatAge(eventTime(o))} ago` },
+    { name: "Last Seen", value: since(eventTime(o), { suffix: " ago" }) },
   ],
 });

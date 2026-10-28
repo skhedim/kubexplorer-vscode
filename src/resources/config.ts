@@ -4,7 +4,7 @@ import type { LimitRangeItem, Webhook } from "../kube/models";
 import type { KubeObject } from "../kube/types";
 import type { DetailItem } from "../shared/view";
 import { defineResource } from "./descriptor";
-import { formatAge, labelTags, link, mono, text } from "./format";
+import { labelTags, link, mono, since, text } from "./format";
 
 function keys(o: KubeObject): string {
   return Object.keys({ ...(o.data ?? {}), ...(o.binaryData ?? {}) }).join(", ");
@@ -152,7 +152,7 @@ export const leases = defineResource({
       id: "renewed",
       title: "Renewed",
       grow: 0.5,
-      value: (o) => formatAge(o.spec?.renewTime),
+      value: (o) => since(o.spec?.renewTime),
       sort: (o) => -Date.parse(o.spec?.renewTime ?? "0"),
     },
   ],

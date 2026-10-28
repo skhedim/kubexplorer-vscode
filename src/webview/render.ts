@@ -1,6 +1,7 @@
 // Renders cells, tables, the details drawer and the overview from the generic view model.
 
 import type { RowMenuContext } from "../shared/protocol";
+import { formatAge } from "../shared/units";
 import type {
   ActionId,
   Cell,
@@ -60,6 +61,10 @@ function renderCell(cell: Cell | undefined): string {
   if ("link" in cell) {
     return `<span class="ellipsis">${cell.prefix ? esc(cell.prefix) : ""}<a href="#" class="link" title="${esc(cell.title ?? cell.link)}" ${data({ action: "open-ref", ref: cell.ref })}>${esc(cell.link)}</a></span>`;
   }
+  if ("since" in cell) {
+    const label = `${cell.prefix ?? ""}${formatAge(cell.since)}${cell.suffix ?? ""}`;
+    return `<span class="ellipsis${cell.tone ? ` tone-${cell.tone}` : ""}" title="${esc(cell.title ?? cell.since)}">${esc(label)}</span>`;
+  }
   const cls = ["ellipsis", cell.tone ? `tone-${cell.tone}` : "", cell.mono ? "mono" : ""].filter(Boolean).join(" ");
   return `<span class="${cls}" title="${esc(cell.title ?? cell.text)}">${esc(cell.text)}</span>`;
 }
@@ -92,7 +97,7 @@ function menuContext(context: string, row: Row): RowMenuContext {
   };
 }
 
-export function renderTable(o: TableOptions): string {
+function tableHead(o: TableOptions): string {
   const head = o.columns
     .map((c) => {
       const sorted = o.sort?.col === c.id;
@@ -105,38 +110,62 @@ export function renderTable(o: TableOptions): string {
     })
     .join("");
   const allChecked = !!o.checked && o.rows.length > 0 && o.rows.every((r) => o.checked!.has(r.uid));
-  const rows = o.rows
-    .map((r) => {
-      const cells = o.columns
-        .map((c) => {
-          const content =
-            c.id === "warning"
-              ? r.warning
-                ? codicon("warning", { cls: "tone-warning", title: r.warning })
-                : ""
-              : renderCell(r.cells[c.id]);
-          return `<div role="cell" class="cell col-${esc(c.id)}" style="${colStyle(c)}">${content}</div>`;
-        })
-        .join("");
-      const selected = o.selectedUid === r.uid;
-      return `<div role="row" class="row${selected ? " selected" : ""}" aria-selected="${selected}" ${data({ action: "open-row", ref: r.ref, uid: r.uid })} ${
-        o.interactive ? `data-vscode-context="${esc(JSON.stringify(menuContext(o.context, r)))}"` : ""
-      }>${o.interactive ? `<div class="cell col-check">${checkbox(o.checked?.has(r.uid) ?? false, "check", { uid: r.uid })}</div>` : ""}${cells}${
-        o.interactive
-          ? `<div class="cell col-menu">${codicon("kebab-vertical", { action: "row-menu", title: "Actions", attrs: { ref: r.ref, actions: r.actions.join(",") } })}</div>`
-          : ""
-      }</div>`;
-    })
-    .join("");
   return `
-  <div role="table" class="table${o.interactive ? " interactive" : ""}">
-    <div role="row" class="row head">
+    <div role="row" class="row head" aria-rowindex="1">
       ${o.interactive ? `<div class="cell col-check">${checkbox(allChecked, "check-all", {}, "Select all")}</div>` : ""}
       ${head}
       ${o.interactive ? `<div class="cell col-menu"></div>` : ""}
-    </div>
+    </div>`;
+}
+
+/** One row; `index` is its position in the whole table (stripes, accessibility). */
+function tableRow(o: TableOptions, r: Row, index: number): string {
+  const cells = o.columns
+    .map((c) => {
+      const content =
+        c.id === "warning" ? (r.warning ? codicon("warning", { cls: "tone-warning", title: r.warning }) : "") : renderCell(r.cells[c.id]);
+      return `<div role="cell" class="cell col-${esc(c.id)}" style="${colStyle(c)}">${content}</div>`;
+    })
+    .join("");
+  const selected = o.selectedUid === r.uid;
+  return `<div role="row" class="row${index % 2 ? "" : " stripe"}${selected ? " selected" : ""}" aria-rowindex="${index + 2}" aria-selected="${selected}" ${data({ action: "open-row", ref: r.ref, uid: r.uid })} ${
+    o.interactive ? `data-vscode-context="${esc(JSON.stringify(menuContext(o.context, r)))}"` : ""
+  }>${o.interactive ? `<div class="cell col-check">${checkbox(o.checked?.has(r.uid) ?? false, "check", { uid: r.uid })}</div>` : ""}${cells}${
+    o.interactive
+      ? `<div class="cell col-menu">${codicon("kebab-vertical", { action: "row-menu", title: "Actions", attrs: { ref: r.ref, actions: r.actions.join(",") } })}</div>`
+      : ""
+  }</div>`;
+}
+
+export function renderTable(o: TableOptions): string {
+  const rows = o.rows.map((r, i) => tableRow(o, r, i)).join("");
+  return `
+  <div role="table" class="table${o.interactive ? " interactive" : ""}" aria-rowcount="${o.rows.length + 1}">
+    ${tableHead(o)}
     ${rows || `<div class="empty">${esc(o.empty)}</div>`}
   </div>`;
+}
+
+/**
+ * A table whose rows are rendered on demand (renderTableRows): only those in view are in the DOM, so that a list of
+ * thousands of objects stays fluid. Rows have a fixed height (--kx-row-height); the sizer gives the scroll range.
+ */
+export function renderVirtualTable(o: TableOptions, windowId: string): string {
+  const body = o.rows.length
+    ? `<div class="table-sizer" style="height: calc(var(--kx-row-height) * ${o.rows.length})"><div class="table-window" id="${windowId}"></div></div>`
+    : `<div class="empty">${esc(o.empty)}</div>`;
+  return `
+  <div role="table" class="table virtual${o.interactive ? " interactive" : ""}" aria-rowcount="${o.rows.length + 1}">
+    ${tableHead(o)}
+    ${body}
+  </div>`;
+}
+
+/** The rows [start, end) of a virtual table. */
+export function renderTableRows(o: TableOptions, start: number, end: number): string {
+  let html = "";
+  for (let i = start; i < end; i++) html += tableRow(o, o.rows[i], i);
+  return html;
 }
 
 // ---------- Drawer ----------
@@ -250,8 +279,8 @@ function renderGrid(columns: ColumnDef[], rows: Cell[][], empty: string): string
   const head = columns.map((c) => `<div role="columnheader" class="cell" style="${colStyle(c)}">${esc(c.title)}</div>`).join("");
   const body = rows
     .map(
-      (r) =>
-        `<div role="row" class="row">${columns.map((c, i) => `<div role="cell" class="cell" style="${colStyle(c)}">${renderCell(r[i])}</div>`).join("")}</div>`,
+      (r, n) =>
+        `<div role="row" class="row${n % 2 ? "" : " stripe"}">${columns.map((c, i) => `<div role="cell" class="cell" style="${colStyle(c)}">${renderCell(r[i])}</div>`).join("")}</div>`,
     )
     .join("");
   return `<div role="table" class="table grid"><div role="row" class="row head">${head}</div>${body || `<div class="empty">${esc(empty)}</div>`}</div>`;

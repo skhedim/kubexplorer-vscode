@@ -31,10 +31,11 @@ leaving the editor.
 - **Resources view**: the Freelens side menu (Workloads, Config, Network, Storage, Namespaces, Events, Helm,
   Access Control) and your Custom Resources, discovered on the cluster. The Flux and Karpenter sections show up
   when their CRDs are installed.
-- **Resource tabs**: sortable, searchable lists with live updates (`kubectl get --watch`), a resizable details
-  drawer with links between objects, multi-namespace filtering, and bulk actions on the checked rows (restart,
-  scale, reconcile, suspend, resume, delete). Opening another resource type
-  reuses the current tab; **Open in New Tab** keeps one.
+- **Resource tabs**: sortable, searchable lists with live updates (watches), a resizable details drawer with
+  links between objects, multi-namespace filtering, and bulk actions on the checked rows (restart, scale,
+  reconcile, suspend, resume, delete). Opening another resource type reuses the current tab; **Open in New Tab**
+  keeps one. Lists of thousands of objects stay fluid: only the rows in view are drawn, and only what changed is
+  sent to them.
 - **Diagnostics**, like Popeye: what is broken (crash loops, image pulls, rollouts stuck, services without ready
   pods, ingresses or pods referencing missing objects, nodes not ready…), what puts the applications at risk (no
   resource requests, floating image tags, OOM kills, autoscalers at their maximum, budgets blocking drains…) and what
@@ -95,6 +96,8 @@ leaving the editor.
 - VS Code 1.90 or later.
 - [`kubectl`](https://kubernetes.io/docs/tasks/tools/) on your `PATH` (or set `kubexplorer.kubectlPath`), and a
   kubeconfig. KubeXplorer uses kubectl for everything, so every authentication plugin kubectl supports works.
+  The lists and watches of a cluster go through a single `kubectl proxy`, started on first use and stopped after a
+  few idle minutes (a cluster whose proxy cannot start falls back to a kubectl process per request).
 - Optional: [`helm`](https://helm.sh/docs/intro/install/) for the Helm views,
   [metrics-server](https://github.com/kubernetes-sigs/metrics-server) on the cluster for CPU and memory figures,
   and Prometheus (kube-prometheus-stack, the prometheus chart or any Prometheus scraping cAdvisor) for an hour of
@@ -145,7 +148,11 @@ Level...**).
   type the name of the object when one of the clusters is protected.
 - The Fleet tab reads the clusters of `kubexplorer.fleet.contexts` (nodes and Flux objects) only while it is
   visible, and never changes them unless you run an action.
-- Secret values are never sent to the UI, except the one you reveal, and are never stored.
+- Secret values are never sent to the UI, except the one you reveal, and are never stored. The Diagnostics page
+  reads the metadata of Secrets only.
+- The `kubectl proxy` of a cluster listens on a Unix socket in a directory only you can open (on Windows: on
+  127.0.0.1, a random port, behind a random secret path), and refuses anything but reading (GET; kubectl also
+  refuses exec and attach through it). Changes always go through kubectl commands.
 - In untrusted workspaces, `kubexplorer.kubectlPath` and `kubexplorer.helmPath` are ignored if set by the
   workspace, so opening a repository cannot make KubeXplorer run an arbitrary binary.
 - `kubexplorer.protectedContexts`, `kubexplorer.protectedContextsMode` and `kubexplorer.confirmApply` are user (or

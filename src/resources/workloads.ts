@@ -5,7 +5,7 @@ import type { KubeObject } from "../kube/types";
 import type { Cell, DetailSection } from "../shared/view";
 import type { MetricsScope } from "./charts";
 import { type DetailContext, defineResource } from "./descriptor";
-import { conditionTags, formatAge, labelTags, link, mono, ownerCell, selectorString, text } from "./format";
+import { conditionTags, formatAge, labelTags, link, mono, ownerCell, selectorString, since, text } from "./format";
 
 /** The "Pods" section of a drawer: pods matching a label selector. */
 export async function podsSection(
@@ -189,9 +189,8 @@ export const jobs = defineResource({
     { name: "Parallelism", value: String(o.spec?.parallelism ?? 1) },
     {
       name: "Duration",
-      value: o.status?.startTime
-        ? formatAge(o.status.startTime, o.status.completionTime ? Date.parse(o.status.completionTime) : Date.now())
-        : "",
+      // A running job: the time since its start, kept current by the webview.
+      value: o.status?.completionTime ? formatAge(o.status.startTime, Date.parse(o.status.completionTime)) : since(o.status?.startTime),
     },
     { name: "Images", value: images(o) },
     { name: "Conditions", value: conditionTags(o.status?.conditions, true, true) },
@@ -223,7 +222,7 @@ export const cronjobs = defineResource({
       id: "last",
       title: "Last Schedule",
       grow: 0.6,
-      value: (o) => formatAge(o.status?.lastScheduleTime),
+      value: (o) => since(o.status?.lastScheduleTime),
       sort: (o) => -Date.parse(o.status?.lastScheduleTime ?? "0"),
     },
   ],
@@ -231,7 +230,7 @@ export const cronjobs = defineResource({
   items: (o) => [
     { name: "Schedule", value: mono(o.spec?.schedule) },
     { name: "Suspend", value: o.spec?.suspend ? "True" : "False" },
-    { name: "Last Schedule", value: o.status?.lastScheduleTime ? `${formatAge(o.status.lastScheduleTime)} ago` : "Never" },
+    { name: "Last Schedule", value: since(o.status?.lastScheduleTime, { suffix: " ago" }) || "Never" },
     { name: "Images", value: images(o) },
   ],
   sections: async (o, ctx) => {

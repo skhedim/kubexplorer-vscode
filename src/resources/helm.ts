@@ -4,7 +4,7 @@ import { HELM_CHARTS, HELM_RELEASES } from "../kube/virtualKinds";
 import type { KubeObject } from "../kube/types";
 import type { Cell, Row, Tone } from "../shared/view";
 import { defineResource } from "./descriptor";
-import { formatAge, formatDate, link, mono, text } from "./format";
+import { formatDate, link, mono, since, text } from "./format";
 
 function releaseStatusTone(status: string): Tone {
   if (status === "deployed") return "ok";
@@ -49,7 +49,7 @@ export const helmreleases = defineResource({
     { name: "Revision", value: String(o.helm.revision) },
     { name: "App Version", value: o.helm.appVersion },
     { name: "Status", value: statusCell(o) },
-    { name: "Updated", value: `${formatAge(o.metadata.creationTimestamp)} ago (${formatDate(o.metadata.creationTimestamp)})` },
+    { name: "Updated", value: since(o.metadata.creationTimestamp, { suffix: ` ago (${formatDate(o.metadata.creationTimestamp)})` }) },
   ],
   sections: async (o, ctx) => {
     if (!ctx.helm) return [];
@@ -67,7 +67,7 @@ export const helmreleases = defineResource({
         chart: h.chart,
         appVersion: h.app_version,
         description: text(h.description, h.status === "failed" ? "error" : undefined, h.description),
-        updated: formatAge(h.updated),
+        updated: since(h.updated),
       },
       sort: {},
       search: "",

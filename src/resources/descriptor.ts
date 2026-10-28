@@ -5,7 +5,7 @@ import type { HelmClient } from "../kube/helm";
 import type { KindTarget, KubeObject } from "../kube/types";
 import type { MetricsScope } from "./charts";
 import type { ActionId, Cell, ColumnDef, DetailItem, Details, DetailSection, Row } from "../shared/view";
-import { cellText, formatAge, metadataItems } from "./format";
+import { cellText, metadataItems, since } from "./format";
 
 /**
  * Objects of other lists the rendering depends on (e.g. pod metrics), indexed by "namespace/name".
@@ -128,7 +128,7 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
       id: "age",
       title: spec.ageTitle ?? "Age",
       grow: 0.5,
-      value: (o) => ({ text: formatAge(o.metadata.creationTimestamp), title: o.metadata.creationTimestamp }),
+      value: (o) => since(o.metadata.creationTimestamp),
       // Sorted by creation date (the most recent has the smallest age).
       sort: (o) => -Date.parse(o.metadata.creationTimestamp ?? "0"),
     });

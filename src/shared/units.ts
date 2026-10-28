@@ -1,4 +1,4 @@
-// Formatting of chart values (the webview and the extension share it).
+// Formatting shared by the webview and the extension: chart values, durations.
 
 import type { ChartUnit } from "./view";
 
@@ -24,4 +24,21 @@ export function formatUnit(unit: ChartUnit, v: number): string {
     case "bytesPerSecond":
       return `${bytes(v)}/s`;
   }
+}
+
+/** Compact duration, like Freelens: 45s, 12m, 3h12m, 4d6h, 41d. */
+export function formatAge(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return "";
+  let s = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
+  const d = Math.floor(s / 86400);
+  s -= d * 86400;
+  const h = Math.floor(s / 3600);
+  s -= h * 3600;
+  const m = Math.floor(s / 60);
+  s -= m * 60;
+  if (d >= 10) return `${d}d`;
+  if (d > 0) return h ? `${d}d${h}h` : `${d}d`;
+  if (h > 0) return m ? `${h}h${m}m` : `${h}h`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
 }

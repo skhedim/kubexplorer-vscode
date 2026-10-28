@@ -146,6 +146,27 @@ describe("KubeXplorer in VS Code", function () {
     await waitFor(() => problems().every(([, d]) => d.length === 0), "problems cleared");
   });
 
+  it("follows every list of a page through a single kubectl proxy, and no kubectl process per list", async function () {
+    if (process.platform !== "linux") this.skip();
+    /** The kubectl processes of this extension host (the tests run in it). */
+    const kubectlChildren = () =>
+      execFileSync("ps", ["-o", "args=", "--ppid", String(process.pid)])
+        .toString()
+        .split("\n")
+        .filter((l) => l.includes(`--context ${CONTEXT}`));
+    await vscode.commands.executeCommand("kubexplorer.openResource", "overview:diagnostics");
+    await waitFor(() => kubexplorerTabs().find((t) => t.startsWith("Diagnostics")), "diagnostics tab");
+    await waitFor(
+      () => vscode.languages.getDiagnostics().some(([uri, d]) => uri.scheme === "kubexplorer" && d.length),
+      "the problems of the page, once its lists are loaded",
+      30_000,
+    );
+    assert.deepEqual(api.proxies.running(), [CONTEXT]);
+    const processes = kubectlChildren();
+    assert.equal(processes.filter((l) => / proxy /.test(l)).length, 1, processes.join("\n"));
+    assert.equal(processes.filter((l) => / get .*--watch/.test(l)).length, 0, processes.join("\n"));
+  });
+
   it("reuses the current tab when opening another resource type", async () => {
     await vscode.commands.executeCommand("kubexplorer.openResource", "daemonsets");
     await waitFor(() => kubexplorerTabs().includes(`Daemon Sets · ${CONTEXT}`), "Daemon Sets tab");
@@ -297,7 +318,7 @@ describe("KubeXplorer in VS Code", function () {
     await api.state.setNamespaces(CONTEXT, []);
   });
 
-  it("follows a list in real time (kubectl watch)", async () => {
+  it("follows a list in real time (a watch through the kubectl proxy)", async () => {
     const name = `it-watch-${Date.now()}`;
     let snapshot: Snapshot | undefined;
     const subscription = api.store.watch(
@@ -306,6 +327,7 @@ describe("KubeXplorer in VS Code", function () {
     );
     try {
       await waitFor(() => snapshot && !snapshot.loading && snapshot.live, "a live list");
+      assert.ok(api.proxies.running().includes(CONTEXT));
       kubectl("-n", "frontend", "create", "configmap", name, "--from-literal=k=v");
       // Within the 5 s polling interval: only the watch can explain it.
       await waitFor(() => snapshot!.items.some((o) => o.metadata.name === name), "creation seen by the watch", 4_000);

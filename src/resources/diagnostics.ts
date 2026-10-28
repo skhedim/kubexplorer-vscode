@@ -588,6 +588,8 @@ export const diagnosticsPage: OverviewPage = {
   title: "Diagnostics",
   resources: RESOURCES,
   primary: "pods",
+  // Their names are enough: no data of Secrets (Helm releases are large), nor of ConfigMaps (dashboards).
+  metadataOnly: ["configmaps", "secrets"],
   problems: problemsOf,
   build(input): OverviewData {
     const problems = problemsOf(input);

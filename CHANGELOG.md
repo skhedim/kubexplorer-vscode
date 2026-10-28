@@ -38,6 +38,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- The lists and watches of a cluster go through a single `kubectl proxy` (over a private Unix socket, read-only)
+  instead of a kubectl process per list and per request: the Diagnostics page of the development cluster runs 1
+  kubectl process instead of 16 (40 MB instead of 690 MB) and loads in 1 s instead of 4. A watch ended by the
+  server goes on from where it stopped instead of listing everything again, and the 5-minute full resync is gone.
+  A cluster whose proxy cannot start falls back to kubectl processes.
+- Large lists are virtual: only the rows in view are in the page. 5,000 pods render in 0.1 s instead of 5 s; a
+  changed pod updates the list in 11 ms (1 KB sent) instead of 0.6 s (6 MB).
+- Only the rows that changed are rebuilt and sent to a tab; ages are computed by the webview, so rows no longer
+  change every 30 seconds.
+- The details drawer is refreshed when the object it shows changes (and every 30 seconds for the related objects),
+  no longer at every change of the list; it reads the object from the lists of the tab when it can.
+- A list stays followed 30 seconds after its tab is hidden or closed: showing it again is instant.
+- The Diagnostics page reads the metadata only of Secrets and ConfigMaps.
 - `kubexplorer.protectedContexts`, `kubexplorer.protectedContextsMode` and `kubexplorer.confirmApply` are user (or
   remote) settings: the settings of a workspace can no longer turn off the protection of production contexts.
 - Metrics are polled at most every 15 seconds (the resolution of metrics-server), Helm lists at most every minute.

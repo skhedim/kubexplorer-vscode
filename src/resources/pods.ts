@@ -6,7 +6,7 @@ import type { KubeObject } from "../kube/types";
 import type { Brick, ContainerState, DetailItem, DetailSection, Tone } from "../shared/view";
 import { defineResource } from "./descriptor";
 import { fmtCpu, fmtMemory, podUsage, type Usage } from "./metrics";
-import { conditionTags, formatAge, link, mono, ownerCell, text } from "./format";
+import { conditionTags, link, mono, ownerCell, since, text } from "./format";
 
 interface ContainerInfo {
   name: string;
@@ -138,10 +138,12 @@ function containerSection(c: ContainerInfo, usage?: Usage): DetailSection {
   if (last)
     items.push({
       name: "Last Status",
-      value: text(
-        `Terminated (${last.reason ?? "?"}, exit code ${last.exitCode})${last.finishedAt ? ` ${formatAge(last.finishedAt)} ago` : ""}`,
-        "warning",
-      ),
+      value:
+        since(last.finishedAt, {
+          prefix: `Terminated (${last.reason ?? "?"}, exit code ${last.exitCode}) `,
+          suffix: " ago",
+          tone: "warning",
+        }) || text(`Terminated (${last.reason ?? "?"}, exit code ${last.exitCode})`, "warning"),
     });
   items.push({ name: "Image", value: mono(c.image) });
   const ports = (c.spec.ports ?? []).map((p) => `${p.name ? `${p.name}: ` : ""}${p.containerPort}/${p.protocol ?? "TCP"}`);

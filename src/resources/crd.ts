@@ -4,7 +4,7 @@ import type { CrdVersion } from "../kube/models";
 import type { KubeObject } from "../kube/types";
 import type { Cell } from "../shared/view";
 import { type ColumnSpec, defineResource, type ResourceDescriptor } from "./descriptor";
-import { formatAge, mono } from "./format";
+import { mono, since } from "./format";
 
 export const customresourcedefinitions = defineResource({
   id: "customresourcedefinitions",
@@ -67,7 +67,7 @@ export function crdDescriptor(crd: KubeObject): ResourceDescriptor {
     value: (o): Cell => {
       const v = evalJsonPath(o, c.jsonPath);
       if (v === undefined || v === null) return "";
-      if (c.type === "date") return formatAge(String(v));
+      if (c.type === "date") return since(String(v));
       return typeof v === "object" ? mono(JSON.stringify(v)) : String(v);
     },
   }));

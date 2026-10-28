@@ -1,23 +1,17 @@
 // Formatting and cell helpers shared by the descriptors.
 
 import type { KubeObject } from "../kube/types";
+import { formatAge } from "../shared/units";
 import type { Cell, DetailItem, ResourceRef, Tag, Tone } from "../shared/view";
 
-/** Compact duration, like Freelens: 45s, 12m, 3h12m, 4d6h, 41d. */
-export function formatAge(iso: string | undefined, now = Date.now()): string {
-  if (!iso) return "";
-  let s = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
-  const d = Math.floor(s / 86400);
-  s -= d * 86400;
-  const h = Math.floor(s / 3600);
-  s -= h * 3600;
-  const m = Math.floor(s / 60);
-  s -= m * 60;
-  if (d >= 10) return `${d}d`;
-  if (d > 0) return h ? `${d}d${h}h` : `${d}d`;
-  if (h > 0) return m ? `${h}h${m}m` : `${h}h`;
-  if (m > 0) return `${m}m`;
-  return `${s}s`;
+export { formatAge };
+
+/**
+ * The time elapsed since an ISO date, kept current by the webview ("3h12m", or "3h12m ago" with a suffix); empty
+ * without a date. Rows built with it do not change as time passes.
+ */
+export function since(iso: string | undefined, opts: { prefix?: string; suffix?: string; tone?: Tone; title?: string } = {}): Cell {
+  return iso ? { since: iso, ...opts, title: opts.title ?? iso } : "";
 }
 
 export function formatDate(iso: string | undefined): string {
@@ -33,6 +27,8 @@ export function cellText(cell: Cell | Cell[] | undefined): string {
   if ("text" in cell) return cell.text;
   if ("link" in cell) return `${cell.prefix ?? ""}${cell.link}`;
   if ("tags" in cell) return cell.tags.map((t) => t.text).join(" ");
+  // The date itself: stable, unlike the elapsed time.
+  if ("since" in cell) return cell.since;
   return "";
 }
 
@@ -148,7 +144,7 @@ export function metadataItems(o: KubeObject): DetailItem[] {
   const items: DetailItem[] = [
     {
       name: "Created",
-      value: text(`${formatAge(m.creationTimestamp)} ago (${formatDate(m.creationTimestamp)})`, undefined, m.creationTimestamp),
+      value: since(m.creationTimestamp, { suffix: ` ago (${formatDate(m.creationTimestamp)})` }),
     },
     { name: "Name", value: m.name },
   ];
@@ -160,7 +156,7 @@ export function metadataItems(o: KubeObject): DetailItem[] {
   );
   if (Object.keys(annotations).length) items.push({ name: "Annotations", value: labelTags(annotations) });
   if (m.ownerReferences?.length) items.push({ name: "Controlled By", value: ownerCell(o) });
-  if (m.deletionTimestamp) items.push({ name: "Deleting", value: text(`for ${formatAge(m.deletionTimestamp)}`, "warning") });
+  if (m.deletionTimestamp) items.push({ name: "Deleting", value: since(m.deletionTimestamp, { prefix: "for ", tone: "warning" }) });
   return items;
 }
 

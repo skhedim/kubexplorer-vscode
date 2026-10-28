@@ -1,12 +1,16 @@
 // Logic of one resource tab, independent from VS Code (unit tested, reused by the browser preview).
-// The controller subscribes to the store while the tab is visible and pushes rows and details to the webview.
+// The controller subscribes to the store while the tab is visible and pushes rows and details to the webview:
+// - rows: the full list once, then what changed only (rowsPatch); a row is rebuilt only when its object or its
+//   related objects (metrics) changed. Ages are computed by the webview: rows do not change as time passes.
+// - details: refreshed when the object shown changes (its resourceVersion), and every DETAILS_REFRESH_MS for what
+//   they show of other objects (the pods of a Deployment…).
 
 import type { KubeClient } from "../kube/client";
 import type { CrdCatalog } from "../kube/crds";
 import type { HelmClient } from "../kube/helm";
 import type { ResourceStore, Snapshot } from "../kube/store";
 import { type Disposable, errorMessage, type KubeObject, type Logger } from "../kube/types";
-import { type DetailContext, indexRelated, type RowContext } from "../resources/descriptor";
+import { type DetailContext, indexRelated, relatedOf, type ResourceDescriptor, type RowContext } from "../resources/descriptor";
 import type { Problem } from "../resources/diagnostics";
 import type { OverviewPage } from "../resources/overview";
 import { overviewPage, type ResourceRegistry } from "../resources/registry";
@@ -51,14 +55,39 @@ export interface PanelDeps {
   protection?: Protection;
 }
 
-/** Refresh of the displayed ages: with a watch, a list only changes when the cluster does. */
-const AGE_TICK_MS = 30_000;
+/** Refresh of the details, for what they show of other objects (the object itself is followed by the lists). */
+const DETAILS_REFRESH_MS = 30_000;
 /** Automatic refresh of the details (which may query the cluster), at most once every… */
 const DETAILS_THROTTLE_MS = 2_000;
 /** Refresh of the usage charts of the drawer. */
 const METRICS_REFRESH_MS = 20_000;
 /** Related lists recorded in the metrics history. */
 const METRICS_LISTS = new Set(["podmetrics", "nodemetrics"]);
+
+/** A row sent to the webview, with what it was built from. */
+interface SentRow {
+  obj: KubeObject;
+  related: (KubeObject | undefined)[];
+  json: string;
+  row: Row;
+}
+
+/** What the details of an object were built from: its version, or "" once it is gone. */
+function detailsVersion(o: KubeObject | null): string {
+  return o ? `${o.metadata.uid}/${o.metadata.resourceVersion ?? ""}` : "";
+}
+
+function objectKey(o: KubeObject): string {
+  return o.metadata.uid || `${o.metadata.namespace ?? ""}/${o.metadata.name}`;
+}
+
+/** The same version of an object: the same instance, or the same resourceVersion (a list read again). */
+function sameVersion(a: KubeObject, b: KubeObject): boolean {
+  return (
+    a === b ||
+    (!!a.metadata.resourceVersion && a.metadata.resourceVersion === b.metadata.resourceVersion && a.metadata.uid === b.metadata.uid)
+  );
+}
 
 export class PanelController implements Disposable {
   private subscriptions: Disposable[] = [];
@@ -76,7 +105,14 @@ export class PanelController implements Disposable {
   private subscriptionGeneration = 0;
   private overviewQueued = false;
   private rowsQueued = false;
-  private tick?: ReturnType<typeof setInterval>;
+  /** Rows the webview has, by object: unchanged objects are neither rebuilt nor sent again. */
+  private sentRows = new Map<string, SentRow>();
+  /** The webview has a full list (rows): what follows are patches. */
+  private rowsSent = false;
+  private sentStatus = "";
+  /** Version of the object shown in the drawer ("" once gone): its details are rebuilt when it changes. */
+  private shownVersion?: string;
+  private detailsTick?: ReturnType<typeof setInterval>;
   private detailsTimer?: ReturnType<typeof setTimeout>;
   private lastDetailsAt = 0;
   private metricsTimer?: ReturnType<typeof setInterval>;
@@ -141,6 +177,7 @@ export class PanelController implements Disposable {
         break;
       case "showDetails":
         this.selected = msg.ref;
+        this.shownVersion = undefined;
         clearTimeout(this.detailsTimer);
         this.detailsTimer = undefined;
         this.stopMetrics();
@@ -204,6 +241,8 @@ export class PanelController implements Disposable {
     this.d.protection = protection;
     if (!this.ready) return;
     this.d.host.post({ type: "protection", protection });
+    // Every row offers other actions: send them all again.
+    this.resetRows();
     this.queueRows();
     if (this.d.target.kind === "overview") this.queueOverview();
     if (this.selected) void this.pushDetails();
@@ -225,9 +264,15 @@ export class PanelController implements Disposable {
     this.subscriptionGeneration++;
     for (const s of this.subscriptions) s.dispose();
     this.subscriptions = [];
-    clearInterval(this.tick);
-    this.tick = undefined;
+    clearInterval(this.detailsTick);
+    this.detailsTick = undefined;
     this.stopMetrics();
+  }
+
+  private resetRows(): void {
+    this.sentRows = new Map();
+    this.rowsSent = false;
+    this.sentStatus = "";
   }
 
   /** (Re)subscribes to the store, only while the tab is visible and its webview ready. */
@@ -236,9 +281,11 @@ export class PanelController implements Disposable {
     if (!this.visible || !this.ready) return;
     const { store, registry, context, target } = this.d;
     const namespaces = this.d.namespaces.selected;
+    this.detailsTick = setInterval(() => this.selected && this.scheduleDetails(), DETAILS_REFRESH_MS);
     if (target.kind === "list") {
       const desc = registry.require(target.resource);
       this.rowContext = { related: {} };
+      this.resetRows();
       this.subscriptions.push(
         store.watch({ context, kind: desc, namespaces }, (snap) => {
           this.lastSnapshot = snap;
@@ -253,7 +300,6 @@ export class PanelController implements Disposable {
           }),
         ),
       );
-      this.tick = setInterval(() => this.queueRows(), AGE_TICK_MS);
     } else {
       void this.subscribeOverview(this.subscriptionGeneration);
     }
@@ -274,8 +320,9 @@ export class PanelController implements Disposable {
     this.overviewMissing = new Set(descriptors.filter((d) => d.optional && installed && !installed.has(d.kubectlName)).map((d) => d.id));
     for (const desc of descriptors) {
       if (this.overviewMissing.has(desc.id)) continue;
+      const kind = page.metadataOnly?.includes(desc.id) ? { ...desc, metadataOnly: true } : desc;
       this.subscriptions.push(
-        store.watch({ context, kind: desc, namespaces: this.d.namespaces.selected }, (snap) => {
+        store.watch({ context, kind, namespaces: this.d.namespaces.selected }, (snap) => {
           this.overviewLists.set(desc.id, snap);
           this.recordMetrics(desc.id, snap);
           this.queueOverview();
@@ -294,15 +341,81 @@ export class PanelController implements Disposable {
       this.rowsQueued = false;
       const snap = this.lastSnapshot;
       if (!snap) return;
-      this.d.host.post({
-        type: "rows",
-        rows: snap.items.map((o) => this.allowedRow(desc.toRow(o, this.rowContext))),
-        loading: snap.loading,
-        error: snap.error,
-        live: snap.live,
-      });
-      if (this.selected && !snap.loading) this.scheduleDetails();
+      const { rows, upsert, remove } = this.diffRows(snap.items, desc);
+      const status = { loading: snap.loading, error: snap.error, live: snap.live };
+      const statusKey = JSON.stringify(status);
+      // A patch as large as the list is no cheaper than the list.
+      if (!this.rowsSent || upsert.length + remove.length > rows.length / 2) this.d.host.post({ type: "rows", rows, ...status });
+      else if (upsert.length || remove.length || statusKey !== this.sentStatus)
+        this.d.host.post({ type: "rowsPatch", upsert, remove, ...status });
+      this.rowsSent = true;
+      this.sentStatus = statusKey;
+      if (!snap.loading) this.detailsMayHaveChanged();
     });
+  }
+
+  /** The rows of the objects, rebuilding only those whose object or related objects changed. */
+  private diffRows(items: KubeObject[], desc: ResourceDescriptor): { rows: Row[]; upsert: Row[]; remove: string[] } {
+    const next = new Map<string, SentRow>();
+    const upsert: Row[] = [];
+    for (const o of items) {
+      const key = objectKey(o);
+      const related = desc.related.map((id) => relatedOf(this.rowContext, id, o));
+      const prev = this.sentRows.get(key);
+      if (prev && sameVersion(prev.obj, o) && related.every((r, i) => r === prev.related[i])) {
+        next.set(key, prev);
+        continue;
+      }
+      const built = this.allowedRow(desc.toRow(o, this.rowContext));
+      const row = built.uid ? built : { ...built, uid: key };
+      const json = JSON.stringify(row);
+      // Rebuilt but identical (e.g. new metrics, same rounded values): nothing to send.
+      if (prev?.json === json) next.set(key, { ...prev, obj: o, related });
+      else {
+        next.set(key, { obj: o, related, json, row });
+        upsert.push(row);
+      }
+    }
+    const remove: string[] = [];
+    for (const [key, sent] of this.sentRows) if (!next.has(key)) remove.push(sent.row.uid);
+    this.sentRows = next;
+    return { rows: [...next.values()].map((s) => s.row), upsert, remove };
+  }
+
+  /**
+   * The object shown in the drawer, from the lists this tab follows: undefined when they do not include it (another
+   * kind or namespace), null when it is gone.
+   */
+  private localObject(ref: ResourceRef): KubeObject | null | undefined {
+    const { target } = this.d;
+    // A list of which the page reads the metadata only cannot fill a drawer.
+    const partial = target.kind === "overview" && this.page().metadataOnly?.includes(ref.resource);
+    const snap =
+      target.kind === "list"
+        ? target.resource === ref.resource
+          ? this.lastSnapshot
+          : undefined
+        : partial
+          ? undefined
+          : this.overviewLists.get(ref.resource);
+    if (!snap) return undefined;
+    const selected = this.d.namespaces.selected;
+    if (this.d.registry.get(ref.resource)?.namespaced && ref.namespace && selected.length && !selected.includes(ref.namespace))
+      return undefined;
+    const found = snap.items.find((o) => o.metadata.name === ref.name && o.metadata.namespace === ref.namespace);
+    if (found) return found;
+    return snap.loading || snap.error ? undefined : null;
+  }
+
+  /** A list changed: refreshes the details if the object they show changed (or is gone). */
+  private detailsMayHaveChanged(): void {
+    if (!this.selected) return;
+    const obj = this.localObject(this.selected);
+    // Not followed here: the periodic refresh keeps the drawer current. Without resourceVersion (Helm releases, port
+    // forwards), a change cannot be told apart: refresh.
+    if (obj === undefined) return;
+    if (obj && !obj.metadata.resourceVersion) this.scheduleDetails();
+    else if (detailsVersion(obj) !== this.shownVersion) this.scheduleDetails();
   }
 
   /** Refreshes the details after an update, throttled (a watch may emit often). */
@@ -337,7 +450,7 @@ export class PanelController implements Disposable {
       this.d.host.post({ type: "overview", data, loading, error: page.primary ? errors[page.primary] : undefined, live });
       // Once every list is loaded: partial lists would report objects as missing.
       if (page.problems && !loading) this.d.host.reportProblems?.(this.d.context, page.problems(input));
-      if (this.selected && !loading) this.scheduleDetails();
+      if (!loading) this.detailsMayHaveChanged();
     });
   }
 
@@ -357,11 +470,9 @@ export class PanelController implements Disposable {
 
   private async findObject(ref: ResourceRef): Promise<KubeObject | undefined> {
     const desc = this.d.registry.require(ref.resource);
-    const same = this.d.target.kind === "list" && this.d.target.resource === ref.resource;
-    const local = same
-      ? this.lastSnapshot?.items.find((o) => o.metadata.name === ref.name && o.metadata.namespace === ref.namespace)
-      : undefined;
-    if (local) return local;
+    // Followed by a list of this tab: no need to ask the cluster.
+    const local = this.localObject(ref);
+    if (local !== undefined) return local ?? undefined;
     const items = await this.d.client.list(this.d.context, desc, {
       namespaces: desc.namespaced && ref.namespace ? [ref.namespace] : [],
       fieldSelector: `metadata.name=${ref.name}`,
@@ -384,6 +495,7 @@ export class PanelController implements Disposable {
       const obj = await this.findObject(ref);
       const details = obj ? this.allowedDetails(await desc.details(obj, this.detailContext())) : null;
       if (generation !== this.detailsGeneration) return;
+      this.shownVersion = detailsVersion(obj ?? null);
       this.d.host.post({ type: "details", details });
       if (obj && desc.metrics && this.d.metrics) this.startMetrics(obj.metadata.uid);
     } catch (err) {

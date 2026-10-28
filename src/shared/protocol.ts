@@ -53,6 +53,8 @@ export type HostMessage =
   | { type: "namespaces"; filter: NamespaceFilter }
   /** live: the list is followed in real time (watch) rather than polled. */
   | { type: "rows"; rows: Row[]; loading: boolean; error?: string; live?: boolean }
+  /** What changed since the last rows: rows added or changed, and the uids of the rows removed. */
+  | { type: "rowsPatch"; upsert: Row[]; remove: string[]; loading: boolean; error?: string; live?: boolean }
   | { type: "overview"; data: OverviewData; loading: boolean; error?: string; live?: boolean }
   | { type: "fleet"; view: FleetView }
   /** Shows an object in the drawer (opened from another tab, e.g. the fleet). */

@@ -1,8 +1,22 @@
 // Real client: runs kubectl. Every call passes --context explicitly, so the current context of the
 // kubeconfig is never relied upon nor modified.
+// With an ApiReader (a kubectl proxy per cluster), lists, watches and raw GETs go over HTTP instead of a kubectl
+// process each; a cluster whose proxy cannot start falls back to kubectl processes.
 
 import { execFile, spawn } from "node:child_process";
-import type { ExecSpec, KubeClient, ListOptions, ManyResult, NamedKind, Stoppable, WatchEventType } from "./client";
+import { type ApiReader, inNamespaces, needsFallback } from "./api";
+import type {
+  ExecSpec,
+  InformHandlers,
+  Informing,
+  KubeClient,
+  ListOptions,
+  ManyResult,
+  NamedKind,
+  Stoppable,
+  WatchEventType,
+} from "./client";
+import { Informer } from "./informer";
 import { JsonStreamParser } from "./jsonStream";
 import type { ContextInfo, KindTarget, KubeObject, Logger, LogOptions, ObjectTarget } from "./types";
 
@@ -97,6 +111,7 @@ export class KubectlClient implements KubeClient {
   constructor(
     private readonly kubectlPath: () => string,
     private readonly log: Logger,
+    private readonly api?: ApiReader,
   ) {}
 
   private run(args: string[], opts?: CommandOptions): Promise<string> {
@@ -125,14 +140,32 @@ export class KubectlClient implements KubeClient {
     return args;
   }
 
-  /** kubectl cannot filter on several namespaces: with more than one, everything is listed and filtered here. */
-  private inNamespaces(kind: KindTarget, opts: ListOptions, o: KubeObject): boolean {
-    return !kind.namespaced || opts.namespaces.length <= 1 || opts.namespaces.includes(o.metadata.namespace ?? "");
+  async list(context: string, kind: KindTarget, opts: ListOptions): Promise<KubeObject[]> {
+    if (this.api) {
+      try {
+        return (await this.api.list(context, kind, opts)).items;
+      } catch (err) {
+        if (!needsFallback(err)) throw err;
+      }
+    }
+    const items: KubeObject[] = JSON.parse(await this.run(this.listArgs(context, kind, opts))).items ?? [];
+    return items.filter((o) => inNamespaces(kind, opts, o));
   }
 
-  async list(context: string, kind: KindTarget, opts: ListOptions): Promise<KubeObject[]> {
-    const items: KubeObject[] = JSON.parse(await this.run(this.listArgs(context, kind, opts))).items ?? [];
-    return items.filter((o) => this.inNamespaces(kind, opts, o));
+  inform(context: string, kind: KindTarget, opts: ListOptions, handlers: InformHandlers): Informing | undefined {
+    const api = this.api;
+    if (!api) return undefined;
+    const informer = new Informer(
+      {
+        list: () => api.list(context, kind, opts),
+        watch: (resourceVersion, timeoutSeconds, onEvent, onEnd) =>
+          api.watch(context, kind, opts, resourceVersion, timeoutSeconds, onEvent, onEnd),
+      },
+      // Several namespaces: the watch covers them all, the others are left out here.
+      { ...handlers, event: (type, obj) => inNamespaces(kind, opts, obj) && handlers.event(type, obj) },
+    );
+    informer.start();
+    return informer;
   }
 
   async listMany(context: string, kinds: NamedKind[], opts: { namespace?: string } = {}): Promise<ManyResult> {
@@ -174,7 +207,7 @@ export class KubectlClient implements KubeClient {
     const parser = new JsonStreamParser((value) => {
       const event = value as { type?: string; object?: KubeObject };
       const { type, object } = event;
-      if ((type === "ADDED" || type === "MODIFIED" || type === "DELETED") && object?.metadata && this.inNamespaces(kind, opts, object)) {
+      if ((type === "ADDED" || type === "MODIFIED" || type === "DELETED") && object?.metadata && inNamespaces(kind, opts, object)) {
         onEvent(type, object);
       }
     });
@@ -222,7 +255,14 @@ export class KubectlClient implements KubeClient {
     ]);
   }
 
-  getRaw(context: string, path: string): Promise<string> {
+  async getRaw(context: string, path: string): Promise<string> {
+    if (this.api) {
+      try {
+        return await this.api.getRaw(context, path);
+      } catch (err) {
+        if (!needsFallback(err)) throw err;
+      }
+    }
     return this.run(["--context", context, "get", "--raw", path], { timeoutMs: 15_000 });
   }
 

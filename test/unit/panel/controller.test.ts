@@ -1,10 +1,11 @@
 // The tab controller, end to end on the demo cluster (no VS Code involved).
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { KubeClient } from "../../../src/kube/client";
 import { CrdCatalog } from "../../../src/kube/crds";
 import { DEMO_CONTEXT, DemoClient } from "../../../src/kube/demo";
 import { DemoMetrics } from "../../../src/kube/prometheus";
 import { ResourceStore } from "../../../src/kube/store";
-import { nullLogger } from "../../../src/kube/types";
+import { type KubeObject, nullLogger } from "../../../src/kube/types";
 import { PanelController, type PanelHost } from "../../../src/panel/controller";
 import { MetricsHistory, MetricsService } from "../../../src/panel/metrics";
 import { menuTarget } from "../../../src/resources/menu";
@@ -198,5 +199,93 @@ describe("PanelController", () => {
     const overview = await until("overview", (m) => !m.loading);
     expect(overview.data.empty).toMatch(/Flux is not installed/);
     expect(controller.title()).toBe("Flux");
+  });
+
+  describe("on a cluster that changes", () => {
+    afterEach(() => vi.useRealTimers());
+
+    /** A Config Map with as many keys as its version. */
+    const configMap = (name: string, version: string): KubeObject => ({
+      metadata: { name, namespace: "default", uid: `uid-${name}`, resourceVersion: version, creationTimestamp: "2026-10-28T10:00:00Z" },
+      data: Object.fromEntries(Array.from({ length: Number(version) }, (_, i) => [`key${i}`, version])),
+    });
+
+    /** A tab on Config Maps, polled every second from `items` (read again at every poll, as kubectl would). */
+    function polled(items: () => KubeObject[]) {
+      vi.useFakeTimers();
+      const messages: HostMessage[] = [];
+      const client = { list: vi.fn(async () => structuredClone(items())) } as unknown as KubeClient;
+      const controller = new PanelController({
+        context: "c",
+        target: menuTarget("configmaps"),
+        registry: new ResourceRegistry(),
+        store: new ResourceStore(client, { pollIntervalMs: () => 1000 }, nullLogger),
+        client,
+        host: { post: (m: HostMessage) => messages.push(m) } as unknown as PanelHost,
+        log: nullLogger,
+        appearance: "vscode",
+        namespaces: { available: [], selected: [] },
+      });
+      controller.onMessage({ type: "ready" });
+      controller.setVisible(true);
+      const sent = () => messages.filter((m) => m.type === "rows" || m.type === "rowsPatch");
+      return { controller, messages, sent, client };
+    }
+
+    it("sends the rows once, then what changed only", async () => {
+      let maps = Array.from({ length: 10 }, (_, i) => configMap(`map-${i}`, "1"));
+      const { sent } = polled(() => maps);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(sent().at(-1)).toMatchObject({ type: "rows", loading: false });
+      expect((sent().at(-1) as Message<"rows">).rows).toHaveLength(10);
+      const count = sent().length;
+      // Read again, unchanged: nothing to send.
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(sent()).toHaveLength(count);
+      // A change that does not show in the row (a value): nothing to send either.
+      maps = maps.map((m) => (m.metadata.name === "map-5" ? { ...m, metadata: { ...m.metadata, resourceVersion: "9" } } : m));
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(sent()).toHaveLength(count);
+      // One changed (a key more), one deleted, one created.
+      maps = [...maps.slice(1, 9), configMap("map-9", "2"), configMap("map-new", "1")];
+      await vi.advanceTimersByTimeAsync(1000);
+      const patch = sent().at(-1) as Message<"rowsPatch">;
+      expect(patch.type).toBe("rowsPatch");
+      expect(patch.upsert.map((r) => r.ref.name)).toEqual(["map-9", "map-new"]);
+      expect(patch.remove).toEqual(["uid-map-0"]);
+    });
+
+    it("refreshes the details when the object shown changes only", async () => {
+      let maps = [configMap("app", "1"), configMap("other", "1")];
+      const { controller, messages } = polled(() => maps);
+      await vi.advanceTimersByTimeAsync(0);
+      controller.onMessage({ type: "showDetails", ref: { resource: "configmaps", namespace: "default", name: "app" } });
+      await vi.advanceTimersByTimeAsync(0);
+      const details = () => messages.filter((m): m is Message<"details"> => m.type === "details");
+      expect(details()).toHaveLength(1);
+      // Another object changes: the drawer is left alone.
+      maps = [configMap("app", "1"), configMap("other", "2")];
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(details()).toHaveLength(1);
+      // The object shown changes: its details follow.
+      maps = [configMap("app", "2"), configMap("other", "2")];
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(details()).toHaveLength(2);
+      expect(JSON.stringify(details().at(-1)!.details)).toContain('"2"');
+      // Gone.
+      maps = [configMap("other", "2")];
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(details().at(-1)!.details).toBeNull();
+    });
+
+    it("reads the object shown in the drawer from the list, without asking the cluster", async () => {
+      const { controller, messages, client } = polled(() => [configMap("app", "1")]);
+      await vi.advanceTimersByTimeAsync(0);
+      const calls = vi.mocked(client.list).mock.calls.length;
+      controller.onMessage({ type: "showDetails", ref: { resource: "configmaps", namespace: "default", name: "app" } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(messages.at(-1)).toMatchObject({ type: "details", details: { title: "ConfigMap: app" } });
+      expect(vi.mocked(client.list).mock.calls.length).toBe(calls);
+    });
   });
 });

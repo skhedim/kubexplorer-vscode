@@ -1,7 +1,18 @@
 // Routes every call to the demo client or to kubectl depending on the target context,
 // and serves virtual lists (Helm, port forwards) from their own sources.
 
-import type { ExecSpec, KubeClient, ListOptions, ManyResult, NamedKind, Stoppable, VirtualSource, WatchEventType } from "./client";
+import type {
+  ExecSpec,
+  InformHandlers,
+  Informing,
+  KubeClient,
+  ListOptions,
+  ManyResult,
+  NamedKind,
+  Stoppable,
+  VirtualSource,
+  WatchEventType,
+} from "./client";
 import { DEMO_CONTEXT, DemoClient } from "./demo";
 import { type ContextInfo, errorMessage, type KindTarget, type KubeObject, type Logger, type LogOptions, type ObjectTarget } from "./types";
 
@@ -49,6 +60,15 @@ export class RoutingClient implements KubeClient {
     return this.pick(context).listMany(context, kinds, opts);
   }
 
+  /** No watch for virtual lists nor the demo cluster (the store polls them), nor when the settings turn watches off. */
+  private watchable(context: string, kind: KindTarget): boolean {
+    return this.opts.watchEnabled() && !this.opts.virtualSources?.[kind.kubectlName] && context !== DEMO_CONTEXT;
+  }
+
+  inform(context: string, kind: KindTarget, opts: ListOptions, handlers: InformHandlers): Informing | undefined {
+    return this.watchable(context, kind) ? this.real.inform?.(context, kind, opts, handlers) : undefined;
+  }
+
   watch(
     context: string,
     kind: KindTarget,
@@ -56,9 +76,7 @@ export class RoutingClient implements KubeClient {
     onEvent: (type: WatchEventType, obj: KubeObject) => void,
     onEnd: (error?: string) => void,
   ): Stoppable | undefined {
-    // No watch for virtual lists nor the demo cluster: the store polls them.
-    if (!this.opts.watchEnabled() || this.opts.virtualSources?.[kind.kubectlName] || context === DEMO_CONTEXT) return undefined;
-    return this.real.watch?.(context, kind, opts, onEvent, onEnd);
+    return this.watchable(context, kind) ? this.real.watch?.(context, kind, opts, onEvent, onEnd) : undefined;
   }
 
   getYaml(context: string, t: ObjectTarget): Promise<string> {

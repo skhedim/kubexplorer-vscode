@@ -25,6 +25,22 @@ export interface Stoppable {
 
 export type WatchEventType = "ADDED" | "MODIFIED" | "DELETED";
 
+/** What an informer reports about the list it follows (see KubeClient.inform). */
+export interface InformHandlers {
+  /** The whole list: first, then whenever the watch could not go on from where it was (resourceVersion expired). */
+  sync(items: KubeObject[]): void;
+  event(type: WatchEventType, obj: KubeObject): void;
+  /** Followed in real time, or not (yet, or any more: error tells why, and it tries again by itself). */
+  status(live: boolean, error?: string): void;
+  /** It cannot follow this list: the caller lists it with kubectl, or polls it when it cannot be watched at all. */
+  unsupported(reason: { watch: boolean; message: string }): void;
+}
+
+export interface Informing extends Stoppable {
+  /** Lists again now. */
+  resync(): void;
+}
+
 export interface ExecSpec {
   shellPath: string;
   shellArgs: string[];
@@ -57,6 +73,11 @@ export interface KubeClient {
   execSpec(context: string, namespace: string, pod: string, container: string): ExecSpec | undefined;
   /** Command to run in a terminal for an ephemeral debug container (`kubectl debug`); undefined when unsupported. */
   debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec | undefined;
+  /**
+   * Follows a list: its full state, then its changes, over a single connection per cluster (kubectl proxy).
+   * Undefined when unsupported for this context or kind: the caller uses list() and watch() instead.
+   */
+  inform?(context: string, kind: KindTarget, opts: ListOptions, handlers: InformHandlers): Informing | undefined;
   /**
    * Follows the changes of a list, without its initial state (combine with list()).
    * Returns undefined when unsupported for this context or kind: the caller polls instead.

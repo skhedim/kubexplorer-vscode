@@ -463,7 +463,7 @@ body[data-appearance="freelens"] .option:hover {
   min-height: var(--kx-row-height);
   cursor: pointer;
 }
-.table .row:not(.head):nth-of-type(even) {
+.table .row.stripe {
   background: var(--kx-row-stripe);
 }
 .table .row:not(.head):hover {
@@ -472,6 +472,23 @@ body[data-appearance="freelens"] .option:hover {
 .table .row.selected {
   background: var(--kx-row-selected) !important;
   color: var(--kx-row-selected-fg);
+}
+/* Virtual table (main list): rows of a fixed height, only those in view are in the DOM. */
+.table.virtual .row:not(.head) {
+  height: var(--kx-row-height);
+}
+.table.virtual .cell .bricks {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.table-sizer {
+  position: relative;
+}
+.table-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
 }
 .table .row.selected::before {
   content: "";

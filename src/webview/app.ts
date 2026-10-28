@@ -1,8 +1,10 @@
 // Webview of a resource tab: header, table, details drawer, or overview.
 // The UI state is persisted with setState so that the tab survives a reload of VS Code.
+// The main list is virtual: only the rows in view are in the DOM, rendered again as the list scrolls. The extension
+// sends the full list once, then what changed (rowsPatch). Ages are computed here, and kept current by a timer.
 
 import type { Protection } from "../shared/protection";
-import type { Appearance, HostMessage, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
+import type { Appearance, HostMessage, ListViewInit, NamespaceFilter, PersistedState, ViewInit, WebviewMessage } from "../shared/protocol";
 import {
   type ActionId,
   BULK_ACTIONS,
@@ -16,7 +18,16 @@ import {
 } from "../shared/view";
 import { renderMetrics, tooltipHtml, valuesAt } from "./chart";
 import { checkbox, codicon, data, esc } from "./dom";
-import { ACTION_META, renderDrawerContent, renderDrawerFrame, renderDrawerHeader, renderOverview, renderTable } from "./render";
+import {
+  ACTION_META,
+  renderDrawerContent,
+  renderDrawerFrame,
+  renderDrawerHeader,
+  renderOverview,
+  renderTableRows,
+  renderVirtualTable,
+  type TableOptions,
+} from "./render";
 
 export interface VsCodeApi {
   postMessage(msg: WebviewMessage): void;
@@ -33,6 +44,47 @@ const CHART_INSET = 40;
  * 20 times slower (190 ms instead of 10 ms to sort 5,000 rows).
  */
 const collator = new Intl.Collator(undefined, { numeric: true });
+/** The ages in view are computed again every… */
+const AGE_REFRESH_MS = 30_000;
+/** Rows rendered above and below those in view, so that scrolling a little needs no rendering. */
+const OVERSCAN_ROWS = 10;
+/** Without a layout (tests), the list is as tall as… */
+const DEFAULT_VIEWPORT_PX = 1000;
+const DEFAULT_ROW_HEIGHT_PX = 28;
+/** A patch of more rows than this sorts the list again; a smaller one moves its rows only. */
+const MAX_PATCH_INSERTS = 64;
+
+type Sort = NonNullable<PersistedState["sort"]>;
+
+/**
+ * The order of a sort, total: rows of equal value follow their name, then namespace, so that a row put in place by a
+ * patch lands where a full sort would put it (and rows do not swap places as they change).
+ */
+function compareRows(sort: Sort): (a: Row, b: Row) => number {
+  return (a, b) => {
+    const va = a.sort[sort.col] ?? "";
+    const vb = b.sort[sort.col] ?? "";
+    const r = typeof va === "number" && typeof vb === "number" ? va - vb : collator.compare(String(va), String(vb));
+    if (r) return sort.desc ? -r : r;
+    return (
+      collator.compare(a.ref.name, b.ref.name) ||
+      collator.compare(a.ref.namespace ?? "", b.ref.namespace ?? "") ||
+      (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)
+    );
+  };
+}
+
+/** Where `row` goes in `rows`, sorted by `compare` (binary search). */
+function insertionIndex(rows: Row[], row: Row, compare: (a: Row, b: Row) => number): number {
+  let lo = 0;
+  let hi = rows.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (compare(rows[mid], row) <= 0) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
 function sameTarget(a: PersistedState["panel"], b: PersistedState["panel"]): boolean {
   return !!a && !!b && a.context === b.context && JSON.stringify(a.target) === JSON.stringify(b.target);
@@ -42,6 +94,15 @@ export class App {
   private view?: ViewInit;
   private protection: Protection = "none";
   private rows: Row[] = [];
+  /** The rows by uid, to apply patches. */
+  private rowIndex = new Map<string, Row>();
+  /** Bumped by every change of the rows: the filtered and sorted rows are computed again only then. */
+  private rowsVersion = 0;
+  /** Every row, sorted: kept up to date by the patches, sorted again only when needed. */
+  private sorted?: { version: number; col: string; desc: boolean; rows: Row[] };
+  private visibleCache?: { key: string; rows: Row[] };
+  private rowHeightPx?: number;
+  private scrollFrame?: number;
   private loading = true;
   private live = false;
   private error?: string;
@@ -83,11 +144,21 @@ export class App {
     };
   }
 
+  private readonly onMessage = (e: MessageEvent<HostMessage>) => this.onHostMessage(e.data);
+  private ageTimer?: ReturnType<typeof setInterval>;
+
   start(): void {
     this.root.innerHTML = `<div class="app"><header id="r-header" class="header"></header><div class="main"><div id="r-body" class="body"></div><div id="r-drawer"></div></div></div>`;
-    window.addEventListener("message", (e: MessageEvent<HostMessage>) => this.onHostMessage(e.data));
+    window.addEventListener("message", this.onMessage);
     this.bindEvents();
+    this.ageTimer = setInterval(() => this.render(), AGE_REFRESH_MS);
     this.vscode.postMessage({ type: "ready" });
+  }
+
+  /** Stops listening to the extension (the webview itself never stops; tests do). */
+  dispose(): void {
+    window.removeEventListener("message", this.onMessage);
+    clearInterval(this.ageTimer);
   }
 
   private save(): void {
@@ -119,6 +190,18 @@ export class App {
         return this.showDetails(msg.ref, false);
       case "rows":
         this.rows = msg.rows;
+        this.rowIndex = new Map(msg.rows.map((r) => [r.uid, r]));
+        this.rowsVersion++;
+        this.loading = msg.loading;
+        this.error = msg.error;
+        this.live = !!msg.live;
+        break;
+      case "rowsPatch":
+        for (const uid of msg.remove) this.rowIndex.delete(uid);
+        for (const row of msg.upsert) this.rowIndex.set(row.uid, row);
+        this.rows = [...this.rowIndex.values()];
+        this.rowsVersion++;
+        this.patchSorted(msg.upsert, msg.remove);
         this.loading = msg.loading;
         this.error = msg.error;
         this.live = !!msg.live;
@@ -183,6 +266,8 @@ export class App {
 
   private setAppearance(appearance: Appearance): void {
     document.body.dataset.appearance = appearance;
+    // The rows of the Freelens appearance are taller.
+    this.rowHeightPx = undefined;
   }
 
   /** A protected context: a colored frame around the tab, and a pill in the header. */
@@ -212,16 +297,103 @@ export class App {
     return true;
   }
 
-  private visibleRows(): Row[] {
-    const terms = this.ui.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const rows = terms.length ? this.rows.filter((r) => terms.every((t) => r.search.includes(t))) : this.rows;
+  /** Every row, in the order of the sort. */
+  private sortedRows(): Row[] {
     const sort = this.ui.sort;
-    if (!sort) return rows;
-    return [...rows].sort((a, b) => {
-      const va = a.sort[sort.col] ?? "";
-      const vb = b.sort[sort.col] ?? "";
-      const r = typeof va === "number" && typeof vb === "number" ? va - vb : collator.compare(String(va), String(vb));
-      return sort.desc ? -r : r;
+    if (!sort) return this.rows;
+    const s = this.sorted;
+    if (s?.version === this.rowsVersion && s.col === sort.col && s.desc === sort.desc) return s.rows;
+    const rows = [...this.rows].sort(compareRows(sort));
+    this.sorted = { version: this.rowsVersion, ...sort, rows };
+    return rows;
+  }
+
+  /** Moves the rows of a small patch to their place in the sorted rows, rather than sorting them all again. */
+  private patchSorted(upsert: Row[], remove: string[]): void {
+    const s = this.sorted;
+    const sort = this.ui.sort;
+    if (
+      !s ||
+      !sort ||
+      s.version !== this.rowsVersion - 1 ||
+      s.col !== sort.col ||
+      s.desc !== sort.desc ||
+      upsert.length > MAX_PATCH_INSERTS
+    ) {
+      this.sorted = undefined;
+      return;
+    }
+    const gone = new Set([...remove, ...upsert.map((r) => r.uid)]);
+    const rows = s.rows.filter((r) => !gone.has(r.uid));
+    const compare = compareRows(sort);
+    for (const row of upsert) rows.splice(insertionIndex(rows, row, compare), 0, row);
+    this.sorted = { ...s, version: this.rowsVersion, rows };
+  }
+
+  /** The rows matching the search, sorted; computed again only when the rows, the search or the sort change. */
+  private visibleRows(): Row[] {
+    const sort = this.ui.sort;
+    const key = `${this.rowsVersion}|${sort?.col}|${sort?.desc}|${this.ui.search}`;
+    if (this.visibleCache?.key === key) return this.visibleCache.rows;
+    const terms = this.ui.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const sorted = this.sortedRows();
+    const rows = terms.length ? sorted.filter((r) => terms.every((t) => r.search.includes(t))) : sorted;
+    this.visibleCache = { key, rows };
+    return rows;
+  }
+
+  private tableOptions(rows: Row[]): TableOptions {
+    const v = this.view as ListViewInit;
+    return {
+      context: v.context,
+      columns: v.columns,
+      rows,
+      selectedUid: this.ui.selected ? this.details?.uid : undefined,
+      interactive: true,
+      checked: this.checked,
+      sort: this.ui.sort,
+      empty: this.ui.search ? "No item matches the search" : "No item",
+    };
+  }
+
+  /** Height of a row of the main list (--kx-row-height), in pixels. */
+  private rowHeight(): number {
+    this.rowHeightPx ??= parseFloat(getComputedStyle(document.body).getPropertyValue("--kx-row-height")) || DEFAULT_ROW_HEIGHT_PX;
+    return this.rowHeightPx;
+  }
+
+  /** Renders the rows of the main list in view, and a few around: the others are not in the DOM. */
+  private renderWindow(rows: Row[]): void {
+    const win = document.getElementById("r-rows");
+    const body = document.getElementById("r-body");
+    if (!win || !body) return;
+    const height = this.rowHeight();
+    const head = body.querySelector<HTMLElement>(".row.head")?.offsetHeight ?? 0;
+    const first = Math.floor(Math.max(0, body.scrollTop - head) / height);
+    const start = Math.max(0, first - OVERSCAN_ROWS);
+    const end = Math.min(rows.length, first + Math.ceil((body.clientHeight || DEFAULT_VIEWPORT_PX) / height) + OVERSCAN_ROWS);
+    // In CSS units: the same height as the sizer, whatever the zoom.
+    win.style.transform = `translateY(calc(var(--kx-row-height) * ${start}))`;
+    this.region("r-rows", renderTableRows(this.tableOptions(rows), start, end));
+  }
+
+  /** Scrolls the main list so that the row at `index` is in view, below the sticky head. */
+  private scrollToRow(index: number): void {
+    const body = document.getElementById("r-body");
+    if (!body) return;
+    const height = this.rowHeight();
+    const top = index * height;
+    const view = (body.clientHeight || DEFAULT_VIEWPORT_PX) - (body.querySelector<HTMLElement>(".row.head")?.offsetHeight ?? 0);
+    if (top < body.scrollTop) body.scrollTop = top;
+    else if (top + height > body.scrollTop + view) body.scrollTop = top + height - view;
+    this.renderWindow(this.visibleRows());
+  }
+
+  private onScroll(): void {
+    if (this.view?.mode !== "list" || this.scrollFrame !== undefined) return;
+    this.scrollFrame = requestAnimationFrame(() => {
+      this.scrollFrame = undefined;
+      this.renderWindow(this.visibleRows());
     });
   }
 
@@ -257,7 +429,7 @@ export class App {
       <h1>${esc(v.title)}</h1>
       <span class="count">${count}</span>
       ${this.loading && this.rows.length ? `<span class="spinner small" title="Loading"></span>` : ""}
-      ${this.live && !this.error ? `<span class="live-pill" title="Updated in real time (kubectl watch)"><span class="live-dot"></span>Live</span>` : ""}
+      ${this.live && !this.error ? `<span class="live-pill" title="Updated in real time (watch)"><span class="live-dot"></span>Live</span>` : ""}
       ${this.error ? `<span class="error-pill" title="${esc(this.error)}">${codicon("warning")} ${esc(this.error.split("\n")[0])}</span>` : ""}
       ${this.protectionPill(v.context)}
       ${isList ? this.bulkBar() : ""}
@@ -385,16 +557,7 @@ export class App {
     if (v.mode === "overview") return this.overview ? renderOverview(this.overview, v.context, this.details?.uid) : spinner;
     if (this.loading && !this.rows.length) return spinner;
     if (this.error && !this.rows.length) return `<div class="empty error">${codicon("error")}<div>${esc(this.error)}</div></div>`;
-    return renderTable({
-      context: v.context,
-      columns: v.columns,
-      rows,
-      selectedUid: this.ui.selected ? this.details?.uid : undefined,
-      interactive: true,
-      checked: this.checked,
-      sort: this.ui.sort,
-      empty: this.ui.search ? "No item matches the search" : "No item",
-    });
+    return renderVirtualTable(this.tableOptions(rows), "r-rows");
   }
 
   render(): void {
@@ -412,10 +575,13 @@ export class App {
     // The status of the fleet (progress, last scan) changes often: its own region keeps the controls still.
     if (this.region("r-header", this.header(rows))) this.rendered.delete("r-fleet-status");
     if (this.view?.mode === "fleet") this.region("r-fleet-status", this.fleetStatus());
-    this.region("r-body", this.body(rows));
+    // A new frame of the list has an empty window of rows.
+    if (this.region("r-body", this.body(rows))) this.rendered.delete("r-rows");
     this.renderDrawer();
 
     bodyEl.scrollTop = scroll;
+    // Once the scroll position is restored: it tells which rows are in view.
+    if (this.view?.mode === "list") this.renderWindow(rows);
     const drawerContent = document.querySelector(".drawer-content");
     if (drawerContent) drawerContent.scrollTop = drawerScroll;
     if (searchFocused) {
@@ -534,12 +700,15 @@ export class App {
 
   private moveSelection(delta: number): void {
     const rows = this.visibleRows();
-    if (!rows.length) return;
-    const i = rows.findIndex((r) => r.uid === this.details?.uid);
-    const next = rows[Math.max(0, Math.min(rows.length - 1, i < 0 ? 0 : i + delta))];
+    const selected = this.ui.selected;
+    if (!rows.length || !selected) return;
+    const i = rows.findIndex(
+      (r) => r.ref.name === selected.name && r.ref.namespace === selected.namespace && r.ref.resource === selected.resource,
+    );
+    const index = Math.max(0, Math.min(rows.length - 1, i < 0 ? 0 : i + delta));
     this.history = [];
-    this.showDetails(next.ref, false);
-    document.querySelector(".row.selected")?.scrollIntoView({ block: "nearest" });
+    this.showDetails(rows[index].ref, false);
+    this.scrollToRow(index);
   }
 
   /** Edits a value in place, once known: revealed first when hidden. */
@@ -595,6 +764,8 @@ export class App {
       this.render();
     });
     this.root.addEventListener("mousedown", (ev) => this.onDragStart(ev));
+    document.getElementById("r-body")!.addEventListener("scroll", () => this.onScroll(), { passive: true });
+    window.addEventListener("resize", () => this.onScroll());
     this.root.addEventListener("change", (ev) => {
       const t = ev.target as HTMLSelectElement;
       if (t.id === "fleet-kind") this.post({ type: "fleetState", searchKind: t.value });
