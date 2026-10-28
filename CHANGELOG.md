@@ -72,6 +72,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Helm 4: the list of Helm releases failed (`helm list` no longer knows `--all`, it lists every release by default).
 - Fleet: an object on 1 cluster of a group was reported missing on all the others; it is now expected on the whole
   group only when at least half of the group has it.
 - Auto save (`files.autoSave`) applied YAML documents to the cluster, half-typed, or asked for a review at every

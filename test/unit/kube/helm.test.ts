@@ -1,5 +1,9 @@
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { chartObject, DemoHelm, helmDate, releaseObject, splitChart } from "../../../src/kube/helm";
+import { chartObject, DemoHelm, HelmCli, helmDate, releaseObject, splitChart } from "../../../src/kube/helm";
+import { nullLogger } from "../../../src/kube/types";
 
 describe("Helm parsing", () => {
   it("converts helm list dates to ISO 8601", () => {
@@ -37,5 +41,44 @@ describe("Helm parsing", () => {
     await helm.rollback("demo", "payments", "fraud-scorer");
     const [release] = (await helm.listReleases("demo", ["payments"])).filter((r) => r.metadata.name === "fraud-scorer");
     expect(release.helm).toMatchObject({ revision: 8, status: "deployed" });
+  });
+});
+
+describe.skipIf(process.platform === "win32")("HelmCli", () => {
+  /** A fake helm: records its arguments; Helm 4 refuses `list --all`, and lists every release without it. */
+  function fakeHelm(major: 3 | 4) {
+    const dir = mkdtempSync(join(tmpdir(), "kx-fake-helm-"));
+    const helm = join(dir, "helm");
+    const calls = join(dir, "calls");
+    writeFileSync(
+      helm,
+      `#!/usr/bin/env node
+const args = process.argv.slice(2);
+require("node:fs").appendFileSync(${JSON.stringify(calls)}, args.join(" ") + "\\n");
+if (${major} === 4 && args.includes("--all")) { process.stderr.write("Error: unknown flag: --all\\n"); process.exit(1); }
+process.stdout.write(JSON.stringify([{ name: "web", namespace: "shop", revision: "2", updated: "2026-10-28 10:00:00.0 +0000 UTC", status: "deployed", chart: "web-1.0.0", app_version: "1.0" }]));
+`,
+    );
+    chmodSync(helm, 0o755);
+    return {
+      cli: new HelmCli(() => helm, nullLogger),
+      calls: () => readFileSync(calls, "utf8").trim().split("\n"),
+      dispose: () => rmSync(dir, { recursive: true }),
+    };
+  }
+
+  it("lists every release with Helm 3 (--all) and Helm 4 (all by default, no --all)", async () => {
+    for (const major of [3, 4] as const) {
+      const helm = fakeHelm(major);
+      try {
+        expect((await helm.cli.listReleases("kind", [])).map((r) => r.metadata.name)).toEqual(["web"]);
+        // Helm 4: asked once with --all, then never again.
+        await helm.cli.listReleases("kind", []);
+        const lists = helm.calls().filter((c) => c.startsWith("list"));
+        expect(lists.map((c) => c.includes("--all ") || c.endsWith("--all"))).toEqual(major === 3 ? [true, true] : [true, false, false]);
+      } finally {
+        helm.dispose();
+      }
+    }
   });
 });

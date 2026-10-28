@@ -4,7 +4,7 @@
 import type { ListOptions, VirtualSource } from "./client";
 import { DEMO_CONTEXT } from "./demo";
 import { runCommand } from "./kubectl";
-import type { KubeObject, Logger } from "./types";
+import { errorMessage, type KubeObject, type Logger } from "./types";
 import { HELM_CHARTS, HELM_RELEASES } from "./virtualKinds";
 
 export interface HelmRevision {
@@ -102,6 +102,9 @@ export function chartObject(c: RawChart): KubeObject {
 const INSTALL_TIMEOUT_MS = 5 * 60_000;
 
 export class HelmCli implements HelmClient {
+  /** Helm 3 lists the deployed and failed releases only, but with --all; Helm 4 lists them all, and refuses --all. */
+  private listAll = true;
+
   constructor(
     private readonly helmPath: () => string,
     private readonly log: Logger,
@@ -113,7 +116,16 @@ export class HelmCli implements HelmClient {
 
   async listReleases(context: string, namespaces: string[]): Promise<KubeObject[]> {
     const nsArgs = namespaces.length === 1 ? ["-n", namespaces[0]] : ["--all-namespaces"];
-    const raw: RawRelease[] = JSON.parse((await this.run(["list", "--kube-context", context, ...nsArgs, "--all", "-o", "json"])) || "[]");
+    const list = () => this.run(["list", "--kube-context", context, ...nsArgs, ...(this.listAll ? ["--all"] : []), "-o", "json"]);
+    let out: string;
+    try {
+      out = await list();
+    } catch (err) {
+      if (!this.listAll || !/unknown flag: --all/.test(errorMessage(err))) throw err;
+      this.listAll = false;
+      out = await list();
+    }
+    const raw: RawRelease[] = JSON.parse(out || "[]");
     return raw.filter((r) => namespaces.length <= 1 || namespaces.includes(r.namespace)).map(releaseObject);
   }
 
