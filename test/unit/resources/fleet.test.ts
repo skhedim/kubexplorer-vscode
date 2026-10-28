@@ -4,12 +4,14 @@ import type { KubeObject } from "../../../src/kube/types";
 import {
   buildMatrix,
   type ClusterScan,
+  DriftClock,
   fluxComponents,
   fluxControllerVersion,
   type FluxSummary,
   groupOf,
   groupOrder,
   matchesQuery,
+  rolloutDrifts,
   SEARCH_KINDS,
   searchFlux,
   shortRevision,
@@ -173,6 +175,63 @@ describe("Flux matrix", () => {
       ["apps", "warning"],
       ["monitoring", "warning"],
     ]);
+  });
+
+  it("does not report missing an object a few clusters of a large group have: it is specific to them", () => {
+    const big = Array.from({ length: 6 }, (_, i) =>
+      scan(`prod-${i}`, "prod", i === 0 ? [summary("apps"), summary("canary")] : [summary("apps")]),
+    );
+    const canary = buildMatrix(big).find((r) => r.name === "canary")!;
+    expect(canary.missing).toEqual([]);
+    expect(canary.partial).toEqual(["1 of 6 in prod"]);
+    expect(canary.tone).toBe("ok");
+    // On half of the group: expected on all of it.
+    const half = buildMatrix(big.map((s, i) => (i < 3 ? { ...s, objects: [...s.objects!, summary("canary")] } : s))).find(
+      (r) => r.name === "canary",
+    )!;
+    expect(half.missing).toEqual(["prod-3", "prod-4", "prod-5"]);
+  });
+});
+
+describe("drifts over time", () => {
+  const GRACE = 10 * 60_000;
+  const steady = [scan("p1", "prod", [summary("app")]), scan("p2", "prod", [summary("app")])];
+  // A push: p1 takes the new revision first.
+  const pushed = [scan("p1", "prod", [summary("app", { revision: "main@new" })]), scan("p2", "prod", [summary("app")])];
+  const timed = (clock: DriftClock, scans: ClusterScan[], now: number, complete = true) =>
+    buildMatrix(scans, clock.observe(rolloutDrifts(buildMatrix(scans)), now, complete, GRACE))[0];
+
+  it("shows a new drift as a rollout in progress, then as a drift once it lasts", () => {
+    const clock = new DriftClock();
+    expect(timed(clock, steady, 0).tone).toBe("ok");
+    const rolling = timed(clock, pushed, 60_000);
+    expect(rolling).toMatchObject({ tone: "info", rollout: ["2 revisions in prod"], drift: [] });
+    expect(timed(clock, pushed, 60_000 + GRACE - 1).tone).toBe("info");
+    expect(timed(clock, pushed, 60_000 + GRACE)).toMatchObject({ tone: "warning", drift: ["2 revisions in prod"], rollout: [] });
+  });
+
+  it("takes the drifts there at the first complete scan as lasting: their age is unknown", () => {
+    const clock = new DriftClock();
+    // Clusters still being scanned for the first time: nothing is new yet.
+    expect(timed(clock, pushed, 0, false).tone).toBe("warning");
+    expect(timed(clock, pushed, 1000, true).tone).toBe("warning");
+  });
+
+  it("forgets a drift that ended: it is new again when it comes back", () => {
+    const clock = new DriftClock();
+    timed(clock, pushed, 0);
+    timed(clock, steady, 60_000);
+    expect(timed(clock, pushed, 120_000).tone).toBe("info");
+  });
+
+  it("counts a failure at once, a rollout or not", () => {
+    const clock = new DriftClock();
+    timed(clock, steady, 0);
+    const failing = [
+      scan("p1", "prod", [summary("app", { revision: "main@new", state: "Not Ready" })]),
+      scan("p2", "prod", [summary("app")]),
+    ];
+    expect(timed(clock, failing, 60_000)).toMatchObject({ tone: "error", drift: ["1 not ready"], rollout: ["2 revisions in prod"] });
   });
 });
 

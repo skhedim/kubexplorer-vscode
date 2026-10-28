@@ -226,7 +226,13 @@ export const cronjobs = defineResource({
       sort: (o) => -Date.parse(o.status?.lastScheduleTime ?? "0"),
     },
   ],
-  actions: ["trigger"],
+  actions: ["trigger", "suspend", "resume"],
+  // Like kubectl patch: a suspended CronJob creates no Job (Trigger Now still does).
+  patches: {
+    suspend: () => ({ spec: { suspend: true } }),
+    resume: () => ({ spec: { suspend: false } }),
+  },
+  hideAction: (o, action) => (action === "suspend" && !!o.spec?.suspend) || (action === "resume" && !o.spec?.suspend),
   items: (o) => [
     { name: "Schedule", value: mono(o.spec?.schedule) },
     { name: "Suspend", value: o.spec?.suspend ? "True" : "False" },

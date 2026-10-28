@@ -216,7 +216,7 @@ export class DemoClient implements KubeClient {
       message: "Back-off restarting failed container scorer in pod " + crashPod.metadata.name,
       count: 37,
       metadata: this.meta(`${crashPod.metadata.name}.17f2`, "payments", 0.01),
-      involvedObject: { kind: "Pod", name: crashPod.metadata.name, namespace: "payments" },
+      involvedObject: { kind: "Pod", name: crashPod.metadata.name, namespace: "payments", uid: crashPod.metadata.uid },
       lastTimestamp: iso(0.001),
       source: { component: "kubelet" },
     });
@@ -229,9 +229,23 @@ export class DemoClient implements KubeClient {
       message: "0/3 nodes are available: 3 Insufficient memory.",
       count: 112,
       metadata: this.meta(`${pendingPod.metadata.name}.18a1`, "payments", 0.2),
-      involvedObject: { kind: "Pod", name: pendingPod.metadata.name, namespace: "payments" },
+      involvedObject: { kind: "Pod", name: pendingPod.metadata.name, namespace: "payments", uid: pendingPod.metadata.uid },
       lastTimestamp: iso(0.002),
       source: { component: "default-scheduler" },
+    });
+    const web = this.objects.get("deployments")!.find((d) => d.metadata.name === "web-app")!;
+    const webSet = this.objects.get("replicasets")!.find((rs) => rs.metadata.ownerReferences?.[0]?.name === "web-app")!;
+    this.add("events", {
+      apiVersion: "v1",
+      kind: "Event",
+      type: "Normal",
+      reason: "ScalingReplicaSet",
+      message: `Scaled up replica set ${webSet.metadata.name} to 3`,
+      count: 1,
+      metadata: this.meta(`web-app.18b2`, "frontend", 0.3),
+      involvedObject: { kind: "Deployment", name: "web-app", namespace: "frontend", uid: web.metadata.uid },
+      lastTimestamp: iso(0.3),
+      source: { component: "deployment-controller" },
     });
   }
 
@@ -435,6 +449,13 @@ export class DemoClient implements KubeClient {
       const pairs = opts.labelSelector.split(",").map((p) => p.split("="));
       items = items.filter((o) => pairs.every(([k, v]) => o.metadata.labels?.[k] === v));
     }
+    // Equality only (e.g. metadata.name=web, involvedObject.uid=…), like most field selectors.
+    if (opts.fieldSelector) {
+      const pairs = opts.fieldSelector.split(",").map((p) => p.split("="));
+      const field = (o: KubeObject, path: string): unknown =>
+        path.split(".").reduce<unknown>((v, k) => (v as Record<string, unknown>)?.[k], o);
+      items = items.filter((o) => pairs.every(([path, v]) => String(field(o, path) ?? "") === v));
+    }
     return this.delay(structuredClone(items));
   }
 
@@ -561,6 +582,14 @@ export class DemoClient implements KubeClient {
   }
 
   debugSpec(): ExecSpec | undefined {
+    return undefined;
+  }
+
+  drainSpec(): ExecSpec | undefined {
+    return undefined;
+  }
+
+  nodeShellSpec(): ExecSpec | undefined {
     return undefined;
   }
 }

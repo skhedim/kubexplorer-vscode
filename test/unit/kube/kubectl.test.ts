@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanStderr, debugArgs, groupByKind, logArgs } from "../../../src/kube/kubectl";
+import { cleanStderr, debugArgs, drainArgs, groupByKind, logArgs, nodeShellArgs } from "../../../src/kube/kubectl";
 
 describe("cleanStderr", () => {
   it("strips klog headers and duplicated lines", () => {
@@ -70,5 +70,45 @@ describe("groupByKind", () => {
       "kustomizations.kustomize.toolkit.fluxcd.io": ["apps"],
       "kustomizations.other.example.com": ["x"],
     });
+  });
+
+  it("drains nodes like kubectl drain, keeping the DaemonSets", () => {
+    expect(drainArgs("kind", ["n1", "n2"])).toEqual([
+      "--context",
+      "kind",
+      "drain",
+      "n1",
+      "n2",
+      "--ignore-daemonsets",
+      "--delete-emptydir-data",
+    ]);
+  });
+
+  it("opens a node shell in a privileged pod of the node, deleted on exit", () => {
+    const args = nodeShellArgs("kind", "Kind-Worker.example", "busybox:1.37", "x1y2z");
+    expect(args.slice(0, 9)).toEqual([
+      "--context",
+      "kind",
+      "-n",
+      "kube-system",
+      "run",
+      "node-shell-kind-worker-example-x1y2z",
+      "--rm",
+      "-it",
+      "--restart=Never",
+    ]);
+    expect(args).toContain("--image=busybox:1.37");
+    const overrides = JSON.parse(args.find((a) => a.startsWith("--overrides="))!.slice("--overrides=".length));
+    expect(overrides.spec).toMatchObject({
+      nodeName: "Kind-Worker.example",
+      hostPID: true,
+      hostNetwork: true,
+      tolerations: [{ operator: "Exists" }],
+    });
+    const [container] = overrides.spec.containers;
+    expect(container).toMatchObject({ name: "node-shell-kind-worker-example-x1y2z", securityContext: { privileged: true }, tty: true });
+    expect(container.command.slice(0, 3)).toEqual(["nsenter", "--target", "1"]);
+    // A pod name stays a valid DNS label, whatever the length of the node name.
+    expect(nodeShellArgs("kind", "a".repeat(80), "busybox", "x1y2z")[5].length).toBeLessThanOrEqual(63);
   });
 });

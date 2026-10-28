@@ -84,8 +84,8 @@ export type WebviewMessage =
   | { type: "openInCluster"; ref: ResourceRef }
   /** Fleet tab: what it shows. */
   | { type: "fleetState"; tab?: FleetTab; group?: string | null; problemsOnly?: boolean; searchKind?: string }
-  /** Fleet tab: scan the clusters, run their diagnostics, or search them. */
-  | { type: "fleetRun"; what: "scan" | "diagnose" | "search"; query?: string }
+  /** Fleet tab: scan the clusters, run their diagnostics, search them, or export a report of what it shows. */
+  | { type: "fleetRun"; what: "scan" | "diagnose" | "search" | "export"; query?: string }
   | { type: "revealSecret"; ref: ResourceRef; key: string }
   /** A Secret value edited in the drawer; it reaches the extension only when saved. */
   | { type: "updateSecret"; ref: ResourceRef; key: string; value: string }

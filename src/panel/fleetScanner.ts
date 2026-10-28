@@ -11,6 +11,7 @@ import { errorMessage, type Disposable, type KubeObject, type Logger } from "../
 import { diagnose, diagnosticsPage } from "../resources/diagnostics";
 import {
   type ClusterScan,
+  DriftClock,
   FLEET_FLUX_KINDS,
   fluxComponents,
   SEARCH_KINDS,
@@ -54,6 +55,8 @@ const DIAGNOSTIC_KINDS = diagnosticsPage.resources.filter((r) => r !== "configma
 export const MAX_HITS = 2000;
 
 export class FleetScanner {
+  /** When the drifts of the Flux matrix were first seen: rollouts are told from lasting drifts. */
+  readonly drifts = new DriftClock();
   private readonly scans = new Map<string, ClusterScan>();
   private readonly listeners = new Set<() => void>();
   private readonly componentsAt = new Map<string, number>();

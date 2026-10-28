@@ -234,9 +234,15 @@ export class ResourcePanels implements vscode.Disposable, vscode.WebviewPanelSer
           openInCluster: (ref) => this.openInCluster(ref),
           fluxAction: (action, row) => void this.d.fleetActions.flux(action, row),
           copyText: (text) => void actions.copyText(text),
+          // An untitled Markdown document: to read, copy, or save.
+          openReport: (markdown) =>
+            void vscode.workspace
+              .openTextDocument({ language: "markdown", content: markdown })
+              .then((doc) => vscode.window.showTextDocument(doc, { preview: false })),
         },
         groups: () => this.d.fleetGroups(),
         refreshIntervalMs: () => config.fleetRefreshIntervalMs(),
+        driftGraceMs: () => config.fleetDriftGraceMs(),
         appearance: config.appearance(),
         log: this.d.log,
         group,

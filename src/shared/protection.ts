@@ -20,9 +20,14 @@ export const WRITE_ACTIONS: ReadonlySet<ActionId> = new Set<ActionId>([
   "reconcile",
   "suspend",
   "resume",
+  "cordon",
+  "uncordon",
+  "drain",
   "rollback",
   "install",
   "debug",
+  // A privileged pod: root on the node.
+  "nodeShell",
   "delete",
 ]);
 

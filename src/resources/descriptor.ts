@@ -113,9 +113,38 @@ export interface ResourceSpec {
   items?(o: KubeObject, rc: RowContext): DetailItem[];
   /** Sections after the main block (containers, related pods…). */
   sections?(o: KubeObject, ctx: DetailContext): DetailSection[] | Promise<DetailSection[]>;
+  /** false: no Events section at the end of the drawer (virtual objects, events themselves). */
+  events?: boolean;
 }
 
 const COMMON_ACTIONS: ActionId[] = ["edit", "describe", "copyName", "delete"];
+
+/**
+ * The events of an object, newest first: the first thing to look at when something goes wrong. Matched by uid, so
+ * that an object created again under the same name does not show the events of the previous one. The events of
+ * cluster-scoped objects are in the default namespace (nodes) or any other: every namespace is read for them.
+ */
+async function eventsSection(o: KubeObject, ctx: DetailContext): Promise<DetailSection[]> {
+  if (!o.metadata.uid) return [];
+  try {
+    const items = await ctx.list("events", {
+      namespaces: o.metadata.namespace ? [o.metadata.namespace] : [],
+      fieldSelector: `involvedObject.uid=${o.metadata.uid}`,
+    });
+    const { columns, rows } = ctx.rowsOf("events", items);
+    rows.sort((a, b) => Number(a.sort.lastSeen) - Number(b.sort.lastSeen));
+    return [
+      { type: "title", text: `Events (${rows.length})` },
+      { type: "table", columns: columns.filter((c) => c.id !== "object"), rows, empty: "No event" },
+    ];
+  } catch (err) {
+    // Events may be forbidden (RBAC): the rest of the drawer still shows.
+    return [
+      { type: "title", text: "Events" },
+      { type: "grid", columns: [], rows: [], empty: `Events unavailable: ${err instanceof Error ? err.message : String(err)}` },
+    ];
+  }
+}
 
 export function defineResource(spec: ResourceSpec): ResourceDescriptor {
   const all: ColumnSpec[] = [];
@@ -189,6 +218,7 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
         { type: "items", items: [...head, ...(spec.items?.(o, rc) ?? [])] },
       ];
       if (spec.sections) sections.push(...(await spec.sections(o, ctx)));
+      if (spec.events !== false) sections.push(...(await eventsSection(o, ctx)));
       return {
         uid: o.metadata.uid,
         ref: { resource: spec.id, namespace: o.metadata.namespace, name: o.metadata.name },

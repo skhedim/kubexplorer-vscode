@@ -278,14 +278,15 @@ describe("PanelController", () => {
       expect(details().at(-1)!.details).toBeNull();
     });
 
-    it("reads the object shown in the drawer from the list, without asking the cluster", async () => {
+    it("reads the object shown in the drawer from the list, without asking the cluster (its events only)", async () => {
       const { controller, messages, client } = polled(() => [configMap("app", "1")]);
       await vi.advanceTimersByTimeAsync(0);
       const calls = vi.mocked(client.list).mock.calls.length;
       controller.onMessage({ type: "showDetails", ref: { resource: "configmaps", namespace: "default", name: "app" } });
       await vi.advanceTimersByTimeAsync(0);
       expect(messages.at(-1)).toMatchObject({ type: "details", details: { title: "ConfigMap: app" } });
-      expect(vi.mocked(client.list).mock.calls.length).toBe(calls);
+      const asked = vi.mocked(client.list).mock.calls.slice(calls);
+      expect(asked.map(([, kind, opts]) => [kind.kubectlName, opts.fieldSelector])).toEqual([["events", "involvedObject.uid=uid-app"]]);
     });
   });
 });

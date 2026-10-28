@@ -73,6 +73,10 @@ export interface KubeClient {
   execSpec(context: string, namespace: string, pod: string, container: string): ExecSpec | undefined;
   /** Command to run in a terminal for an ephemeral debug container (`kubectl debug`); undefined when unsupported. */
   debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec | undefined;
+  /** Command to run in a terminal to drain nodes (`kubectl drain`); undefined when unsupported (demo). */
+  drainSpec(context: string, nodes: string[]): ExecSpec | undefined;
+  /** Command to run in a terminal for a root shell on a node (a privileged pod, deleted on exit); undefined when unsupported. */
+  nodeShellSpec(context: string, node: string, image: string): ExecSpec | undefined;
   /**
    * Follows a list: its full state, then its changes, over a single connection per cluster (kubectl proxy).
    * Undefined when unsupported for this context or kind: the caller uses list() and watch() instead.

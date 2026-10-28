@@ -25,6 +25,7 @@ const HELM_POLL_MS = 60_000;
 
 export const helmreleases = defineResource({
   id: "helmreleases",
+  events: false,
   kubectlName: HELM_RELEASES,
   title: "Releases",
   minPollIntervalMs: HELM_POLL_MS,
@@ -100,6 +101,7 @@ export const helmreleases = defineResource({
 
 export const helmcharts = defineResource({
   id: "helmcharts",
+  events: false,
   kubectlName: HELM_CHARTS,
   title: "Charts",
   minPollIntervalMs: HELM_POLL_MS,

@@ -2,7 +2,7 @@
 // Logs use a Pseudoterminal: colored lines, Ctrl+C to stop following, and it also works on the demo cluster.
 
 import * as vscode from "vscode";
-import type { KubeClient, Stoppable } from "../kube/client";
+import type { ExecSpec, KubeClient, Stoppable } from "../kube/client";
 import type { LogOptions } from "../kube/types";
 import { colorizeLogLine, DIM, RED, RESET } from "../shared/logFormat";
 
@@ -118,34 +118,46 @@ export class Terminals implements vscode.Disposable {
     terminal.show();
   }
 
-  /** Opens `kubectl exec` in a terminal; false when the cluster has no shell (demo). */
-  showShell(context: string, namespace: string, pod: string, container: string): boolean {
-    const spec = this.client.execSpec(context, namespace, pod, container);
+  /** Runs a kubectl command in a terminal; false when the cluster has no such command (demo). */
+  private open(spec: ExecSpec | undefined, name: string, icon: string): boolean {
     if (!spec) return false;
     const terminal = vscode.window.createTerminal({
-      name: vscode.l10n.t("Shell: {0}", `${pod} › ${container}`),
+      name,
       shellPath: spec.shellPath,
       shellArgs: spec.shellArgs,
-      iconPath: new vscode.ThemeIcon("terminal"),
+      iconPath: new vscode.ThemeIcon(icon),
       isTransient: true,
     });
     terminal.show();
     return true;
   }
 
+  /** Opens `kubectl exec` in a terminal; false when the cluster has no shell (demo). */
+  showShell(context: string, namespace: string, pod: string, container: string): boolean {
+    return this.open(
+      this.client.execSpec(context, namespace, pod, container),
+      vscode.l10n.t("Shell: {0}", `${pod} › ${container}`),
+      "terminal",
+    );
+  }
+
   /** Opens `kubectl debug` in a terminal; false when the cluster has no debug containers (demo). */
   showDebug(context: string, namespace: string, pod: string, container: string, image: string): boolean {
-    const spec = this.client.debugSpec(context, namespace, pod, container, image);
-    if (!spec) return false;
-    const terminal = vscode.window.createTerminal({
-      name: vscode.l10n.t("Debug: {0}", `${pod} › ${container}`),
-      shellPath: spec.shellPath,
-      shellArgs: spec.shellArgs,
-      iconPath: new vscode.ThemeIcon("debug"),
-      isTransient: true,
-    });
-    terminal.show();
-    return true;
+    return this.open(
+      this.client.debugSpec(context, namespace, pod, container, image),
+      vscode.l10n.t("Debug: {0}", `${pod} › ${container}`),
+      "debug",
+    );
+  }
+
+  /** A root shell on a node (a privileged pod, deleted when the shell exits); false on the demo cluster. */
+  showNodeShell(context: string, node: string, image: string): boolean {
+    return this.open(this.client.nodeShellSpec(context, node, image), vscode.l10n.t("Node: {0}", node), "terminal-linux");
+  }
+
+  /** `kubectl drain`, followed in a terminal (it can take minutes, and be stopped with Ctrl+C); false on the demo cluster. */
+  showDrain(context: string, nodes: string[]): boolean {
+    return this.open(this.client.drainSpec(context, nodes), vscode.l10n.t("Drain: {0}", nodes.join(", ")), "clear-all");
   }
 
   dispose(): void {

@@ -17,6 +17,7 @@ const statusCell = (o: KubeObject): Cell =>
 
 export const portforwards = defineResource({
   id: "portforwards",
+  events: false,
   kubectlName: PORT_FORWARDS,
   title: "Port Forwarding",
   kindName: "Port Forward",

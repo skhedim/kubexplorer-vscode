@@ -21,6 +21,7 @@
   "action.logs": "Logs",
   "action.shell": "Shell",
   "action.debug": "Debug...",
+  "action.nodeShell": "Node Shell...",
   "action.portForward": "Forward Port...",
   "action.openBrowser": "Open in Browser",
   "action.scale": "Scale...",
@@ -29,6 +30,9 @@
   "action.reconcile": "Reconcile",
   "action.suspend": "Suspend",
   "action.resume": "Resume",
+  "action.cordon": "Cordon",
+  "action.uncordon": "Uncordon",
+  "action.drain": "Drain...",
   "action.install": "Install...",
   "action.values": "Values",
   "action.manifest": "Manifest",
@@ -58,6 +62,7 @@
   "config.fleet.contexts": "Contexts the Fleet tab scans (patterns, `*` matches any text). Opening the Fleet tab reads these clusters (nodes and Flux objects), never changes them.",
   "config.fleet.concurrency": "Clusters the Fleet tab reads at the same time (each read is one `kubectl` process). The diagnostics of the fleet use half of it.",
   "config.fleet.refreshInterval": "Seconds between two scans of the fleet, while the Fleet tab is visible. Nothing is scanned when it is hidden or closed.",
+  "config.fleet.driftGrace": "Fleet tab: a revision that differs across a group, an object missing on some of its clusters or behind its source counts as a drift once seen for this many minutes. Until then it is shown as rolling out: after a push, the clusters take the new revision one after the other. `0` counts drifts at once.",
   "config.prometheus": "Prometheus service of the usage charts, as `namespace/service:port` (e.g. `monitoring/prometheus-server:80`), reached through the API server proxy. Empty: detected among the services of the cluster. `off`: use only the samples of metrics-server.",
   "config.demoCluster": "Add a fictitious, offline demo cluster to the Clusters view."
 }

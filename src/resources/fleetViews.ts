@@ -294,7 +294,10 @@ function fluxRow(row: MatrixRow): Row {
     uid: `flux:${row.key}`,
     ref: { resource: FLEET_FLUX, name: row.key },
     cells: {
-      status: tag(row.tone === "error" ? "Failing" : row.tone === "warning" ? "Drift" : "OK", row.tone),
+      status: tag(
+        row.tone === "error" ? "Failing" : row.tone === "warning" ? "Drift" : row.tone === "info" ? "Rolling out" : "OK",
+        row.tone,
+      ),
       object: `${row.kind} ${row.name}`,
       namespace: row.namespace,
       clusters: {
@@ -302,7 +305,11 @@ function fluxRow(row: MatrixRow): Row {
         tone: ready < cells.length ? "warning" : undefined,
       },
       revision: main ? { text: `${main.revision}${others.length ? ` (+${plural(others.length, "other")})` : ""}`, mono: true } : "",
-      drift: { text: row.drift.join(" · ") || "—", tone: row.tone === "ok" ? "muted" : row.tone },
+      drift: {
+        text: [...row.drift, ...row.rollout.map((r) => `rolling out: ${r}`)].join(" · ") || "—",
+        tone: row.tone === "ok" ? "muted" : row.tone,
+        title: row.rollout.length ? "Seen for a short while only: most likely a new revision reaching the clusters" : undefined,
+      },
     },
     sort: {
       status: SEVERITY_ORDER.indexOf(row.tone),
@@ -313,7 +320,7 @@ function fluxRow(row: MatrixRow): Row {
       drift: row.drift.length,
     },
     search:
-      `${row.kind} ${row.namespace} ${row.name} ${row.revisions.map((r) => r.revision).join(" ")} ${row.drift.join(" ")}`.toLowerCase(),
+      `${row.kind} ${row.namespace} ${row.name} ${row.revisions.map((r) => r.revision).join(" ")} ${[...row.drift, ...row.rollout].join(" ")}`.toLowerCase(),
     actions: [],
   };
 }
@@ -322,6 +329,7 @@ export function fluxData(rows: MatrixRow[], scans: ClusterScan[], problemsOnly: 
   const withFlux = scans.filter((s) => s.status === "ok" && s.flux?.installed).length;
   const failing = rows.filter((r) => r.tone === "error").length;
   const drifting = rows.filter((r) => r.tone === "warning").length;
+  const rollingOut = rows.filter((r) => r.tone === "info").length;
   const card: OverviewCard = {
     title: "Flux objects",
     tag: failing
@@ -333,9 +341,16 @@ export function fluxData(rows: MatrixRow[], scans: ClusterScan[], problemsOnly: 
       { name: "Objects", value: `${rows.length} on ${plural(withFlux, "cluster")} with Flux` },
       { name: "Failing", value: failing ? { text: `${failing}`, tone: "error" } : "0" },
       { name: "Drifting", value: drifting ? { text: `${drifting}: revisions, missing, suspended or behind`, tone: "warning" } : "0" },
+      {
+        name: "Rolling Out",
+        value: rollingOut
+          ? { text: `${rollingOut}: drifts too recent to count, most likely a new revision on its way`, tone: "info" }
+          : "0",
+      },
     ],
   };
-  const shown = rows.filter((r) => !problemsOnly || r.tone !== "ok").map(fluxRow);
+  // A rollout in progress is no problem (yet).
+  const shown = rows.filter((r) => !problemsOnly || r.tone === "error" || r.tone === "warning").map(fluxRow);
   return {
     cards: [card],
     donuts: [],
@@ -398,6 +413,11 @@ export function fluxRowDetails(row: MatrixRow, scans: ClusterScan[]): Details {
           ...(sources.length ? [{ name: "Source", value: sources }] : []),
           { name: "Revisions", value: row.revisions.map((r): Cell => ({ text: `${r.revision} (${r.contexts.length})`, mono: true })) },
           { name: "Drift", value: row.drift.length ? { tags: row.drift.map((d) => ({ text: d, tone: row.tone })) } : "None" },
+          ...(row.rollout.length
+            ? [{ name: "Rolling Out", value: { tags: row.rollout.map((d) => ({ text: d, tone: "info" as const })) } }]
+            : []),
+          // On less than half of a group: specific to the clusters that have it, not missing on the others.
+          ...(row.partial.length ? [{ name: "Only On", value: row.partial.join(", ") }] : []),
         ],
       },
       { type: "title", text: `Clusters (${present.length + missing.length})` },

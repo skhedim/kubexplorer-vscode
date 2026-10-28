@@ -34,7 +34,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   pod.
 - **Edit Decoded Values** on Secrets: values in clear under `stringData`.
 - **Debug...** on pods: an ephemeral debug container (`kubectl debug`) attached to a terminal (`kubexplorer.debug.image`).
-- Bulk actions on the checked rows: restart, scale, reconcile, suspend, resume and delete.
+- Bulk actions on the checked rows: restart, scale, reconcile, suspend, resume, cordon, uncordon, drain and delete.
+- The events of an object at the end of every drawer (they were shown for Flux and Karpenter objects only).
+- **Managed By**: the drawer of an object applied by Flux links to its Kustomization or HelmRelease; scaling,
+  deleting, applying the YAML of or editing a Secret value of such an object warns that Flux will undo the change,
+  and offers to suspend that Kustomization or HelmRelease first.
+- Nodes: **Cordon**, **Uncordon**, **Drain** (in a terminal) and **Node Shell** (a root shell from a privileged pod
+  in the namespaces of the node, deleted on exit).
+- CronJobs: **Suspend** and **Resume**.
+- Fleet: **Export** opens a Markdown report of the clusters shown (clusters, failing and drifting Flux objects,
+  diagnostics, unreachable clusters).
+- Fleet: a drift a rollout explains (another revision, missing, behind its source) shows as **Rolling out** until it
+  lasts `kubexplorer.fleet.driftGrace` minutes (10 by default).
 
 ### Changed
 
@@ -58,6 +69,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Fleet: an object on 1 cluster of a group was reported missing on all the others; it is now expected on the whole
+  group only when at least half of the group has it.
 - Auto save (`files.autoSave`) applied YAML documents to the cluster, half-typed, or asked for a review at every
   pause: only an explicit save applies now (Ctrl+S, File > Save).
 - Fleet: a single unreachable cluster made the fleet look never scanned: no "scanned … ago", and a full scan every

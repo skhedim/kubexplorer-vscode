@@ -56,7 +56,7 @@ describe("Karpenter", () => {
   it("lists the claims and nodes of a NodePool", async () => {
     const details = await nodepools.details(byName(fixture("karpenter-nodepools"), "default"), ctx);
     const titles = details.sections.flatMap((s) => (s.type === "title" ? [s.text] : []));
-    expect(titles).toEqual(expect.arrayContaining(["Node Claims (3)", "Nodes (3)", "Conditions", "Events"]));
+    expect(titles).toEqual(expect.arrayContaining(["Node Claims (3)", "Nodes (3)", "Conditions", "Events (0)"]));
   });
 
   it("adds a Karpenter section to the nodes it manages only", async () => {

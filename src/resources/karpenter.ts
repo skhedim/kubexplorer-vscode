@@ -65,20 +65,6 @@ function nodePoolLink(name: string | undefined): Cell {
 
 const col = (id: string, title: string, grow = 1): ColumnDef => ({ id, title, grow });
 
-async function eventsSection(o: KubeObject, kind: string, ctx: DetailContext): Promise<DetailSection[]> {
-  // Karpenter records the events of cluster-scoped objects in the default namespace.
-  const items = await ctx.list("events", {
-    namespaces: [],
-    fieldSelector: `involvedObject.kind=${kind},involvedObject.name=${o.metadata.name}`,
-  });
-  const { columns, rows } = ctx.rowsOf("events", items);
-  rows.sort((a, b) => Number(a.sort.lastSeen) - Number(b.sort.lastSeen));
-  return [
-    { type: "title", text: "Events" },
-    { type: "table", columns: columns.filter((c) => c.id !== "object"), rows, empty: "No event" },
-  ];
-}
-
 function conditionsGrid(o: KubeObject): DetailSection[] {
   const conditions: Condition[] = o.status?.conditions ?? [];
   if (!conditions.length) return [];
@@ -194,7 +180,6 @@ export const nodepools = defineResource({
       { type: "title", text: `Nodes (${nodes.length})` },
       { type: "table", columns: nodeRows.columns, rows: nodeRows.rows, empty: "No node" },
       ...conditionsGrid(o),
-      ...(await eventsSection(o, "NodePool", ctx)),
     ];
   },
 });
@@ -263,7 +248,7 @@ export const nodeclaims = defineResource({
       { name: "Expire After", value: o.spec?.expireAfter ?? "" },
       { name: "Conditions", value: conditionTags(o.status?.conditions, true, true) },
     ].filter((i) => (Array.isArray(i.value) ? i.value.length : i.value !== "")),
-  sections: async (o, ctx) => [...conditionsGrid(o), ...(await eventsSection(o, "NodeClaim", ctx))],
+  sections: (o) => conditionsGrid(o),
 });
 
 // ---------- NodeClasses ----------

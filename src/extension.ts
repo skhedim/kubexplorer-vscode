@@ -22,6 +22,7 @@ import type { PanelTarget } from "./shared/protocol";
 import { ALL_ACTIONS, type ActionId } from "./shared/view";
 import { ResourceActions, toTarget } from "./vscode/actions";
 import { FleetActions } from "./vscode/fleetActions";
+import { FluxGuard } from "./vscode/fluxGuard";
 import { ClustersView } from "./vscode/clustersView";
 import { ClusterState } from "./vscode/clusterState";
 import { config } from "./vscode/config";
@@ -62,7 +63,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const documents = new ReadonlyDocuments();
   const guard = new ContextGuard();
   const problems = new ProblemsView();
-  const files = new ResourceFileSystem(client, registry, store, documents, guard, log);
+  const flux = new FluxGuard({ client, registry, log });
+  const files = new ResourceFileSystem(client, registry, store, documents, guard, flux, log);
   // The fleet: the contexts matching kubexplorer.fleet.contexts, in groups (kubexplorer.fleet.groups).
   const scanner = new FleetScanner({
     client,
@@ -80,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
     log,
   });
   const fleetActions = new FleetActions({ client, registry, scanner, guard, log });
-  const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, files, guard, log });
+  const actions = new ResourceActions({ client, helm, portForwards, registry, store, terminals, documents, files, guard, flux, log });
   const panels = new ResourcePanels(context.extensionUri, {
     registry,
     store,

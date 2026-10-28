@@ -16,7 +16,13 @@ const MEMBERS = [
 
 function setup(opts: { unreachable?: string[] } = {}) {
   const messages: HostMessage[] = [];
-  const host: FleetHost = { post: (m) => messages.push(m), openInCluster: vi.fn(), fluxAction: vi.fn(), copyText: vi.fn() };
+  const host: FleetHost = {
+    post: (m) => messages.push(m),
+    openInCluster: vi.fn(),
+    fluxAction: vi.fn(),
+    copyText: vi.fn(),
+    openReport: vi.fn(),
+  };
   const fake = fakeFleetClient(opts);
   const scanner = new FleetScanner({
     client: fake.client,
@@ -41,7 +47,7 @@ function setup(opts: { unreachable?: string[] } = {}) {
     // Every cluster scanned: the view tells when.
     await vi.waitFor(() => expect(last()?.updated).toBeDefined());
   };
-  return { controller, host, messages, last, start, fake };
+  return { controller, host, messages, last, start, fake, scanner };
 }
 
 describe("FleetController", () => {
@@ -128,5 +134,28 @@ describe("FleetController", () => {
     await vi.waitFor(() => expect(last().data.tables[0].rows.length).toBeGreaterThan(0));
     expect(last().data.tables[0].rows.every((r) => r.ref.context === "dev-1")).toBe(true);
     expect(last().searchQuery).toBe("nginx");
+  });
+
+  it("exports a Markdown report of the clusters shown", async () => {
+    const { controller, host, start } = setup({ unreachable: ["dev-1"] });
+    dispose = () => controller.dispose();
+    await start();
+    controller.onMessage({ type: "fleetState", group: "prod" });
+    controller.onMessage({ type: "fleetRun", what: "export" });
+    const report = vi.mocked(host.openReport).mock.calls[0][0];
+    expect(report).toMatch(/^# Fleet report: prod\n/);
+    expect(report).toContain("| prod-1 | prod |");
+    expect(report).not.toContain("dev-1");
+  });
+
+  it("times the drifts of the fleet at every scan, whatever the tab shown", async () => {
+    const { controller, start, scanner } = setup();
+    dispose = () => controller.dispose();
+    const observe = vi.spyOn(scanner.drifts, "observe");
+    // The Clusters tab: the drifts of the Flux objects are timed all the same.
+    await start();
+    expect(observe).toHaveBeenCalled();
+    // Once every cluster is scanned, the drifts seen next are new.
+    expect(observe.mock.calls.at(-1)![2]).toBe(true);
   });
 });

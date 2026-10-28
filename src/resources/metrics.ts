@@ -13,6 +13,7 @@ const METRICS_RESOLUTION_MS = 15_000;
 
 export const podmetrics = defineResource({
   id: "podmetrics",
+  events: false,
   kubectlName: "pods.metrics.k8s.io",
   title: "Pod Metrics",
   minPollIntervalMs: METRICS_RESOLUTION_MS,
@@ -22,6 +23,7 @@ export const podmetrics = defineResource({
 });
 export const nodemetrics = defineResource({
   id: "nodemetrics",
+  events: false,
   kubectlName: "nodes.metrics.k8s.io",
   title: "Node Metrics",
   minPollIntervalMs: METRICS_RESOLUTION_MS,

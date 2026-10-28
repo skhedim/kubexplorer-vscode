@@ -28,5 +28,6 @@ export const config = {
   fleetContexts: (): string[] => settings().get<string[]>("fleet.contexts", ["*"]),
   fleetConcurrency: (): number => Math.min(32, Math.max(1, settings().get<number>("fleet.concurrency", 8))),
   fleetRefreshIntervalMs: (): number => Math.max(30, settings().get<number>("fleet.refreshInterval", 120)) * 1000,
+  fleetDriftGraceMs: (): number => Math.max(0, settings().get<number>("fleet.driftGrace", 10)) * 60_000,
   setDemoCluster: (enabled: boolean): Thenable<void> => settings().update("demoCluster", enabled, vscode.ConfigurationTarget.Global),
 };

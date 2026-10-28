@@ -56,7 +56,7 @@ describe.each(Object.entries(FIXTURES))("%s", (resource, file) => {
     }
     const details = await descriptor.details(items[0], ctx);
     expect(details.title).toBe(`${descriptor.kindName}: ${items[0].metadata.name}`);
-    expect(details.sections.some((s) => s.type === "title" && s.text === "Events")).toBe(true);
+    expect(details.sections.some((s) => s.type === "title" && s.text.startsWith("Events"))).toBe(true);
   });
 });
 

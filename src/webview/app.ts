@@ -490,6 +490,7 @@ export class App {
         this.ui.search ? codicon("close", { action: "clear-search", title: "Clear" }) : ""
       }</label>
       ${run}
+      ${codicon("export", { action: "fleet-run", title: "Export a report (Markdown) of the clusters shown", attrs: { what: "export" } })}
       ${codicon("refresh", { action: "fleet-run", title: "Scan the clusters now", attrs: { what: "scan" } })}
     </div>
     <div class="fleet-tabs" role="tablist">${tabs
@@ -856,7 +857,7 @@ export class App {
         this.post({ type: "fleetState", problemsOnly: !this.fleet?.problemsOnly });
         return;
       case "fleet-run":
-        this.post({ type: "fleetRun", what: d.what as "scan" | "diagnose" | "search", query: this.ui.search });
+        this.post({ type: "fleetRun", what: d.what as "scan" | "diagnose" | "search" | "export", query: this.ui.search });
         return;
       case "open-row":
         // An object of another cluster (fleet) opens in a tab of that cluster.

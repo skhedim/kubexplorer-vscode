@@ -109,6 +109,7 @@ export function startFleetPreview(
       openInCluster: (ref) => hostLog(`open ${ref.resource} ${ref.name} in ${ref.context}`),
       fluxAction: (action, row) => hostLog(`native quick pick: ${action} ${row.key} on which clusters?`),
       copyText: (text) => hostLog(`copied ${text.length} characters`),
+      openReport: (markdown) => hostLog(`report opened in an editor: ${markdown.split("\n").length} lines`),
     },
     groups: () => groupOrder(GROUPS),
     refreshIntervalMs: () => 120_000,

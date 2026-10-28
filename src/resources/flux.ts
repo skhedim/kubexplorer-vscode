@@ -262,20 +262,6 @@ function dependsOnItem(o: KubeObject, kind: string): DetailItem[] {
     : [];
 }
 
-/** Events of the object, newest first. */
-async function eventsSection(o: KubeObject, kind: string, ctx: DetailContext): Promise<DetailSection[]> {
-  const items = await ctx.list("events", {
-    namespaces: o.metadata.namespace ? [o.metadata.namespace] : [],
-    fieldSelector: `involvedObject.kind=${kind},involvedObject.name=${o.metadata.name}`,
-  });
-  const { columns, rows } = ctx.rowsOf("events", items);
-  rows.sort((a, b) => Number(a.sort.lastSeen) - Number(b.sort.lastSeen));
-  return [
-    { type: "title", text: "Events" },
-    { type: "table", columns: columns.filter((c) => c.id !== "object"), rows, empty: "No event" },
-  ];
-}
-
 function valuesBlock(name: string, value: unknown): DetailItem[] {
   if (value === undefined || value === null || (typeof value === "object" && !Object.keys(value).length)) return [];
   return [{ name, value: JSON.stringify(value, null, 2), block: true }];
@@ -345,11 +331,7 @@ function fluxKind(k: FluxKindSpec): ResourceDescriptor {
     columns: [...(k.columns ?? []), ...(suspend === "spec" && status ? [resumedColumn] : []), ...(status ? statusColumns : [])],
     ...fluxActions(suspend, status),
     items: (o) => [...(status ? statusItems(o) : []), ...present(k.items?.(o) ?? [])],
-    sections: async (o, ctx) => [
-      ...(k.sections?.(o, ctx) ?? []),
-      ...(status ? conditionsSection(o) : []),
-      ...(await eventsSection(o, k.kind, ctx)),
-    ],
+    sections: (o, ctx) => [...(k.sections?.(o, ctx) ?? []), ...(status ? conditionsSection(o) : [])],
   });
 }
 

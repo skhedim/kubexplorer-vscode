@@ -189,6 +189,12 @@
         "icon": "$(debug)"
       },
       {
+        "command": "kubexplorer.resource.nodeShell",
+        "title": "%action.nodeShell%",
+        "category": "KubeXplorer",
+        "icon": "$(terminal-linux)"
+      },
+      {
         "command": "kubexplorer.resource.portForward",
         "title": "%action.portForward%",
         "category": "KubeXplorer",
@@ -235,6 +241,24 @@
         "title": "%action.resume%",
         "category": "KubeXplorer",
         "icon": "$(debug-continue)"
+      },
+      {
+        "command": "kubexplorer.resource.cordon",
+        "title": "%action.cordon%",
+        "category": "KubeXplorer",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "kubexplorer.resource.uncordon",
+        "title": "%action.uncordon%",
+        "category": "KubeXplorer",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "kubexplorer.resource.drain",
+        "title": "%action.drain%",
+        "category": "KubeXplorer",
+        "icon": "$(clear-all)"
       },
       {
         "command": "kubexplorer.resource.install",
@@ -396,6 +420,22 @@
           "when": "false"
         },
         {
+          "command": "kubexplorer.resource.nodeShell",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.cordon",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.uncordon",
+          "when": "false"
+        },
+        {
+          "command": "kubexplorer.resource.drain",
+          "when": "false"
+        },
+        {
           "command": "kubexplorer.resource.delete",
           "when": "false"
         },
@@ -507,49 +547,69 @@
           "group": "1_actions@3"
         },
         {
+          "command": "kubexplorer.resource.nodeShell",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bnodeShell\\b/",
+          "group": "1_actions@4"
+        },
+        {
           "command": "kubexplorer.resource.portForward",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bportForward\\b/",
-          "group": "1_actions@4"
+          "group": "1_actions@5"
         },
         {
           "command": "kubexplorer.resource.openBrowser",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bopenBrowser\\b/",
-          "group": "1_actions@5"
+          "group": "1_actions@6"
         },
         {
           "command": "kubexplorer.resource.scale",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bscale\\b/",
-          "group": "1_actions@6"
+          "group": "1_actions@7"
         },
         {
           "command": "kubexplorer.resource.restart",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\brestart\\b/",
-          "group": "1_actions@7"
+          "group": "1_actions@8"
         },
         {
           "command": "kubexplorer.resource.trigger",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\btrigger\\b/",
-          "group": "1_actions@8"
+          "group": "1_actions@9"
         },
         {
           "command": "kubexplorer.resource.reconcile",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\breconcile\\b/",
-          "group": "1_actions@9"
+          "group": "1_actions@10"
         },
         {
           "command": "kubexplorer.resource.suspend",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bsuspend\\b/",
-          "group": "1_actions@10"
+          "group": "1_actions@11"
         },
         {
           "command": "kubexplorer.resource.resume",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bresume\\b/",
-          "group": "1_actions@11"
+          "group": "1_actions@12"
+        },
+        {
+          "command": "kubexplorer.resource.cordon",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bcordon\\b/",
+          "group": "1_actions@13"
+        },
+        {
+          "command": "kubexplorer.resource.uncordon",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\buncordon\\b/",
+          "group": "1_actions@14"
+        },
+        {
+          "command": "kubexplorer.resource.drain",
+          "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\bdrain\\b/",
+          "group": "1_actions@15"
         },
         {
           "command": "kubexplorer.resource.install",
           "when": "webviewId == 'kubexplorer.resource' && kubexplorerActions =~ /\\binstall\\b/",
-          "group": "1_actions@12"
+          "group": "1_actions@16"
         },
         {
           "command": "kubexplorer.resource.values",
@@ -732,6 +792,12 @@
           "default": 120,
           "minimum": 30,
           "markdownDescription": "%config.fleet.refreshInterval%"
+        },
+        "kubexplorer.fleet.driftGrace": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "markdownDescription": "%config.fleet.driftGrace%"
         },
         "kubexplorer.prometheus": {
           "type": "string",

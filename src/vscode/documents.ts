@@ -14,6 +14,7 @@ import type { ResourceRegistry } from "../resources/registry";
 import { diffStats } from "../shared/diff";
 import type { ResourceRef } from "../shared/view";
 import { config } from "./config";
+import type { FluxGuard, FluxPlan } from "./fluxGuard";
 import type { ContextGuard } from "./protection";
 
 export const YAML_SCHEME = "kubexplorer";
@@ -82,8 +83,11 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
   private readonly emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   readonly onDidChangeFile = this.emitter.event;
   private readonly cache = new Map<string, { content: Uint8Array; mtime: number }>();
-  /** Documents being saved by apply(), after their review: writeFile does not ask again. */
-  private readonly approved = new Set<string>();
+  /**
+   * Documents being saved by apply(), after their review (writeFile does not ask again), with what to do first
+   * (suspend the Flux objects that apply the object).
+   */
+  private readonly approved = new Map<string, FluxPlan>();
   /** Why each document is being saved (onWillSaveTextDocument): writeFile tells auto saves from explicit ones. */
   private readonly saveReasons = new Map<string, vscode.TextDocumentSaveReason>();
   private readonly subscriptions: vscode.Disposable[];
@@ -94,6 +98,7 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
     private readonly store: ResourceStore,
     private readonly documents: ReadonlyDocuments,
     private readonly guard: ContextGuard,
+    private readonly flux: FluxGuard,
     private readonly log: Logger,
   ) {
     this.subscriptions = [
@@ -175,12 +180,13 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
     const { context, ref } = objectTarget(this.registry, document.uri);
     if (!document.isDirty) return;
     if (this.guard.protection(context) === "readOnly") return this.guard.refuse(context);
-    if (this.needsConfirmation(context) && !(await this.confirmChanges(document.uri, context, ref, document.getText()))) {
+    const flux = await this.review(document.uri, context, ref, document.getText());
+    if (!flux) {
       vscode.window.setStatusBarMessage(`$(close) ${vscode.l10n.t("Changes not applied")}`, 4000);
       return;
     }
     const key = document.uri.toString();
-    this.approved.add(key);
+    this.approved.set(key, flux);
     try {
       await document.save();
     } finally {
@@ -192,13 +198,25 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
     return config.confirmApply() || this.guard.protection(context) === "confirm";
   }
 
+  /**
+   * Before applying: a warning when Flux applies the object (always: a change it undoes is worth knowing, whatever
+   * kubexplorer.confirmApply), then the review of the changes (when confirmations are on). Undefined when cancelled.
+   */
+  private async review(uri: vscode.Uri, context: string, ref: ResourceRef, edited: string): Promise<FluxPlan | undefined> {
+    const flux = await this.flux.check(context, [ref], vscode.l10n.t("Apply"));
+    if (!flux) return undefined;
+    if (this.needsConfirmation(context) && !(await this.confirmChanges(uri, context, ref, edited))) return undefined;
+    return flux;
+  }
+
   async writeFile(uri: vscode.Uri, content: Uint8Array): Promise<void> {
     const { context, ref } = objectTarget(this.registry, uri);
     const edited = new TextDecoder().decode(content);
     const key = uri.toString();
     const reason = this.saveReasons.get(key);
     this.saveReasons.delete(key);
-    const approved = this.approved.has(key);
+    let plan = this.approved.get(key);
+    const approved = !!plan;
     // Throwing cancels the save: the document stays dirty and nothing is sent.
     if (this.guard.protection(context) === "readOnly")
       throw vscode.FileSystemError.NoPermissions(vscode.l10n.t("{0} is read-only (kubexplorer.protectedContexts)", context));
@@ -209,9 +227,10 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
         vscode.l10n.t("Auto save does not apply changes to the cluster: press Ctrl+S to review and apply them"),
       );
     // Explicit saves that do not go through apply() (File > Save, Save All) are reviewed here.
-    if (!approved && this.needsConfirmation(context) && !(await this.confirmChanges(uri, context, ref, edited)))
-      throw vscode.FileSystemError.NoPermissions(vscode.l10n.t("Changes not applied"));
+    plan ??= await this.review(uri, context, ref, edited);
+    if (!plan) throw vscode.FileSystemError.NoPermissions(vscode.l10n.t("Changes not applied"));
     try {
+      await plan.prepare();
       const output = (await this.client.replaceYaml(context, edited)).trim();
       this.log.info(`Applied on ${context}: ${output}`);
       vscode.window.setStatusBarMessage(`$(check) ${output || vscode.l10n.t("Applied")}`, 5000);

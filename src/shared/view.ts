@@ -57,6 +57,7 @@ export const ALL_ACTIONS = [
   "logs",
   "shell",
   "debug",
+  "nodeShell",
   "portForward",
   "openBrowser",
   "scale",
@@ -65,6 +66,9 @@ export const ALL_ACTIONS = [
   "reconcile",
   "suspend",
   "resume",
+  "cordon",
+  "uncordon",
+  "drain",
   "rollback",
   "values",
   "manifest",
@@ -80,7 +84,7 @@ export const ALL_ACTIONS = [
 export type ActionId = (typeof ALL_ACTIONS)[number];
 
 /** Actions offered on the checked rows of a list, when every checked row supports them. */
-export const BULK_ACTIONS: ActionId[] = ["restart", "scale", "reconcile", "suspend", "resume", "delete"];
+export const BULK_ACTIONS: ActionId[] = ["restart", "scale", "reconcile", "suspend", "resume", "cordon", "uncordon", "drain", "delete"];
 
 export interface Row {
   uid: string;

@@ -56,6 +56,17 @@ export const nodes = defineResource({
   ],
   endColumns: [{ id: "conditions", title: "Conditions", grow: 0.9, value: nodeStatus }],
   related: ["nodemetrics"],
+  actions: ["nodeShell", "cordon", "uncordon", "drain"],
+  // Like kubectl cordon and uncordon.
+  patches: {
+    cordon: () => ({ spec: { unschedulable: true } }),
+    uncordon: () => ({ spec: { unschedulable: null } }),
+  },
+  hideAction: (o, action) =>
+    (action === "cordon" && !!o.spec?.unschedulable) ||
+    (action === "uncordon" && !o.spec?.unschedulable) ||
+    // nsenter is for Linux nodes.
+    (action === "nodeShell" && o.metadata.labels?.["kubernetes.io/os"] === "windows"),
   items: (o, rc) => [
     ...(() => {
       const u = nodeUsage(rc, o);
@@ -134,6 +145,7 @@ function eventTime(o: KubeObject): string | undefined {
 
 export const events = defineResource({
   id: "events",
+  events: false,
   title: "Events",
   kindName: "Event",
   namespaced: true,

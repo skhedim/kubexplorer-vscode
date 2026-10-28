@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import * as vscode from "vscode";
 import type { KubeXplorerApi } from "../../src/extension";
 import type { Snapshot } from "../../src/kube/store";
+import type { Details } from "../../src/shared/view";
 import { buildMatrix } from "../../src/resources/fleet";
 
 const CONTEXT = "kind-kubexplorer";
@@ -31,6 +32,21 @@ function kubexplorerTabs(): string[] {
       .filter((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.endsWith("kubexplorer.resource"))
       .map((t) => t.label),
   );
+}
+
+/** The details of an object, as its drawer shows them. */
+async function detailsOf(api: KubeXplorerApi, resource: string, namespace: string | undefined, name: string): Promise<Details> {
+  const desc = api.registry.require(resource);
+  const [obj] = await api.client.list(CONTEXT, desc, { namespaces: namespace ? [namespace] : [], fieldSelector: `metadata.name=${name}` });
+  assert.ok(obj, `${resource} ${name} not found`);
+  return desc.details(obj, {
+    context: CONTEXT,
+    list: (r, opts) => api.client.list(CONTEXT, api.registry.require(r), opts),
+    rowsOf: (r, items) => {
+      const d = api.registry.require(r);
+      return { columns: d.compactColumns, rows: items.map((o) => d.toCompactRow(o)) };
+    },
+  });
 }
 
 async function closeAllEditors(): Promise<void> {
@@ -165,6 +181,56 @@ describe("KubeXplorer in VS Code", function () {
     const processes = kubectlChildren();
     assert.equal(processes.filter((l) => / proxy /.test(l)).length, 1, processes.join("\n"));
     assert.equal(processes.filter((l) => / get .*--watch/.test(l)).length, 0, processes.join("\n"));
+  });
+
+  it("shows the events of an object at the end of its drawer", async () => {
+    const pods = await api.client.list(CONTEXT, api.registry.require("pods"), { namespaces: ["payments"] });
+    const crashing = pods.find((p) => p.metadata.name.startsWith("fraud-scorer"))!;
+    const details = await detailsOf(api, "pods", "payments", crashing.metadata.name);
+    const title = details.sections.findIndex((s) => s.type === "title" && s.text.startsWith("Events ("));
+    assert.ok(title >= 0, JSON.stringify(details.sections.map((s) => s.type)));
+    const table = details.sections[title + 1];
+    assert.ok(table.type === "table" && table.rows.some((r) => JSON.stringify(r.cells).includes("Back-off")), JSON.stringify(table));
+  });
+
+  it("links an object applied by Flux to its Kustomization or HelmRelease", async function () {
+    if (!kubectl("get", "crds", "-o", "name").includes("kustomizations.kustomize.toolkit.fluxcd.io")) this.skip();
+    const managedBy = (d: Details) =>
+      d.sections.flatMap((s) => (s.type === "items" ? s.items : [])).find((i) => i.name === "Managed By")?.value;
+    assert.deepEqual(managedBy(await detailsOf(api, "deployments", "apps", "podinfo")), {
+      link: "flux-system/podinfo",
+      ref: { resource: "flux:kustomizations", namespace: "flux-system", name: "podinfo" },
+      prefix: "Flux Kustomization ",
+      title: "Applied by Flux from Git: a change made here is undone at the next reconciliation, unless it is suspended",
+    });
+    assert.match(JSON.stringify(managedBy(await detailsOf(api, "deployments", "apps", "podinfo-https"))), /Flux HelmRelease /);
+    assert.equal(managedBy(await detailsOf(api, "deployments", "frontend", "web-app")), undefined);
+  });
+
+  it("cordons and uncordons a node", async () => {
+    const unschedulable = () => kubectl("get", "node", "kubexplorer-worker2", "-o", "jsonpath={.spec.unschedulable}").trim();
+    const node = { context: CONTEXT, ref: { resource: "nodes", name: "kubexplorer-worker2" } };
+    try {
+      await vscode.commands.executeCommand("kubexplorer.resource.cordon", node);
+      assert.equal(unschedulable(), "true");
+      await vscode.commands.executeCommand("kubexplorer.resource.uncordon", node);
+      assert.equal(unschedulable(), "");
+    } finally {
+      kubectl("uncordon", "kubexplorer-worker2");
+    }
+  });
+
+  it("suspends and resumes a CronJob", async () => {
+    const suspended = () => kubectl("-n", "payments", "get", "cronjob", "invoice-export", "-o", "jsonpath={.spec.suspend}").trim();
+    const cron = { context: CONTEXT, ref: { resource: "cronjobs", namespace: "payments", name: "invoice-export" } };
+    try {
+      await vscode.commands.executeCommand("kubexplorer.resource.suspend", cron);
+      assert.equal(suspended(), "true");
+      await vscode.commands.executeCommand("kubexplorer.resource.resume", cron);
+      assert.equal(suspended(), "false");
+    } finally {
+      kubectl("-n", "payments", "patch", "cronjob", "invoice-export", "--type", "merge", "-p", '{"spec":{"suspend":false}}');
+    }
   });
 
   it("reuses the current tab when opening another resource type", async () => {

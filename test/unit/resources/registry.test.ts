@@ -99,9 +99,13 @@ describe("registry", () => {
 
   it("finds the pods of a Deployment through its selector", async () => {
     const deployment = fixture("deployments").find((d) => d.metadata.name === "web-app")!;
-    let selector: string | undefined;
-    await registry.require("deployments").details(deployment, { ...ctx, list: async (_r, opts) => ((selector = opts.labelSelector), []) });
-    expect(selector).toBe("app.kubernetes.io/name=web-app");
+    const asked: { resource: string; labelSelector?: string; fieldSelector?: string }[] = [];
+    await registry
+      .require("deployments")
+      .details(deployment, { ...ctx, list: async (resource, opts) => (asked.push({ resource, ...opts }), []) });
+    expect(asked.find((a) => a.resource === "pods")?.labelSelector).toBe("app.kubernetes.io/name=web-app");
+    // And its events, by uid.
+    expect(asked.find((a) => a.resource === "events")?.fieldSelector).toBe(`involvedObject.uid=${deployment.metadata.uid}`);
   });
 
   it("generates a CRD descriptor with its printer columns", () => {

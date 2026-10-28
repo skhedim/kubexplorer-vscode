@@ -15,6 +15,7 @@ import type { RowMenuContext } from "../shared/protocol";
 import type { ActionId, ResourceRef } from "../shared/view";
 import { config } from "./config";
 import { DESCRIBE_SCHEME, type ReadonlyDocuments, type ResourceFileSystem, resourceUri, YAML_SCHEME } from "./documents";
+import type { FluxGuard, FluxPlan } from "./fluxGuard";
 import type { ContextGuard } from "./protection";
 import type { Terminals } from "./terminals";
 
@@ -34,6 +35,7 @@ export interface ActionDeps {
   documents: ReadonlyDocuments;
   files: ResourceFileSystem;
   guard: ContextGuard;
+  flux: FluxGuard;
   log: Logger;
 }
 
@@ -59,6 +61,8 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
       return `$(terminal) ${vscode.l10n.t("Shell")}`;
     case "debug":
       return `$(debug) ${vscode.l10n.t("Debug...")}`;
+    case "nodeShell":
+      return `$(terminal-linux) ${vscode.l10n.t("Node Shell...")}`;
     case "portForward":
       return `$(plug) ${vscode.l10n.t("Forward Port...")}`;
     case "openBrowser":
@@ -75,6 +79,12 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
       return `$(debug-pause) ${vscode.l10n.t("Suspend")}`;
     case "resume":
       return `$(debug-continue) ${vscode.l10n.t("Resume")}`;
+    case "cordon":
+      return `$(circle-slash) ${vscode.l10n.t("Cordon")}`;
+    case "uncordon":
+      return `$(pass) ${vscode.l10n.t("Uncordon")}`;
+    case "drain":
+      return `$(clear-all) ${vscode.l10n.t("Drain...")}`;
     case "rollback":
       return `$(discard) ${vscode.l10n.t("Rollback...")}`;
     case "values":
@@ -107,12 +117,17 @@ function listed(refs: ResourceRef[]): string {
   return refs.slice(0, 8).map(display).join("\n") + (refs.length > 8 ? `\n${vscode.l10n.t("… and {0} more", refs.length - 8)}` : "");
 }
 
-/** Verb of the actions performed by a merge patch (Flux), for confirmations. */
+/** Verb of the actions performed by a merge patch (Flux, CronJobs, nodes), for confirmations. */
 function patchVerb(action: ActionId): string {
   if (action === "suspend") return vscode.l10n.t("Suspend");
   if (action === "resume") return vscode.l10n.t("Resume");
+  if (action === "cordon") return vscode.l10n.t("Cordon");
+  if (action === "uncordon") return vscode.l10n.t("Uncordon");
   return vscode.l10n.t("Reconcile");
 }
+
+/** Patch actions that Flux undoes on the objects it applies: suspending a CronJob (cordoning a node is no Git matter). */
+const FLUX_UNDONE: ReadonlySet<ActionId> = new Set<ActionId>(["suspend", "resume"]);
 
 /** Images offered for debug containers, after the one of the settings. */
 const DEBUG_IMAGES = ["busybox:1.37", "nicolaka/netshoot"];
@@ -174,6 +189,10 @@ export class ResourceActions {
         return this.shell(context, ref, container);
       case "debug":
         return this.debug(context, ref, container);
+      case "nodeShell":
+        return this.nodeShell(context, ref);
+      case "drain":
+        return this.drain(context, [ref]);
       case "portForward":
         return this.portForward(context, ref);
       case "openBrowser": {
@@ -231,13 +250,17 @@ export class ResourceActions {
       case "reconcile":
       case "suspend":
       case "resume":
+      case "cordon":
+      case "uncordon":
         return this.patchAction(action, context, ref);
     }
   }
 
-  /** Actions performed by a merge patch of the descriptor (Flux reconcile, suspend and resume). */
+  /** Actions performed by a merge patch of the descriptor (Flux reconcile, suspend and resume, CronJobs, nodes). */
   private async patchAction(action: ActionId, context: string, ref: ResourceRef): Promise<void> {
     const descriptor = this.d.registry.require(ref.resource);
+    const flux = FLUX_UNDONE.has(action) ? await this.d.flux.check(context, [ref], patchVerb(action)) : undefined;
+    if (FLUX_UNDONE.has(action) && !flux) return;
     const confirmed = await this.d.guard.confirm(context, {
       question: vscode.l10n.t("{0} {1} {2}?", patchVerb(action), descriptor.kindName, display(ref)),
       detail: vscode.l10n.t("Context: {0}", context),
@@ -246,11 +269,14 @@ export class ResourceActions {
       modal: false,
     });
     if (!confirmed) return;
+    await flux?.prepare();
     await this.patchOne(action, context, ref);
     const done: Partial<Record<ActionId, string>> = {
       reconcile: vscode.l10n.t("Reconciliation of {0} requested", display(ref)),
       suspend: vscode.l10n.t("{0} suspended", display(ref)),
       resume: vscode.l10n.t("{0} resumed", display(ref)),
+      cordon: vscode.l10n.t("{0} cordoned: no new pod is scheduled on it", display(ref)),
+      uncordon: vscode.l10n.t("{0} uncordoned", display(ref)),
     };
     vscode.window.setStatusBarMessage(`$(check) ${done[action] ?? display(ref)}`, 4000);
     this.d.store.refresh(context);
@@ -379,6 +405,46 @@ export class ResourceActions {
     }
   }
 
+  /** A root shell on a node: a privileged pod in its namespaces (nsenter), deleted when the shell exits. */
+  private async nodeShell(context: string, ref: ResourceRef): Promise<void> {
+    const image = config.debugImage();
+    const confirmed = await this.d.guard.confirm(context, {
+      question: vscode.l10n.t("Open a root shell on node {0}?", ref.name),
+      detail: vscode.l10n.t(
+        "A privileged pod of image {0}, in kube-system, enters the namespaces of the node; it is deleted when you exit the shell. Context: {1}",
+        image,
+        context,
+      ),
+      verb: vscode.l10n.t("Open Shell"),
+      expected: ref.name,
+      modal: true,
+    });
+    if (!confirmed) return;
+    if (!this.d.terminals.showNodeShell(context, ref.name, image))
+      void vscode.window.showInformationMessage(vscode.l10n.t("Node shells are not available on the demo cluster."));
+  }
+
+  /** kubectl drain, in a terminal: it can take minutes (disruption budgets), and stops with Ctrl+C. */
+  private async drain(context: string, refs: ResourceRef[]): Promise<void> {
+    const nodes = refs.map((r) => r.name);
+    const confirmed = await this.d.guard.confirm(context, {
+      question: nodes.length === 1 ? vscode.l10n.t("Drain node {0}?", nodes[0]) : vscode.l10n.t("Drain {0} nodes?", nodes.length),
+      detail: [
+        ...(nodes.length > 1 ? [listed(refs), ""] : []),
+        vscode.l10n.t(
+          "Cordons, then evicts every pod but those of DaemonSets (the data of emptyDir volumes is lost); disruption budgets are respected. Follow it in the terminal.",
+        ),
+        vscode.l10n.t("Context: {0}", context),
+      ].join("\n"),
+      verb: vscode.l10n.t("Drain"),
+      expected: nodes.length === 1 ? nodes[0] : shortContextName(context),
+      modal: true,
+    });
+    if (!confirmed) return;
+    if (!this.d.terminals.showDrain(context, nodes))
+      void vscode.window.showInformationMessage(vscode.l10n.t("Draining is not available on the demo cluster."));
+  }
+
   private async shell(context: string, ref: ResourceRef, preset?: string): Promise<void> {
     const pod = await this.fetch(context, ref);
     const container = await this.pickContainer(pod, false, preset);
@@ -402,6 +468,8 @@ export class ResourceActions {
     });
     if (value === undefined || Number(value) === current) return;
     const replicas = Number(value);
+    const flux = await this.d.flux.check(context, [ref], vscode.l10n.t("Scale"), [obj]);
+    if (!flux) return;
     const confirmed = await this.d.guard.confirm(context, {
       question: vscode.l10n.t("Scale {0} to {1} replicas?", display(ref), replicas),
       detail: replicas === 0 ? vscode.l10n.t("The workload will be unavailable.") : vscode.l10n.t("Context: {0}", context),
@@ -410,6 +478,7 @@ export class ResourceActions {
       modal: replicas === 0,
     });
     if (!confirmed) return;
+    await flux.prepare();
     await this.d.client.scale(context, this.objectTarget(ref), replicas);
     void vscode.window.showInformationMessage(vscode.l10n.t("{0}: {1} → {2} replica(s).", display(ref), current, replicas));
     this.d.store.refresh(context);
@@ -638,6 +707,10 @@ export class ResourceActions {
         case "reconcile":
         case "suspend":
         case "resume":
+        case "cordon":
+        case "uncordon": {
+          const flux = FLUX_UNDONE.has(action) ? await this.d.flux.check(context, refs, patchVerb(action)) : undefined;
+          if (FLUX_UNDONE.has(action) && !flux) return;
           return await this.runEach(
             context,
             refs,
@@ -646,9 +719,13 @@ export class ResourceActions {
               verb: patchVerb(action),
               // Reconciling only asks Flux to do its job sooner.
               modal: action !== "reconcile",
+              flux,
             },
             (ref) => this.patchOne(action, context, ref),
           );
+        }
+        case "drain":
+          return await this.drain(context, refs);
         default:
           throw new Error(vscode.l10n.t("This action applies to one object at a time"));
       }
@@ -664,7 +741,7 @@ export class ResourceActions {
   private async runEach(
     context: string,
     refs: ResourceRef[],
-    c: { question: string; verb: string; note?: string; modal: boolean },
+    c: { question: string; verb: string; note?: string; modal: boolean; flux?: FluxPlan },
     op: (ref: ResourceRef) => Promise<void>,
   ): Promise<void> {
     const confirmed = await this.d.guard.confirm(context, {
@@ -675,6 +752,7 @@ export class ResourceActions {
       modal: c.modal,
     });
     if (!confirmed) return;
+    await c.flux?.prepare();
     const failures: string[] = [];
     for (const ref of refs) {
       try {
@@ -699,6 +777,8 @@ export class ResourceActions {
     });
     if (value === undefined) return;
     const replicas = Number(value);
+    const flux = await this.d.flux.check(context, refs, vscode.l10n.t("Scale"));
+    if (!flux) return;
     await this.runEach(
       context,
       refs,
@@ -707,6 +787,7 @@ export class ResourceActions {
         verb: replicas === 0 ? vscode.l10n.t("Scale to 0") : vscode.l10n.t("Scale"),
         note: replicas === 0 ? vscode.l10n.t("The workloads will be unavailable.") : undefined,
         modal: true,
+        flux,
       },
       (ref) => this.d.client.scale(context, this.objectTarget(ref), replicas),
     );
@@ -721,6 +802,9 @@ export class ResourceActions {
     const helm = resource === "helmreleases";
     const kind = this.d.registry.require(resource).kindName;
     const verb = helm ? vscode.l10n.t("Uninstall") : vscode.l10n.t("Delete");
+    // Flux applies it again at its next reconciliation.
+    const flux = helm ? undefined : await this.d.flux.check(context, refs, verb);
+    if (!helm && !flux) return;
     await this.runEach(
       context,
       refs,
@@ -732,6 +816,7 @@ export class ResourceActions {
         verb,
         note: helm ? vscode.l10n.t("Every resource of the release will be deleted (helm uninstall).") : undefined,
         modal: true,
+        flux,
       },
       (ref) =>
         helm ? this.d.helm.uninstall(context, ref.namespace ?? "default", ref.name) : this.d.client.delete(context, this.objectTarget(ref)),
@@ -747,6 +832,9 @@ export class ResourceActions {
       this.d.guard.refuse(context);
       return false;
     }
+    const current = await this.fetch(context, ref);
+    const flux = await this.d.flux.check(context, [ref], vscode.l10n.t("Save"), [current]);
+    if (!flux) return false;
     const confirmed = await this.d.guard.confirm(context, {
       question: vscode.l10n.t("Change {0} in Secret {1}?", key, display(ref)),
       detail: vscode.l10n.t("Context: {0}", context),
@@ -755,6 +843,8 @@ export class ResourceActions {
       modal: false,
     });
     if (!confirmed) return false;
+    await flux.prepare();
+    // Read again: the latest resourceVersion, so that a concurrent change fails rather than being overwritten.
     const secret = await this.fetch(context, ref);
     const { managedFields: _, ...metadata } = secret.metadata;
     const updated = { ...secret, apiVersion: "v1", kind: "Secret", metadata, data: { ...secret.data, [key]: encodeBase64(value) } };

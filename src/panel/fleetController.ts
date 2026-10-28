@@ -3,7 +3,8 @@
 // the FleetScanner, shared with the Clusters view; this tab asks for a scan when shown, then periodically.
 
 import type { Disposable, Logger } from "../kube/types";
-import { buildMatrix, type MatrixRow, SEARCH_KINDS, type SearchHit } from "../resources/fleet";
+import { buildMatrix, classify, type MatrixRow, rolloutDrifts, SEARCH_KINDS, type SearchHit } from "../resources/fleet";
+import { fleetReport } from "../resources/fleetReport";
 import {
   clusterDetails,
   clustersData,
@@ -29,6 +30,8 @@ export interface FleetHost {
   /** A Flux action on the clusters of a matrix row, after asking which ones. */
   fluxAction(action: FleetAction, row: MatrixRow): void;
   copyText(text: string): void;
+  /** Shows a report (Markdown), e.g. in an editor. */
+  openReport(markdown: string): void;
 }
 
 export interface FleetControllerDeps {
@@ -38,6 +41,8 @@ export interface FleetControllerDeps {
   groups(): string[];
   /** Automatic scans while the tab is visible, at most once every… */
   refreshIntervalMs(): number;
+  /** A drift a rollout may explain (revisions, missing) counts once seen for that long; 0: at once. */
+  driftGraceMs?(): number;
   appearance: Appearance;
   log: Logger;
   /** Group shown first (the tab was opened from a group of the Clusters view). */
@@ -114,6 +119,7 @@ export class FleetController {
       case "fleetRun":
         if (msg.what === "scan") void this.d.scanner.scan(this.contexts(), { force: true });
         else if (msg.what === "diagnose") void this.d.scanner.diagnose(this.contexts());
+        else if (msg.what === "export") this.exportReport();
         else this.runSearch(msg.query ?? "");
         break;
       case "showDetails":
@@ -180,20 +186,45 @@ export class FleetController {
     }, wait);
   }
 
+  /**
+   * The Flux matrix of the clusters shown. Its drifts are timed on the whole fleet, whatever the group shown: a drift
+   * a rollout may explain counts once it lasts.
+   */
   private matrixRows(): MatrixRow[] {
-    return (this.matrix ??= buildMatrix(this.d.scanner.list().filter((s) => !this.group || s.group === this.group)));
+    if (this.matrix) return this.matrix;
+    const all = this.d.scanner.list();
+    const fleet = buildMatrix(all);
+    const complete = this.d.scanner.oldestCheck() !== undefined;
+    const lasted = this.d.scanner.drifts.observe(rolloutDrifts(fleet), this.now(), complete, this.d.driftGraceMs?.() ?? 0);
+    this.matrix = this.group
+      ? buildMatrix(
+          all.filter((s) => s.group === this.group),
+          lasted,
+        )
+      : classify(fleet, lasted);
+    return this.matrix;
+  }
+
+  private exportReport(): void {
+    const scans = this.d.scanner.list().filter((s) => !this.group || s.group === this.group);
+    const groups = this.d.groups().filter((g) => scans.some((s) => s.group === g));
+    const title = this.group ? `Fleet report: ${this.group}` : "Fleet report";
+    this.d.host.openReport(fleetReport({ title, scans, rows: this.matrixRows(), groups, now: this.now() }));
   }
 
   /** The view of the tab, built from the current scans. */
   view(): FleetView {
     this.matrix = undefined;
+    // Built whatever the tab shown: it times the drifts at every scan (a drift seen while another tab is shown is
+    // not new when the Flux tab is shown).
+    const rows = this.matrixRows();
     const all = this.d.scanner.list();
     const scans = all.filter((s) => !this.group || s.group === this.group);
     const now = this.now();
     const present = new Set(all.map((s) => s.group));
     const groups = this.d.groups().filter((g) => present.has(g));
     let data: OverviewData;
-    if (this.tab === "flux") data = fluxData(this.matrixRows(), scans, this.problemsOnly);
+    if (this.tab === "flux") data = fluxData(rows, scans, this.problemsOnly);
     else if (this.tab === "diagnostics") data = diagnosticsData(scans, this.problemsOnly, now);
     else if (this.tab === "search") data = searchData(this.search.hits, this.search.searched, this.search.hits.length >= MAX_HITS);
     else data = clustersData(scans, this.group ? [this.group] : groups, this.problemsOnly, now);

@@ -18,22 +18,27 @@ leaving the editor.
   - **Clusters**: one row per cluster (reachable, Kubernetes and Flux versions, nodes, Kustomizations and Helm
     releases ready, revision of its sources, diagnostics), a card per group;
   - **Flux**: every Flux object across the clusters, with its drifts: not ready, suspended, behind its source,
-    missing on clusters of its group, or running another revision or chart version than the rest of its group (the
-    groups are compared separately: prod and dev may differ on purpose). Its details list each cluster;
-    **Reconcile**, **Suspend** and **Resume** run on every cluster, a group, the failing ones or the clusters you pick;
+    missing on clusters of its group (when at least half of the group has it: on fewer, it is specific to them), or
+    running another revision or chart version than the rest of its group (the groups are compared separately: prod
+    and dev may differ on purpose). A drift a rollout explains (after a push, the clusters take the new revision one
+    after the other) shows as **Rolling out** until it lasts `kubexplorer.fleet.driftGrace` minutes. Its details list
+    each cluster; **Reconcile**, **Suspend** and **Resume** run on every cluster, a group, the failing ones or the
+    clusters you pick;
   - **Diagnostics**: the rules of the Diagnostics page on every cluster, the most errors first;
   - **Search**: workloads, images, pods, services, ingresses (name or host), Config Maps, namespaces or Flux
     objects across the clusters; a result opens in a tab of its cluster.
 
   A scan reads the nodes and the Flux objects of a cluster with a single `kubectl` request, a few clusters at a
-  time, only while the Fleet tab is visible; diagnostics and searches run on demand.
+  time, only while the Fleet tab is visible; diagnostics and searches run on demand. **Export** opens a Markdown
+  report of the clusters shown (clusters, failing and drifting Flux objects, diagnostics, unreachable clusters), to
+  paste into an issue or a wiki.
 
 - **Resources view**: the Freelens side menu (Workloads, Config, Network, Storage, Namespaces, Events, Helm,
   Access Control) and your Custom Resources, discovered on the cluster. The Flux and Karpenter sections show up
   when their CRDs are installed.
 - **Resource tabs**: sortable, searchable lists with live updates (watches), a resizable details drawer with
-  links between objects, multi-namespace filtering, and bulk actions on the checked rows (restart, scale,
-  reconcile, suspend, resume, delete). Opening another resource type reuses the current tab; **Open in New Tab**
+  links between objects and the events of the object, multi-namespace filtering, and bulk actions on the checked
+  rows (restart, scale, reconcile, suspend, resume, cordon, uncordon, drain, delete). Opening another resource type reuses the current tab; **Open in New Tab**
   keeps one. Lists of thousands of objects stay fluid: only the rows in view are drawn, and only what changed is
   sent to them.
 - **Diagnostics**, like Popeye: what is broken (crash loops, image pulls, rollouts stuck, services without ready
@@ -61,6 +66,14 @@ leaving the editor.
   its pods at once, each pod in its own color, like `stern`.
 - **Debug containers**: **Debug...** adds an ephemeral container (`kubectl debug`, busybox, netshoot or any image)
   sharing the processes of a container, and attaches it to a terminal: for distroless images without a shell.
+- **Nodes**: **Cordon** and **Uncordon**, **Drain** (`kubectl drain --ignore-daemonsets --delete-emptydir-data`,
+  followed in a terminal), and **Node Shell**: a root shell on the node, from a privileged pod of
+  `kubexplorer.debug.image` in kube-system that enters its namespaces (`nsenter`), deleted when the shell exits.
+- **CronJobs**: **Trigger Now**, **Suspend** and **Resume**.
+- **Managed by Flux**: the drawer of an object applied by Flux links to its Kustomization or HelmRelease (from the
+  labels Flux puts on what it applies). Scaling, deleting, applying YAML or editing a Secret value of such an object
+  first warns that Flux will undo the change at its next reconciliation, and offers to suspend the Kustomization or
+  HelmRelease first, like `flux suspend` before a hotfix.
 - **YAML as a document**: edit any object in a real editor tab. **Ctrl+S** (or **Apply to Cluster** in the editor
   title) opens the diff against the object on the cluster, under a dialog to apply it (`kubectl replace`) or cancel.
   Conflicts surface as regular save errors. Auto save (`files.autoSave`) never applies anything to the cluster: only
@@ -128,12 +141,13 @@ Without a cluster at hand, run **KubeXplorer: Show/Hide Demo Cluster** to explor
 | `kubexplorer.protectedContexts`     | `["*prod*"]`                             | Contexts to protect (patterns, `*` matches any text): framed in red, changes confirmed by typing a name.       |
 | `kubexplorer.protectedContextsMode` | `confirm`                                | `confirm`: type the name of the target of each change; `readOnly`: no change at all, no shell.                 |
 | `kubexplorer.logs.tailLines`        | `500`                                    | Past log lines shown when opening logs.                                                                        |
-| `kubexplorer.debug.image`           | `busybox:1.37`                           | Default image of the ephemeral containers of **Debug...**.                                                     |
+| `kubexplorer.debug.image`           | `busybox:1.37`                           | Image of the ephemeral containers of **Debug...** and of **Node Shell** (it needs `nsenter`).                  |
 | `kubexplorer.prometheus`            | (empty)                                  | Prometheus of the usage charts, as `namespace/service:port`; empty detects it; `off` uses metrics-server only. |
 | `kubexplorer.fleet.groups`          | `{"prod": ["*prod*"], "dev": ["*dev*"]}` | Fleet groups: name → context patterns; the others are in `other`.                                              |
 | `kubexplorer.fleet.contexts`        | `["*"]`                                  | Contexts the Fleet tab scans (patterns).                                                                       |
 | `kubexplorer.fleet.concurrency`     | `8`                                      | Clusters read at the same time (one `kubectl` process each).                                                   |
 | `kubexplorer.fleet.refreshInterval` | `120`                                    | Seconds between two scans while the Fleet tab is visible.                                                      |
+| `kubexplorer.fleet.driftGrace`      | `10`                                     | Minutes before a revision drift, a missing object or one behind its source counts (rolling out until then).    |
 | `kubexplorer.demoCluster`           | `false`                                  | Add an offline demo cluster to the Clusters view.                                                              |
 
 The **Output › KubeXplorer** channel logs every kubectl and helm command (set its level with **Developer: Set Log

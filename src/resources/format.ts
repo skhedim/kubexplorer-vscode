@@ -2,6 +2,7 @@
 
 import type { KubeObject } from "../kube/types";
 import { formatAge } from "../shared/units";
+import { fluxOwner } from "./fluxOwner";
 import type { Cell, DetailItem, ResourceRef, Tag, Tone } from "../shared/view";
 
 export { formatAge };
@@ -156,6 +157,18 @@ export function metadataItems(o: KubeObject): DetailItem[] {
   );
   if (Object.keys(annotations).length) items.push({ name: "Annotations", value: labelTags(annotations) });
   if (m.ownerReferences?.length) items.push({ name: "Controlled By", value: ownerCell(o) });
+  // Applied by Flux: a change made here is undone at its next reconciliation.
+  const flux = fluxOwner(o);
+  if (flux)
+    items.push({
+      name: "Managed By",
+      value: {
+        link: `${flux.namespace}/${flux.name}`,
+        ref: { resource: flux.resource, namespace: flux.namespace, name: flux.name },
+        prefix: `Flux ${flux.kind} `,
+        title: "Applied by Flux from Git: a change made here is undone at the next reconciliation, unless it is suspended",
+      },
+    });
   if (m.deletionTimestamp) items.push({ name: "Deleting", value: since(m.deletionTimestamp, { prefix: "for ", tone: "warning" }) });
   return items;
 }

@@ -289,6 +289,14 @@ export class KubectlClient implements KubeClient {
   debugSpec(context: string, namespace: string, pod: string, container: string, image: string): ExecSpec {
     return { shellPath: this.kubectlPath(), shellArgs: debugArgs(context, namespace, pod, container, image) };
   }
+
+  drainSpec(context: string, nodes: string[]): ExecSpec {
+    return { shellPath: this.kubectlPath(), shellArgs: drainArgs(context, nodes) };
+  }
+
+  nodeShellSpec(context: string, node: string, image: string): ExecSpec {
+    return { shellPath: this.kubectlPath(), shellArgs: nodeShellArgs(context, node, image, Math.random().toString(36).slice(2, 7)) };
+  }
 }
 
 /** Concurrent log streams of a workload (pods × containers), beyond the kubectl default of 5. */
@@ -305,6 +313,56 @@ export function logArgs(context: string, o: LogOptions): string[] {
   if (o.previous) args.push("--previous");
   else if (o.follow) args.push("-f");
   return args;
+}
+
+/** `kubectl drain`: cordons the nodes, then evicts their pods but those of DaemonSets (emptyDir data is lost). */
+export function drainArgs(context: string, nodes: string[]): string[] {
+  return ["--context", context, "drain", ...nodes, "--ignore-daemonsets", "--delete-emptydir-data"];
+}
+
+/**
+ * A root shell on a node, like Lens: a privileged pod on that node, in kube-system, that enters the namespaces of
+ * process 1 of the node (nsenter); `kubectl run --rm` deletes it when the shell exits.
+ */
+export function nodeShellArgs(context: string, node: string, image: string, suffix: string): string[] {
+  const base = `node-shell-${node}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .slice(0, 52)
+    .replace(/-+$/, "");
+  const pod = `${base}-${suffix}`;
+  const overrides = {
+    apiVersion: "v1",
+    spec: {
+      nodeName: node,
+      hostPID: true,
+      hostNetwork: true,
+      hostIPC: true,
+      // Whatever the taints of the node.
+      tolerations: [{ operator: "Exists" }],
+      containers: [
+        {
+          name: pod,
+          image,
+          stdin: true,
+          stdinOnce: true,
+          tty: true,
+          securityContext: { privileged: true },
+          command: ["nsenter", "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid", "--"].concat([
+            "sh",
+            "-c",
+            "command -v bash >/dev/null && exec bash -l || exec sh -l",
+          ]),
+        },
+      ],
+    },
+  };
+  return [
+    ...["--context", context, "-n", "kube-system", "run", pod, "--rm", "-it", "--restart=Never"],
+    `--image=${image}`,
+    `--overrides=${JSON.stringify(overrides)}`,
+    "--pod-running-timeout=2m",
+  ];
 }
 
 /** `kubectl debug`: an ephemeral container sharing the process namespace of `container`, attached to the terminal. */
