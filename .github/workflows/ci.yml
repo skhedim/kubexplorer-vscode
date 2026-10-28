@@ -54,10 +54,10 @@ jobs:
           if-no-files-found: error
 
   integration:
-    name: Integration tests (kind)
+    name: Integration tests (kind, Flux, fleet)
     needs: check
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -73,5 +73,12 @@ jobs:
           wait: 180s
       - name: Deploy the sample workloads
         run: ./dev-cluster/setup.sh
+      # Without them, the Flux, Karpenter and fleet tests are skipped.
+      - name: Install Flux and a simulated Karpenter
+        run: |
+          ./dev-cluster/addons/flux/apply.sh
+          ./dev-cluster/addons/karpenter/apply.sh
+      - name: Create the mini fleet (4 single-node clusters with Flux)
+        run: ./dev-cluster/fleet/setup.sh
       - name: Run the integration tests
         run: xvfb-run -a npm run test:integration

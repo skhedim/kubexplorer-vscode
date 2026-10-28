@@ -72,6 +72,17 @@ const tree = (label) =>
     .filter({ hasText: new RegExp(`^${label}$`) })
     .first();
 const firstRow = () => webview().locator(".table .row:not(.head)").first();
+/** A row of the main list: the list renders the rows in view only, so it is scrolled until the row shows up. */
+const listRow = async (text) => {
+  const body = webview().locator("#r-body");
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const row = webview().locator(`.table.virtual .row:has-text("${text}")`).first();
+    if (await row.count()) return row;
+    await body.evaluate((el) => (el.scrollTop += el.clientHeight * 0.8));
+    await page.waitForTimeout(150);
+  }
+  throw new Error(`No row ${text} in the list`);
+};
 /** An entry of a section of the Resources view (several sections have an "Overview"). */
 const child = async (parent, label) => {
   const rows = page.locator(".pane-body .monaco-list-row");
@@ -96,7 +107,7 @@ try {
   await page.locator('.activitybar [aria-label^="KubeXplorer"]').first().click();
   await page.waitForSelector('.pane-body .monaco-list-row:has-text("Pods")', { timeout: 30_000 });
 
-  await tree("Overview").click();
+  await tree("Cluster").click();
   await webview().locator(".overview-usage .gauge").first().waitFor({ timeout: 60_000 });
   await shot("overview");
 
@@ -107,7 +118,7 @@ try {
   await tree("Pods").click();
   await firstRow().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(2500); // metrics
-  await webview().locator('.row:has-text("prometheus-server")').first().click();
+  await (await listRow("prometheus-server")).click();
   await webview().locator(".drawer .group-title").first().waitFor();
   await hoverChart();
   await shot("pods");
@@ -122,7 +133,7 @@ try {
   await page.waitForSelector(".terminal-wrapper", { timeout: 15_000 });
   await webview().locator('[data-action="close-drawer"]').click();
   // The native context menu reacts badly to synthetic clicks: keyboard navigation.
-  await webview().locator('.row:has-text("payments-api") >> nth=0').click({ button: "right" });
+  await (await listRow("payments-api")).click({ button: "right" });
   await page.getByRole("menuitem", { name: /Logs/ }).waitFor();
   await shot("logs-and-context-menu");
   await page.keyboard.press("Escape");
@@ -133,7 +144,7 @@ try {
   await tree("Workloads").click();
   await tree("Config").click();
   await tree("Secrets").click();
-  await webview().locator('.row:has-text("payments-db")').click();
+  await (await listRow("payments-db")).click();
   await webview().locator('[data-action="toggle-secret"][data-key="password"]').click();
   await webview().locator(".secret-value").waitFor({ timeout: 10_000 });
   await shot("secrets");
@@ -141,7 +152,7 @@ try {
   await tree("Config").click();
   await tree("Helm").click();
   await tree("Releases").click();
-  await webview().locator('.row:has-text("shop-landing")').first().click();
+  await (await listRow("shop-landing")).click();
   await webview().locator(".drawer .table").waitFor({ timeout: 30_000 });
   await shot("helm");
   await tree("Helm").click();
@@ -152,7 +163,8 @@ try {
   await webview().locator(".overview-statuses .workload").first().waitFor({ timeout: 60_000 });
   await shot("flux-overview");
   await (await child("Flux", "Kustomizations")).click();
-  await webview().locator('.row:has(.col-name :text-is("podinfo"))').first().click();
+  await firstRow().waitFor({ timeout: 30_000 });
+  await webview().locator('.table.virtual .row:has(.col-name :text-is("podinfo"))').first().click();
   await webview().locator(".drawer .table.grid").first().waitFor({ timeout: 30_000 });
   await shot("flux-kustomizations");
   await tree("Flux").click();
@@ -162,7 +174,7 @@ try {
   await webview().locator(".overview-cards .overview-card").first().waitFor({ timeout: 60_000 });
   await shot("karpenter");
   await (await child("Karpenter", "Node Pools")).click();
-  await webview().locator('.row:has-text("default")').first().click();
+  await (await listRow("default")).click();
   await webview().locator(".drawer .table").first().waitFor({ timeout: 30_000 });
   await shot("karpenter-nodepool");
 

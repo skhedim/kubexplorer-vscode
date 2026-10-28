@@ -1,22 +1,25 @@
 // Actions on resources, with native VS Code interactions
 // (modal confirmations, input boxes, quick picks, notifications, progress).
+// ResourceActions dispatches them: the changes (patches, scale, restart, delete, bulk actions, Secret values) are here,
+// the sessions (logs, shells, port forwards…) in sessionActions.ts, Helm in helmActions.ts.
 
 import * as vscode from "vscode";
 import type { KubeClient } from "../kube/client";
 import type { HelmClient } from "../kube/helm";
-import { type ForwardedResource, type PortForward, type PortForwardManager, suggestLocalPort } from "../kube/portForward";
+import type { PortForwardManager } from "../kube/portForward";
 import type { ResourceStore } from "../kube/store";
 import { errorMessage, type KubeObject, type Logger, type ObjectTarget } from "../kube/types";
-import { selectorString } from "../resources/format";
 import type { ResourceRegistry } from "../resources/registry";
 import { shortContextName } from "../shared/clusterNames";
 import { encodeBase64 } from "../shared/encoding";
 import type { RowMenuContext } from "../shared/protocol";
 import type { ActionId, ResourceRef } from "../shared/view";
-import { config } from "./config";
 import { DESCRIBE_SCHEME, type ReadonlyDocuments, type ResourceFileSystem, resourceUri, YAML_SCHEME } from "./documents";
 import type { FluxGuard, FluxPlan } from "./fluxGuard";
+import { HelmActions } from "./helmActions";
+import { display, listed, objectTarget, readObject } from "./objects";
 import type { ContextGuard } from "./protection";
+import { SessionActions } from "./sessionActions";
 import type { Terminals } from "./terminals";
 
 export interface ActionTarget {
@@ -108,15 +111,6 @@ function actionLabel(action: ActionId, ref: ResourceRef): string {
   }
 }
 
-function display(ref: ResourceRef): string {
-  return ref.namespace ? `${ref.namespace}/${ref.name}` : ref.name;
-}
-
-/** The objects of a bulk action, for a confirmation. */
-function listed(refs: ResourceRef[]): string {
-  return refs.slice(0, 8).map(display).join("\n") + (refs.length > 8 ? `\n${vscode.l10n.t("… and {0} more", refs.length - 8)}` : "");
-}
-
 /** Verb of the actions performed by a merge patch (Flux, CronJobs, nodes), for confirmations. */
 function patchVerb(action: ActionId): string {
   if (action === "suspend") return vscode.l10n.t("Suspend");
@@ -129,32 +123,21 @@ function patchVerb(action: ActionId): string {
 /** Patch actions that Flux undoes on the objects it applies: suspending a CronJob (cordoning a node is no Git matter). */
 const FLUX_UNDONE: ReadonlySet<ActionId> = new Set<ActionId>(["suspend", "resume"]);
 
-/** Images offered for debug containers, after the one of the settings. */
-const DEBUG_IMAGES = ["busybox:1.37", "nicolaka/netshoot"];
-
-const PORT_PATTERN = /^\d+$/;
-const isPort = (s: string) => PORT_PATTERN.test(s) && Number(s) > 0 && Number(s) < 65_536;
-const RELEASE_NAME = /^[a-z0-9]([-a-z0-9]{0,51}[a-z0-9])?$/;
-const NAMESPACE_NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
-
 export class ResourceActions {
-  constructor(private readonly d: ActionDeps) {}
+  private readonly sessions: SessionActions;
+  private readonly helmActions: HelmActions;
 
-  private objectTarget(ref: ResourceRef): ObjectTarget {
-    const descriptor = this.d.registry.require(ref.resource);
-    return { kubectlName: descriptor.kubectlName, namespaced: descriptor.namespaced, namespace: ref.namespace, name: ref.name };
+  constructor(private readonly d: ActionDeps) {
+    this.sessions = new SessionActions({ ...d, copyText: (text) => this.copyText(text) });
+    this.helmActions = new HelmActions(d);
   }
 
-  private async fetch(context: string, ref: ResourceRef): Promise<KubeObject> {
-    const descriptor = this.d.registry.require(ref.resource);
-    const items = await this.d.client.list(context, descriptor, {
-      namespaces: ref.namespace ? [ref.namespace] : [],
-      fieldSelector: `metadata.name=${ref.name}`,
-    });
-    // Virtual lists (Helm, port forwards) ignore fieldSelector.
-    const obj = items.find((o) => o.metadata.name === ref.name && (!descriptor.namespaced || o.metadata.namespace === ref.namespace));
-    if (!obj) throw new Error(vscode.l10n.t("{0} {1} not found", descriptor.kindName, display(ref)));
-    return obj;
+  private objectTarget(ref: ResourceRef): ObjectTarget {
+    return objectTarget(this.d.registry, ref);
+  }
+
+  private fetch(context: string, ref: ResourceRef): Promise<KubeObject> {
+    return readObject(this.d.client, this.d.registry, context, ref);
   }
 
   /** Runs an action; errors are logged and notified, never propagated to the UI. */
@@ -184,21 +167,21 @@ export class ResourceActions {
   private async dispatch(action: ActionId, { context, ref, container }: ActionTarget): Promise<void> {
     switch (action) {
       case "logs":
-        return this.logs(context, ref, container);
+        return this.sessions.logs(context, ref, container);
       case "shell":
-        return this.shell(context, ref, container);
+        return this.sessions.shell(context, ref, container);
       case "debug":
-        return this.debug(context, ref, container);
+        return this.sessions.debug(context, ref, container);
       case "nodeShell":
-        return this.nodeShell(context, ref);
+        return this.sessions.nodeShell(context, ref);
       case "drain":
-        return this.drain(context, [ref]);
+        return this.sessions.drain(context, [ref]);
       case "portForward":
-        return this.portForward(context, ref);
+        return this.sessions.portForward(context, ref);
       case "openBrowser": {
         const pf = this.d.portForwards.get(ref.name);
         if (!pf?.localPort) throw new Error(vscode.l10n.t("This port forward is not active"));
-        return this.openBrowser(pf.localPort);
+        return this.sessions.openBrowser(pf.localPort);
       }
       case "stop":
         this.d.portForwards.stop(ref.name);
@@ -238,15 +221,13 @@ export class ResourceActions {
         return;
       }
       case "values":
-        return this.values(context, ref);
-      case "manifest": {
-        const manifest = await this.d.helm.manifest(context, ref.namespace ?? "default", ref.name);
-        return this.d.documents.show(`${ref.name}-manifest.yaml`, manifest, "yaml");
-      }
+        return this.helmActions.values(context, ref);
+      case "manifest":
+        return this.helmActions.manifest(context, ref);
       case "rollback":
-        return this.rollback(context, ref);
+        return this.helmActions.rollback(context, ref);
       case "install":
-        return this.install(context, ref);
+        return this.helmActions.install(context, ref);
       case "reconcile":
       case "suspend":
       case "resume":
@@ -288,170 +269,6 @@ export class ResourceActions {
     if (!build) throw new Error(vscode.l10n.t("{0} does not support this action", descriptor.kindName));
     const obj = await this.fetch(context, ref);
     await this.d.client.patch(context, this.objectTarget(ref), build(obj, new Date().toISOString()));
-  }
-
-  // ---------------- Pods: containers, logs, shell ----------------
-
-  /** Picks a container; null means "all containers" (when allowed), undefined means cancelled. */
-  private async pickContainer(pod: KubeObject, allowAll: boolean, preset?: string): Promise<string | null | undefined> {
-    if (preset) return preset;
-    const containers: { name: string; init?: boolean }[] = [
-      ...(pod.spec?.initContainers ?? []).map((c: { name: string }) => ({ name: c.name, init: true })),
-      ...(pod.spec?.containers ?? []),
-    ];
-    if (containers.length === 1) return containers[0].name;
-    const items = [
-      ...(allowAll ? [{ label: `$(list-flat) ${vscode.l10n.t("All containers")}`, value: null as string | null }] : []),
-      ...containers
-        .filter((c) => allowAll || !c.init)
-        .map((c) => ({ label: `$(symbol-misc) ${c.name}`, description: c.init ? "init" : undefined, value: c.name as string | null })),
-    ];
-    const pick = await vscode.window.showQuickPick(items, {
-      title: vscode.l10n.t("Container of {0}", pod.metadata.name),
-      placeHolder: vscode.l10n.t("Pick a container"),
-    });
-    return pick ? pick.value : undefined;
-  }
-
-  private async logs(context: string, ref: ResourceRef, preset?: string): Promise<void> {
-    if (ref.resource !== "pods") return this.workloadLogs(context, ref, preset);
-    const pod = await this.fetch(context, ref);
-    const container = await this.pickContainer(pod, true, preset);
-    if (container === undefined) return;
-    const restarts = (pod.status?.containerStatuses ?? []).find((s: { name: string }) => s.name === container)?.restartCount ?? 0;
-    let previous = false;
-    if (container && restarts > 0) {
-      const pick = await vscode.window.showQuickPick(
-        [
-          { label: `$(play) ${vscode.l10n.t("Current container")}`, value: false },
-          {
-            label: `$(history) ${vscode.l10n.t("Previous container")}`,
-            description: vscode.l10n.t("{0} restart(s)", restarts),
-            value: true,
-          },
-        ],
-        { title: vscode.l10n.t("Which logs?") },
-      );
-      if (!pick) return;
-      previous = pick.value;
-    }
-    this.d.terminals.showLogs(context, {
-      namespace: ref.namespace ?? "default",
-      pod: ref.name,
-      container: container ?? undefined,
-      previous,
-      follow: true,
-      tailLines: config.logTailLines(),
-    });
-  }
-
-  /** The logs of every pod of a workload, like stern: kubectl logs -l <selector> --prefix. */
-  private async workloadLogs(context: string, ref: ResourceRef, preset?: string): Promise<void> {
-    const obj = await this.fetch(context, ref);
-    const kind = this.d.registry.require(ref.resource).kindName;
-    const selector = selectorString(obj.spec?.selector?.matchLabels);
-    if (!selector) throw new Error(vscode.l10n.t("{0} {1} has no label selector", kind, display(ref)));
-    const template: KubeObject = { metadata: obj.metadata, spec: obj.spec?.template?.spec };
-    const container = await this.pickContainer(template, true, preset);
-    if (container === undefined) return;
-    this.d.terminals.showLogs(context, {
-      namespace: ref.namespace ?? "default",
-      pod: `${kind.toLowerCase()}/${ref.name}`,
-      selector,
-      container: container ?? undefined,
-      previous: false,
-      follow: true,
-      tailLines: config.logTailLines(),
-    });
-  }
-
-  /** An ephemeral container (kubectl debug), sharing the processes of a container of the pod. */
-  private async debug(context: string, ref: ResourceRef, preset?: string): Promise<void> {
-    const pod = await this.fetch(context, ref);
-    const container = await this.pickContainer(pod, false, preset);
-    if (!container) return;
-    const images = [...new Set([config.debugImage(), ...DEBUG_IMAGES])];
-    const pick = await vscode.window.showQuickPick(
-      [
-        ...images.map((image) => ({ label: `$(package) ${image}`, image })),
-        { label: `$(edit) ${vscode.l10n.t("Other image...")}`, image: "" },
-      ],
-      {
-        title: vscode.l10n.t("Debug container for {0}", `${ref.name} › ${container}`),
-        placeHolder: vscode.l10n.t("Image of the ephemeral container"),
-      },
-    );
-    if (!pick) return;
-    let image = pick.image;
-    if (!image) {
-      const value = await vscode.window.showInputBox({
-        title: vscode.l10n.t("Image of the ephemeral container"),
-        placeHolder: "registry/image:tag",
-        validateInput: (v) => (/^\S+$/.test(v.trim()) ? undefined : vscode.l10n.t("An image reference")),
-      });
-      if (!value) return;
-      image = value.trim();
-    }
-    const confirmed = await this.d.guard.confirm(context, {
-      question: vscode.l10n.t("Add a debug container to {0}?", display(ref)),
-      detail: vscode.l10n.t("Image {0}, sharing the processes of {1}. Context: {2}", image, container, context),
-      verb: vscode.l10n.t("Debug"),
-      expected: ref.name,
-      modal: false,
-    });
-    if (!confirmed) return;
-    if (!this.d.terminals.showDebug(context, ref.namespace ?? "default", ref.name, container, image)) {
-      void vscode.window.showInformationMessage(vscode.l10n.t("Debug containers are not available on the demo cluster."));
-    }
-  }
-
-  /** A root shell on a node: a privileged pod in its namespaces (nsenter), deleted when the shell exits. */
-  private async nodeShell(context: string, ref: ResourceRef): Promise<void> {
-    const image = config.debugImage();
-    const confirmed = await this.d.guard.confirm(context, {
-      question: vscode.l10n.t("Open a root shell on node {0}?", ref.name),
-      detail: vscode.l10n.t(
-        "A privileged pod of image {0}, in kube-system, enters the namespaces of the node; it is deleted when you exit the shell. Context: {1}",
-        image,
-        context,
-      ),
-      verb: vscode.l10n.t("Open Shell"),
-      expected: ref.name,
-      modal: true,
-    });
-    if (!confirmed) return;
-    if (!this.d.terminals.showNodeShell(context, ref.name, image))
-      void vscode.window.showInformationMessage(vscode.l10n.t("Node shells are not available on the demo cluster."));
-  }
-
-  /** kubectl drain, in a terminal: it can take minutes (disruption budgets), and stops with Ctrl+C. */
-  private async drain(context: string, refs: ResourceRef[]): Promise<void> {
-    const nodes = refs.map((r) => r.name);
-    const confirmed = await this.d.guard.confirm(context, {
-      question: nodes.length === 1 ? vscode.l10n.t("Drain node {0}?", nodes[0]) : vscode.l10n.t("Drain {0} nodes?", nodes.length),
-      detail: [
-        ...(nodes.length > 1 ? [listed(refs), ""] : []),
-        vscode.l10n.t(
-          "Cordons, then evicts every pod but those of DaemonSets (the data of emptyDir volumes is lost); disruption budgets are respected. Follow it in the terminal.",
-        ),
-        vscode.l10n.t("Context: {0}", context),
-      ].join("\n"),
-      verb: vscode.l10n.t("Drain"),
-      expected: nodes.length === 1 ? nodes[0] : shortContextName(context),
-      modal: true,
-    });
-    if (!confirmed) return;
-    if (!this.d.terminals.showDrain(context, nodes))
-      void vscode.window.showInformationMessage(vscode.l10n.t("Draining is not available on the demo cluster."));
-  }
-
-  private async shell(context: string, ref: ResourceRef, preset?: string): Promise<void> {
-    const pod = await this.fetch(context, ref);
-    const container = await this.pickContainer(pod, false, preset);
-    if (!container) return;
-    if (!this.d.terminals.showShell(context, ref.namespace ?? "default", ref.name, container)) {
-      void vscode.window.showInformationMessage(vscode.l10n.t("Shells are not available on the demo cluster."));
-    }
   }
 
   // ---------------- Workloads ----------------
@@ -497,183 +314,6 @@ export class ResourceActions {
     await this.d.client.restart(context, this.objectTarget(ref));
     void vscode.window.showInformationMessage(vscode.l10n.t("{0} restarted.", display(ref)));
     this.d.store.refresh(context);
-  }
-
-  // ---------------- Port forwarding ----------------
-
-  private async portForward(context: string, ref: ResourceRef): Promise<void> {
-    const obj = await this.fetch(context, ref);
-    const resource: ForwardedResource = ref.resource === "services" ? "services" : "pods";
-    const ports: { port: number; label: string }[] =
-      resource === "services"
-        ? (obj.spec?.ports ?? []).map((p: { port: number; name?: string; targetPort?: number | string; protocol?: string }) => ({
-            port: p.port,
-            label: `${p.port}${p.name ? ` (${p.name})` : ""} → ${p.targetPort ?? p.port}/${p.protocol ?? "TCP"}`,
-          }))
-        : (obj.spec?.containers ?? []).flatMap((c: { name: string; ports?: { containerPort: number; name?: string }[] }) =>
-            (c.ports ?? []).map((p) => ({ port: p.containerPort, label: `${p.containerPort}${p.name ? ` (${p.name})` : ""} — ${c.name}` })),
-          );
-    const pick = await vscode.window.showQuickPick(
-      [
-        ...ports.map((p) => ({ label: `$(plug) ${p.label}`, port: p.port })),
-        { label: `$(edit) ${vscode.l10n.t("Other port...")}`, port: 0 },
-      ],
-      {
-        title: vscode.l10n.t("Forward a port of {0}", display(ref)),
-        placeHolder: ports.length ? vscode.l10n.t("Remote port") : vscode.l10n.t("No declared port: enter one"),
-      },
-    );
-    if (!pick) return;
-    let remote = pick.port;
-    if (!remote) {
-      const value = await vscode.window.showInputBox({
-        title: vscode.l10n.t("Remote port"),
-        validateInput: (s) => (isPort(s) ? undefined : vscode.l10n.t("A port between 1 and 65535")),
-      });
-      if (!value) return;
-      remote = Number(value);
-    }
-    const local = await vscode.window.showInputBox({
-      title: vscode.l10n.t("Local port for {0}:{1}", display(ref), remote),
-      prompt: vscode.l10n.t("Leave empty to let kubectl pick a free port"),
-      value: String(suggestLocalPort(remote)),
-      validateInput: (s) => (s === "" || isPort(s) ? undefined : vscode.l10n.t("A port between 1 and 65535, or empty")),
-    });
-    if (local === undefined) return;
-    const pf = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Forwarding {0}:{1}...", display(ref), remote) },
-      () => this.d.portForwards.start(context, ref.namespace ?? "default", resource, ref.name, remote, local ? Number(local) : 0),
-    );
-    void this.announce(pf);
-  }
-
-  private async announce(pf: PortForward): Promise<void> {
-    const url = `http://localhost:${pf.localPort}`;
-    const open = vscode.l10n.t("Open in Browser");
-    const copy = vscode.l10n.t("Copy URL");
-    const choice = await vscode.window.showInformationMessage(
-      vscode.l10n.t("{0}:{1} is available at {2}", `${pf.namespace}/${pf.name}`, pf.remotePort, url),
-      open,
-      copy,
-    );
-    if (choice === open) await this.openBrowser(pf.localPort!);
-    if (choice === copy) await this.copyText(url);
-  }
-
-  private async openBrowser(port: number): Promise<void> {
-    // asExternalUri: in WSL or remote sessions, VS Code exposes the port on the client machine.
-    const uri = await vscode.env.asExternalUri(vscode.Uri.parse(`http://localhost:${port}`));
-    await vscode.env.openExternal(uri);
-  }
-
-  // ---------------- Helm ----------------
-
-  private async values(context: string, ref: ResourceRef): Promise<void> {
-    if (ref.resource === "helmcharts") {
-      const chart = await this.fetch(context, ref);
-      const values = await this.d.helm.showChart(ref.name, "values", chart.helm.version);
-      return this.d.documents.show(`${ref.name.replace("/", "-")}-${chart.helm.version}-values.yaml`, values, "yaml");
-    }
-    const pick = await vscode.window.showQuickPick(
-      [
-        { label: `$(person) ${vscode.l10n.t("User-supplied values")}`, description: "helm get values", all: false },
-        { label: `$(list-tree) ${vscode.l10n.t("All computed values")}`, description: "helm get values --all", all: true },
-      ],
-      { title: vscode.l10n.t("Values of {0}", display(ref)) },
-    );
-    if (!pick) return;
-    const values = await this.d.helm.values(context, ref.namespace ?? "default", ref.name, pick.all);
-    return this.d.documents.show(`${ref.name}-values${pick.all ? "-all" : ""}.yaml`, values, "yaml");
-  }
-
-  private async rollback(context: string, ref: ResourceRef): Promise<void> {
-    const namespace = ref.namespace ?? "default";
-    const history = await this.d.helm.history(context, namespace, ref.name);
-    const current = history.at(-1)?.revision;
-    const pick = await vscode.window.showQuickPick(
-      [...history]
-        .reverse()
-        .filter((h) => h.revision !== current)
-        .map((h) => ({
-          label: `$(history) ${vscode.l10n.t("Revision {0}", h.revision)}`,
-          description: `${h.chart} · ${h.status}`,
-          detail: `${h.description} — ${new Date(h.updated).toLocaleString()}`,
-          revision: h.revision,
-        })),
-      {
-        title: vscode.l10n.t("Roll back {0} (current revision: {1})", display(ref), current ?? "?"),
-        placeHolder: vscode.l10n.t("Target revision"),
-      },
-    );
-    if (!pick) return;
-    const confirmed = await this.d.guard.confirm(context, {
-      question: vscode.l10n.t("Roll {0} back to revision {1}?", display(ref), pick.revision),
-      detail: vscode.l10n.t("Context: {0}\nhelm rollback creates a new revision.", context),
-      verb: vscode.l10n.t("Roll Back"),
-      expected: ref.name,
-      modal: true,
-    });
-    if (!confirmed) return;
-    await this.d.helm.rollback(context, namespace, ref.name, pick.revision);
-    void vscode.window.showInformationMessage(vscode.l10n.t("{0} rolled back to revision {1}.", display(ref), pick.revision));
-    this.d.store.refresh(context);
-  }
-
-  private async install(context: string, ref: ResourceRef): Promise<void> {
-    const chart = await this.fetch(context, ref);
-    const release = await vscode.window.showInputBox({
-      title: vscode.l10n.t("Install {0} {1}", ref.name, chart.helm.version),
-      prompt: vscode.l10n.t("Release name"),
-      value: chart.helm.chart,
-      validateInput: (s) =>
-        RELEASE_NAME.test(s) ? undefined : vscode.l10n.t("Lowercase letters, digits and dashes, 53 characters at most"),
-    });
-    if (!release) return;
-    const namespace = await vscode.window.showInputBox({
-      title: vscode.l10n.t("Namespace"),
-      value: "default",
-      validateInput: (s) => (NAMESPACE_NAME.test(s) ? undefined : vscode.l10n.t("Invalid namespace name")),
-    });
-    if (!namespace) return;
-    const valuesPick = await vscode.window.showQuickPick(
-      [
-        { label: `$(check) ${vscode.l10n.t("Default values of the chart")}`, file: false },
-        { label: `$(file) ${vscode.l10n.t("Pick a values.yaml file...")}`, file: true },
-      ],
-      { title: vscode.l10n.t("Values") },
-    );
-    if (!valuesPick) return;
-    let valuesFile: string | undefined;
-    if (valuesPick.file) {
-      const files = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { YAML: ["yaml", "yml"] }, title: "values.yaml" });
-      if (!files?.length) return;
-      valuesFile = files[0].fsPath;
-    }
-    const installLabel = vscode.l10n.t("Install");
-    const detail = [
-      vscode.l10n.t("Namespace: {0}", namespace),
-      vscode.l10n.t("Context: {0}", context),
-      valuesFile ? vscode.l10n.t("Values: {0}", valuesFile) : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    const confirmed = await this.d.guard.confirm(context, {
-      question: vscode.l10n.t('Install {0} {1} as "{2}"?', ref.name, chart.helm.version, release),
-      detail,
-      verb: installLabel,
-      expected: release,
-      modal: true,
-    });
-    if (!confirmed) return;
-    const output = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Installing {0}...", release) },
-      () => this.d.helm.install(context, namespace, release, ref.name, chart.helm.version, valuesFile),
-    );
-    this.d.log.info(output);
-    this.d.store.refresh(context);
-    const showReleases = vscode.l10n.t("Show Releases");
-    const choice = await vscode.window.showInformationMessage(vscode.l10n.t("{0} installed in {1}.", release, namespace), showReleases);
-    if (choice === showReleases) await vscode.commands.executeCommand("kubexplorer.openResource", "helmreleases");
   }
 
   // ---------------- Bulk actions and deletion ----------------
@@ -725,7 +365,7 @@ export class ResourceActions {
           );
         }
         case "drain":
-          return await this.drain(context, refs);
+          return await this.sessions.drain(context, refs);
         default:
           throw new Error(vscode.l10n.t("This action applies to one object at a time"));
       }

@@ -4,5 +4,5 @@
   "project": ["src/**/*.ts", "dev/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs"],
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["@fontsource/roboto", "@vscode/codicons", "@vscode/test-electron"],
-  "ignoreBinaries": ["kubectl", "helm", "kind"]
+  "ignoreBinaries": ["kubectl", "helm"]
 }

@@ -9,6 +9,7 @@ import { type FluxOwner, fluxOwner, ownerLabel } from "../resources/fluxOwner";
 import type { ResourceRegistry } from "../resources/registry";
 import { forEachLimited } from "../shared/pool";
 import type { ResourceRef } from "../shared/view";
+import { display } from "./objects";
 
 export interface FluxGuardDeps {
   client: KubeClient;
@@ -25,10 +26,6 @@ const NOTHING: FluxPlan = { prepare: async () => {} };
 
 /** Objects read at the same time (a bulk action may change many). */
 const CONCURRENT_READS = 8;
-
-function display(ref: { namespace?: string; name: string }): string {
-  return ref.namespace ? `${ref.namespace}/${ref.name}` : ref.name;
-}
 
 export class FluxGuard {
   constructor(private readonly d: FluxGuardDeps) {}

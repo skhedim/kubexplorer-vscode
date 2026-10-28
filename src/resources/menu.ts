@@ -39,8 +39,8 @@ export const MENU: MenuEntry[] = [
     id: "workloads",
     label: "Workloads",
     icon: "package",
+    // No Overview entry: it was the Cluster page again.
     children: [
-      { id: "overview", label: "Overview", open: "overview" },
       { id: "pods", label: "Pods", open: "pods" },
       { id: "deployments", label: "Deployments", open: "deployments" },
       { id: "daemonsets", label: "Daemon Sets", open: "daemonsets" },

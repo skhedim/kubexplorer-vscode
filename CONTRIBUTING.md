@@ -70,6 +70,9 @@ Integration tests and screenshot scripts only ever use `test/.kubeconfig-kind` a
 
 - **Layers**: only `src/vscode/` and `src/extension.ts` may import `vscode`; `src/resources`, `src/panel`,
   `src/shared` and `src/webview` must not use Node.js modules. ESLint enforces both.
+- **Clusters**: lists, watches and raw GETs go through one `kubectl proxy` per cluster (`src/kube/proxy.ts`, over
+  HTTP with `src/kube/api.ts` and `src/kube/informer.ts`); changes, logs, shells and fleet scans run kubectl commands
+  (`src/kube/kubectl.ts`).
 - **Strings**: user-facing text of the extension host goes through `vscode.l10n.t()`; strings of `package.json` live
   in `package.nls.json` (a unit test checks that both match).
 - **Tests**: add unit tests next to the code you change (`test/unit/` mirrors `src/`). A new resource type gets a
@@ -84,7 +87,7 @@ Integration tests and screenshot scripts only ever use `test/.kubeconfig-kind` a
 2. Run `npm run check` (and `npm run test:integration` when you touch `src/vscode` or kubectl calls).
 3. Update `CHANGELOG.md` under **Unreleased** for user-visible changes.
 4. Open the pull request and fill in the template. CI runs the checks on Linux, macOS and Windows, plus the
-   integration tests against a kind cluster.
+   integration tests against a kind cluster with the Flux and Karpenter add-ons, and the mini fleet.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`…).
 

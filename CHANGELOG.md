@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
 
 - Usage charts over time (CPU, memory, network, filesystem) in the details of pods, workloads and nodes, with
@@ -49,6 +51,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- The Workloads menu has no Overview entry any more: it opened the Cluster page.
 - The lists and watches of a cluster go through a single `kubectl proxy` (over a private Unix socket, read-only)
   instead of a kubectl process per list and per request: the Diagnostics page of the development cluster runs 1
   kubectl process instead of 16 (40 MB instead of 690 MB) and loads in 1 s instead of 4. A watch ended by the
@@ -100,5 +103,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Port forwarding from pods and services.
 - Workspace Trust support, localizable strings, VS Code and Freelens appearances.
 
-[Unreleased]: https://github.com/skhedim/kubexplorer-vscode/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/skhedim/kubexplorer-vscode/releases/tag/v0.1.0
+[Unreleased]: https://github.com/skhedim/kubexplorer-vscode/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/skhedim/kubexplorer-vscode/releases/tag/v0.2.0
+[0.1.0]: https://github.com/skhedim/kubexplorer-vscode/tree/92648a6
