@@ -5,10 +5,17 @@ import type { KubeObject } from "../kube/types";
 import type { Cell, Tone } from "../shared/view";
 import { defineResource, relatedOf, type RowContext } from "./descriptor";
 
+/**
+ * metrics-server measures every 15 s by default (--metric-resolution): reading the metrics more often only
+ * returns the same values again.
+ */
+const METRICS_RESOLUTION_MS = 15_000;
+
 export const podmetrics = defineResource({
   id: "podmetrics",
   kubectlName: "pods.metrics.k8s.io",
   title: "Pod Metrics",
+  minPollIntervalMs: METRICS_RESOLUTION_MS,
   kindName: "PodMetrics",
   namespaced: true,
   commonActions: [],
@@ -17,6 +24,7 @@ export const nodemetrics = defineResource({
   id: "nodemetrics",
   kubectlName: "nodes.metrics.k8s.io",
   title: "Node Metrics",
+  minPollIntervalMs: METRICS_RESOLUTION_MS,
   kindName: "NodeMetrics",
   namespaced: false,
   commonActions: [],

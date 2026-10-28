@@ -61,8 +61,42 @@ describe("FleetScanner", () => {
     const fake = fakeClient({ unreachable: ["prod-2"] });
     const scanner = setup(fake.client);
     await scanner.scan();
-    expect(scanner.get("prod-2")).toMatchObject({ status: "error", error: "Unable to connect to the server: i/o timeout" });
-    expect(scanner.oldestScan()).toBeUndefined();
+    expect(scanner.get("prod-2")).toMatchObject({
+      status: "error",
+      error: "Unable to connect to the server: i/o timeout",
+      checkedAt: 1_000_000,
+    });
+    expect(scanner.get("prod-2")!.at).toBeUndefined();
+    // An unreachable cluster was checked too: the fleet is not "never scanned" because of it.
+    expect(scanner.oldestCheck()).toBe(1_000_000);
+  });
+
+  it("remembers the kinds a cluster does not serve, and asks again after a while or when forced", async () => {
+    const fake = fakeClient({ withoutFlux: ["dev-3"] });
+    let now = 1_000_000;
+    const scanner = setup(fake.client, () => now);
+    const asked = () => fake.calls.filter((c) => c.context === "dev-3").at(-1)!.kinds;
+    await scanner.scan(["dev-3"]);
+    expect(asked()).toHaveLength(7);
+    // kubectl reports a missing CRD one at a time: without this, a cluster without Flux costs 7 requests per scan.
+    await scanner.scan(["dev-3"]);
+    expect(asked()).toEqual(["Node"]);
+    expect(scanner.get("dev-3")!.flux!.installed).toBe(false);
+    await scanner.scan(["dev-3"], { force: true });
+    expect(asked()).toHaveLength(7);
+    await scanner.scan(["dev-3"]);
+    expect(asked()).toEqual(["Node"]);
+    now += 11 * 60_000;
+    await scanner.scan(["dev-3"]);
+    expect(asked()).toHaveLength(7);
+  });
+
+  it("reads the versions of the controllers again when the scan is forced", async () => {
+    const fake = fakeClient();
+    const scanner = setup(fake.client);
+    await scanner.scan(["prod-1"]);
+    await scanner.scan(["prod-1"], { force: true });
+    expect(fake.calls.filter((c) => c.namespace === "flux-system")).toHaveLength(2);
   });
 
   it("joins a scan in progress rather than starting another one", async () => {

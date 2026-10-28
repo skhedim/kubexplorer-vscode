@@ -16,10 +16,18 @@ function releaseStatusTone(status: string): Tone {
 
 const statusCell = (o: KubeObject): Cell => text(o.helm.status, releaseStatusTone(o.helm.status));
 
+/**
+ * Helm lists cannot be watched: they are polled, at most once a minute. `helm list` decodes every release Secret of
+ * the cluster, and the charts of the repositories change only with `helm repo update`. An action on a release
+ * refreshes the list right away.
+ */
+const HELM_POLL_MS = 60_000;
+
 export const helmreleases = defineResource({
   id: "helmreleases",
   kubectlName: HELM_RELEASES,
   title: "Releases",
+  minPollIntervalMs: HELM_POLL_MS,
   kindName: "Release",
   namespaced: true,
   ageTitle: "Updated",
@@ -94,6 +102,7 @@ export const helmcharts = defineResource({
   id: "helmcharts",
   kubectlName: HELM_CHARTS,
   title: "Charts",
+  minPollIntervalMs: HELM_POLL_MS,
   kindName: "Chart",
   namespaced: false,
   showAge: false,

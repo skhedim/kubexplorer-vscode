@@ -137,6 +137,11 @@ export class ResourceStore implements Disposable {
     this.entries.delete(id);
   }
 
+  /** The poll interval of a list: the setting, but never below the floor of its kind. */
+  private pollIntervalMs(e: Entry): number {
+    return Math.max(this.opts.pollIntervalMs(), e.key.kind.minPollIntervalMs ?? 0);
+  }
+
   private schedule(e: Entry, delayMs: number): void {
     clearTimeout(e.timer);
     e.timer = setTimeout(() => void this.list(e), delayMs);
@@ -165,14 +170,14 @@ export class ResourceStore implements Disposable {
       }
       e.objects = next;
       this.emit(e, { loading: false, error: undefined, updatedAt: Date.now(), live: !!e.watch });
-      this.schedule(e, e.watch ? this.opts.resyncMs : this.opts.pollIntervalMs());
+      this.schedule(e, e.watch ? this.opts.resyncMs : this.pollIntervalMs(e));
     } catch (err) {
       if (generation !== e.generation || e.disposed) return;
       const error = errorMessage(err);
       this.log.warn(`Listing ${kind.kubectlName} (${context}) failed: ${error}`);
       // Keep the last known items: a network hiccup does not empty the screen.
       this.emit(e, { loading: false, error, live: false });
-      this.schedule(e, this.opts.pollIntervalMs());
+      this.schedule(e, this.pollIntervalMs(e));
     } finally {
       if (generation === e.generation) {
         e.inFlight = false;
@@ -203,13 +208,13 @@ export class ResourceStore implements Disposable {
         e.watchFailures = error && Date.now() - startedAt < IMMEDIATE_FAILURE_MS ? e.watchFailures + 1 : 0;
         if (e.watchFailures >= MAX_IMMEDIATE_FAILURES) {
           e.noWatch = true;
-          this.log.info(`${kind.kubectlName} (${context}) cannot be watched: polling every ${this.opts.pollIntervalMs() / 1000} s`);
+          this.log.info(`${kind.kubectlName} (${context}) cannot be watched: polling every ${this.pollIntervalMs(e) / 1000} s`);
         } else {
           this.log.info(`Watch of ${kind.kubectlName} (${context}) ended${error ? `: ${error}` : ""}; resuming with a full list`);
         }
         this.emit(e, { live: false });
         // A list in flight schedules the next one itself. Otherwise: full list (catches up), then a new watch.
-        if (!e.inFlight) this.schedule(e, error ? this.opts.pollIntervalMs() : 0);
+        if (!e.inFlight) this.schedule(e, error ? this.pollIntervalMs(e) : 0);
       },
     );
     if (handle) e.watch = handle;

@@ -100,8 +100,9 @@ export class FleetController {
         this.d.host.post({ type: "init", view: this.init(), appearance: this.d.appearance });
         this.start();
         break;
+      // Asked by the user: everything is read again, caches included.
       case "refresh":
-        void this.d.scanner.scan(this.contexts());
+        void this.d.scanner.scan(this.contexts(), { force: true });
         break;
       case "fleetState":
         if (msg.tab) this.tab = msg.tab;
@@ -111,7 +112,7 @@ export class FleetController {
         this.push();
         break;
       case "fleetRun":
-        if (msg.what === "scan") void this.d.scanner.scan(this.contexts());
+        if (msg.what === "scan") void this.d.scanner.scan(this.contexts(), { force: true });
         else if (msg.what === "diagnose") void this.d.scanner.diagnose(this.contexts());
         else this.runSearch(msg.query ?? "");
         break;
@@ -156,7 +157,7 @@ export class FleetController {
     if (!this.visible || !this.ready || this.subscription) return;
     this.subscription = this.d.scanner.onDidChange(() => this.schedulePush());
     this.push();
-    const oldest = this.d.scanner.oldestScan();
+    const oldest = this.d.scanner.oldestCheck();
     if (oldest === undefined || this.now() - oldest > this.d.refreshIntervalMs()) void this.d.scanner.scan();
     this.refreshTimer = setInterval(() => void this.d.scanner.scan(), this.d.refreshIntervalMs());
   }
@@ -196,8 +197,9 @@ export class FleetController {
     else if (this.tab === "diagnostics") data = diagnosticsData(scans, this.problemsOnly, now);
     else if (this.tab === "search") data = searchData(this.search.hits, this.search.searched, this.search.hits.length >= MAX_HITS);
     else data = clustersData(scans, this.group ? [this.group] : groups, this.problemsOnly, now);
-    const ats = scans.map((s) => s.at);
-    const oldest = ats.every((a) => a !== undefined) && ats.length ? Math.min(...(ats as number[])) : undefined;
+    // The oldest attempt, successful or not: an unreachable cluster was checked too.
+    const checks = scans.map((s) => s.checkedAt);
+    const oldest = checks.every((c) => c !== undefined) && checks.length ? Math.min(...(checks as number[])) : undefined;
     return {
       tab: this.tab,
       groups,

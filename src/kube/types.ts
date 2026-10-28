@@ -38,6 +38,11 @@ export interface ContextInfo {
 export interface KindTarget {
   kubectlName: string;
   namespaced: boolean;
+  /**
+   * When the kind cannot be watched, it is never polled more often than this (ms), whatever the poll interval
+   * setting: what changes slowly or costs much to read (metrics, Helm releases).
+   */
+  minPollIntervalMs?: number;
 }
 
 export interface ObjectTarget extends KindTarget {

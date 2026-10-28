@@ -84,7 +84,9 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
   private readonly cache = new Map<string, { content: Uint8Array; mtime: number }>();
   /** Documents being saved by apply(), after their review: writeFile does not ask again. */
   private readonly approved = new Set<string>();
-  private readonly subscription: vscode.Disposable;
+  /** Why each document is being saved (onWillSaveTextDocument): writeFile tells auto saves from explicit ones. */
+  private readonly saveReasons = new Map<string, vscode.TextDocumentSaveReason>();
+  private readonly subscriptions: vscode.Disposable[];
 
   constructor(
     private readonly client: KubeClient,
@@ -94,7 +96,12 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
     private readonly guard: ContextGuard,
     private readonly log: Logger,
   ) {
-    this.subscription = vscode.workspace.onDidCloseTextDocument((doc) => this.cache.delete(doc.uri.toString()));
+    this.subscriptions = [
+      vscode.workspace.onDidCloseTextDocument((doc) => this.cache.delete(doc.uri.toString())),
+      vscode.workspace.onWillSaveTextDocument((e) => {
+        if (e.document.uri.scheme === YAML_SCHEME) this.saveReasons.set(e.document.uri.toString(), e.reason);
+      }),
+    ];
   }
 
   watch(): vscode.Disposable {
@@ -188,11 +195,20 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
   async writeFile(uri: vscode.Uri, content: Uint8Array): Promise<void> {
     const { context, ref } = objectTarget(this.registry, uri);
     const edited = new TextDecoder().decode(content);
+    const key = uri.toString();
+    const reason = this.saveReasons.get(key);
+    this.saveReasons.delete(key);
+    const approved = this.approved.has(key);
     // Throwing cancels the save: the document stays dirty and nothing is sent.
     if (this.guard.protection(context) === "readOnly")
       throw vscode.FileSystemError.NoPermissions(vscode.l10n.t("{0} is read-only (kubexplorer.protectedContexts)", context));
-    // Saves that do not go through apply() (File > Save, auto save) are reviewed here.
-    const approved = this.approved.has(uri.toString());
+    // Auto save (files.autoSave: after a delay, or when the editor loses focus) never reaches the cluster: it would
+    // apply half-typed YAML, or ask for a review at every pause. Only explicit saves apply (Ctrl+S, File > Save).
+    if (!approved && reason !== undefined && reason !== vscode.TextDocumentSaveReason.Manual)
+      throw vscode.FileSystemError.NoPermissions(
+        vscode.l10n.t("Auto save does not apply changes to the cluster: press Ctrl+S to review and apply them"),
+      );
+    // Explicit saves that do not go through apply() (File > Save, Save All) are reviewed here.
     if (!approved && this.needsConfirmation(context) && !(await this.confirmChanges(uri, context, ref, edited)))
       throw vscode.FileSystemError.NoPermissions(vscode.l10n.t("Changes not applied"));
     try {
@@ -258,7 +274,7 @@ export class ResourceFileSystem implements vscode.FileSystemProvider, vscode.Dis
   }
 
   dispose(): void {
-    this.subscription.dispose();
+    this.subscriptions.forEach((s) => s.dispose());
     this.emitter.dispose();
   }
 }

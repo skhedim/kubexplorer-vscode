@@ -653,6 +653,7 @@
         "kubexplorer.confirmApply": {
           "type": "boolean",
           "default": true,
+          "scope": "machine",
           "markdownDescription": "%config.confirmApply%"
         },
         "kubexplorer.protectedContexts": {
@@ -663,6 +664,7 @@
           "default": [
             "*prod*"
           ],
+          "scope": "machine",
           "markdownDescription": "%config.protectedContexts%"
         },
         "kubexplorer.protectedContextsMode": {
@@ -676,6 +678,7 @@
             "%config.protectedContextsMode.readOnly%"
           ],
           "default": "confirm",
+          "scope": "machine",
           "markdownDescription": "%config.protectedContextsMode%"
         },
         "kubexplorer.logs.tailLines": {

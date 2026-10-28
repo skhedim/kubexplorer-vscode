@@ -1,6 +1,8 @@
 // Reads the clusters of the fleet, a bounded number at a time, and keeps a compact summary of each.
 // - Scan: one request per cluster for its nodes and Flux objects (kubectl get a,b,c), plus the versions of the Flux
-//   controllers, read again only every COMPONENTS_TTL_MS (they rarely change).
+//   controllers, read again only every COMPONENTS_TTL_MS (they rarely change). The kinds a cluster does not serve are
+//   not asked again before MISSING_TTL_MS: kubectl reports a missing CRD one at a time, so a cluster without Flux
+//   would otherwise cost a request per Flux kind at every scan. A scan asked by the user bypasses both caches.
 // - Diagnostics and search: on demand only, as they read more (pods, workloads…).
 // Nothing runs on its own: the Fleet tab asks for scans while it is visible. VS Code-agnostic, unit tested.
 
@@ -44,6 +46,8 @@ export interface FleetProgress {
 
 /** Versions of the Flux controllers are read again after… */
 const COMPONENTS_TTL_MS = 10 * 60_000;
+/** Kinds a cluster does not serve (CRD not installed) are asked again after… */
+const MISSING_TTL_MS = 10 * 60_000;
 /** Kinds of the fleet diagnostics: ConfigMaps and Secrets are left out, as they can be large (dashboards, Helm releases). */
 const DIAGNOSTIC_KINDS = diagnosticsPage.resources.filter((r) => r !== "configmaps" && r !== "secrets");
 /** Hits kept by a search, at most. */
@@ -53,6 +57,8 @@ export class FleetScanner {
   private readonly scans = new Map<string, ClusterScan>();
   private readonly listeners = new Set<() => void>();
   private readonly componentsAt = new Map<string, number>();
+  /** Per cluster: the kinds it does not serve, and when that was learnt. */
+  private readonly missingKinds = new Map<string, { kinds: Set<string>; at: number }>();
   private scanning?: Promise<void>;
   private searchGeneration = 0;
   private diagnosing?: Promise<void>;
@@ -91,10 +97,13 @@ export class FleetScanner {
     return [...this.progress.values()];
   }
 
-  /** End of the oldest scan of the members, undefined while one was never scanned. */
-  oldestScan(): number | undefined {
-    const ats = this.list().map((s) => s.at);
-    return ats.some((a) => a === undefined) ? undefined : Math.min(...(ats as number[]));
+  /**
+   * End of the oldest scan attempt of the members, successful or not, undefined while one was never attempted.
+   * An unreachable cluster is checked like the others: it must not make the whole fleet look never scanned.
+   */
+  oldestCheck(): number | undefined {
+    const checks = this.list().map((s) => s.checkedAt);
+    return checks.some((c) => c === undefined) ? undefined : Math.min(...(checks as number[]));
   }
 
   private kinds(ids: readonly string[]): NamedKind[] {
@@ -143,32 +152,46 @@ export class FleetScanner {
     }
   }
 
-  /** Scans the given clusters (every member by default); a scan in progress is joined rather than doubled. */
-  scan(contexts?: string[]): Promise<void> {
+  /**
+   * Scans the given clusters (every member by default); a scan in progress is joined rather than doubled.
+   * force: asked by the user, it reads everything again (missing kinds, versions of the Flux controllers).
+   */
+  scan(contexts?: string[], opts: { force?: boolean } = {}): Promise<void> {
     if (this.scanning) return this.scanning;
     const targets = contexts ?? this.d.members().map((m) => m.context);
-    this.scanning = this.run("scan", "Scanning", targets, this.d.concurrency(), (c) => this.scanOne(c)).finally(
+    this.scanning = this.run("scan", "Scanning", targets, this.d.concurrency(), (c) => this.scanOne(c, !!opts.force)).finally(
       () => (this.scanning = undefined),
     );
     return this.scanning;
   }
 
-  private async scanOne(context: string): Promise<void> {
+  private async scanOne(context: string, force: boolean): Promise<void> {
     const started = this.now();
     this.update(context, { scanning: true });
     this.changed();
     try {
       const fluxKinds = this.kinds(FLEET_FLUX_KINDS);
       const [nodesKind] = this.kinds(["nodes"]);
-      const { items, missing } = await this.d.client.listMany(context, [nodesKind, ...fluxKinds]);
+      const known = this.missingKinds.get(context);
+      const fresh = !force && !!known && this.now() - known.at < MISSING_TTL_MS;
+      const skipped = fresh ? known!.kinds : new Set<string>();
+      const { items, missing } = await this.d.client.listMany(context, [
+        nodesKind,
+        ...fluxKinds.filter((k) => !skipped.has(k.kubectlName)),
+      ]);
+      const absent = new Set([...skipped, ...missing]);
+      // Learnt from a request that asked for every kind; a CRD removed since only adds to what is known.
+      if (fresh) missing.forEach((m) => known!.kinds.add(m));
+      else this.missingKinds.set(context, { kinds: absent, at: this.now() });
       const flux: Record<string, { kind: string; items: KubeObject[] } | undefined> = {};
       FLEET_FLUX_KINDS.forEach((id, i) => {
         const k = fluxKinds[i];
-        if (!missing.includes(k.kubectlName)) flux[id] = { kind: k.kindName, items: items[k.kubectlName] ?? [] };
+        if (!absent.has(k.kubectlName)) flux[id] = { kind: k.kindName, items: items[k.kubectlName] ?? [] };
       });
       const summary = summarizeCluster({ nodes: items[nodesKind.kubectlName], flux });
       let components = this.scans.get(context)?.flux?.components;
-      if (summary.flux?.installed && (!components || this.now() - (this.componentsAt.get(context) ?? 0) > COMPONENTS_TTL_MS)) {
+      const stale = force || !components || this.now() - (this.componentsAt.get(context) ?? 0) > COMPONENTS_TTL_MS;
+      if (summary.flux?.installed && stale) {
         const [deploymentsKind] = this.kinds(["deployments"]);
         const deployments = await this.d.client.listMany(context, [deploymentsKind], { namespace: "flux-system" });
         components = fluxComponents(deployments.items[deploymentsKind.kubectlName] ?? []);
@@ -181,12 +204,13 @@ export class FleetScanner {
         error: undefined,
         scanning: false,
         at: this.now(),
+        checkedAt: this.now(),
         ms: this.now() - started,
       });
     } catch (err) {
       const error = errorMessage(err).split("\n")[0];
       this.d.log.warn(`Fleet: cannot scan ${context}: ${error}`);
-      this.update(context, { status: "error", error, scanning: false });
+      this.update(context, { status: "error", error, scanning: false, checkedAt: this.now() });
     }
   }
 

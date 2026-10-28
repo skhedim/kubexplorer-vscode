@@ -34,6 +34,13 @@ describe("package.json", () => {
     for (const action of ALL_ACTIONS) expect(hidden.has(`kubexplorer.resource.${action}`), action).toBe(true);
   });
 
+  it("keeps the safety settings out of the reach of workspace settings", () => {
+    // A repository could otherwise turn off the protection of production contexts in its .vscode/settings.json.
+    const properties = manifest.contributes.configuration.properties;
+    for (const key of ["kubexplorer.protectedContexts", "kubexplorer.protectedContextsMode", "kubexplorer.confirmApply"])
+      expect(properties[key].scope, key).toBe("machine");
+  });
+
   it("restricts executable paths in untrusted workspaces", () => {
     const restricted = manifest.capabilities.untrustedWorkspaces.restrictedConfigurations;
     expect(restricted).toEqual(["kubexplorer.kubectlPath", "kubexplorer.helmPath"]);

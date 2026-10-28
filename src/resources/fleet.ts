@@ -79,6 +79,8 @@ export interface ClusterScan {
   /** End of the last successful scan, and its duration (ms). */
   at?: number;
   ms?: number;
+  /** End of the last scan attempt, successful or not. */
+  checkedAt?: number;
   /** Distinct kubelet versions of the nodes. */
   kubernetes?: string[];
   nodes?: { ready: number; total: number };
@@ -186,9 +188,14 @@ export function fluxComponents(deployments: KubeObject[]): Record<string, string
   return out;
 }
 
-/** The version shown for Flux: the one of kustomize-controller, its core. */
-export function fluxVersion(components: Record<string, string> | undefined): string | undefined {
-  return components?.["kustomize-controller"] ?? Object.values(components ?? {})[0];
+/**
+ * The version shown for the Flux of a cluster: the one of kustomize-controller, its core, named as such
+ * ("kustomize v1.9.6"). Flux records only the versions of its controllers (v1.x) in the cluster, not its own (v2.x):
+ * a bare "v1.9.6" under "Flux" would read as the long gone Flux 1.
+ */
+export function fluxControllerVersion(components: Record<string, string> | undefined): string | undefined {
+  const name = components?.["kustomize-controller"] ? "kustomize-controller" : Object.keys(components ?? {})[0];
+  return name ? `${name.replace(/-controller$/, "")} ${components![name]}` : undefined;
 }
 
 /** Counts of the Flux objects of one kind in a cluster. */

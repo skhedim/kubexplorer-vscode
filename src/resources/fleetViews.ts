@@ -15,7 +15,7 @@ import type {
   Tone,
 } from "../shared/view";
 import type { Severity } from "./diagnostics";
-import { type ClusterScan, type FluxSummary, fluxVersion, isFailing, type MatrixRow, readyCount, type SearchHit } from "./fleet";
+import { type ClusterScan, type FluxSummary, fluxControllerVersion, isFailing, type MatrixRow, readyCount, type SearchHit } from "./fleet";
 import { formatAge } from "./format";
 
 /** Pseudo resources of the rows of the Fleet tab: their details are built here, not read from a cluster. */
@@ -105,7 +105,7 @@ function clusterRow(s: ClusterScan, now: number): Row {
     status: tag(status.text, status.tone, status.title),
     kubernetes: (s.kubernetes ?? []).join(", "),
     nodes: s.nodes ? ratio(s.nodes) : "",
-    flux: s.flux?.installed ? { text: fluxVersion(s.flux.components) ?? "?", title: components.join("\n") } : "",
+    flux: s.flux?.installed ? { text: fluxControllerVersion(s.flux.components) ?? "?", title: components.join("\n") } : "",
     kustomizations: ratio(ks),
     helmreleases: ratio(hr),
     revision: mainRevision(s) ? { text: mainRevision(s)!, mono: true } : "",
@@ -150,8 +150,8 @@ function summaryCard(title: string, scans: ClusterScan[]): OverviewCard {
     },
     { name: "Kubernetes", value: distribution(reachable.flatMap((s) => s.kubernetes ?? [])) || "—" },
     {
-      name: "Flux versions",
-      value: distribution(reachable.filter((s) => s.flux?.installed).map((s) => fluxVersion(s.flux?.components))) || "—",
+      name: "Flux controllers",
+      value: distribution(reachable.filter((s) => s.flux?.installed).map((s) => fluxControllerVersion(s.flux?.components))) || "—",
     },
   ];
   return { title, tag: { text: unreachable || failing ? plural(failingClusters.length + unreachable, "problem") : "OK", tone }, items };

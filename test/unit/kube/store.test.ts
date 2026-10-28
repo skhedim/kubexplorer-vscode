@@ -45,6 +45,26 @@ describe("ResourceStore", () => {
       expect(list).toHaveBeenCalledTimes(2);
     });
 
+    it("never polls a kind more often than its floor (metrics, Helm), whatever the setting", async () => {
+      const list = vi.fn(async () => [obj("a")]);
+      const store = new ResourceStore(pollingClient(list), { pollIntervalMs: () => 5000 }, nullLogger);
+      store.watch({ ...key, kind: { kubectlName: "pods.metrics.k8s.io", namespaced: true, minPollIntervalMs: 15_000 } }, () => undefined);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(14_999);
+      expect(list).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(list).toHaveBeenCalledTimes(2);
+      // A longer setting still wins over the floor.
+      const slow = vi.fn(async () => []);
+      const slowStore = new ResourceStore(pollingClient(slow), { pollIntervalMs: () => 30_000 }, nullLogger);
+      slowStore.watch(
+        { ...key, kind: { kubectlName: "pods.metrics.k8s.io", namespaced: true, minPollIntervalMs: 15_000 } },
+        () => undefined,
+      );
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(slow).toHaveBeenCalledTimes(1);
+    });
+
     it("stops when the last subscriber leaves", async () => {
       const list = vi.fn(async () => []);
       const store = new ResourceStore(pollingClient(list), { pollIntervalMs: () => 1000 }, nullLogger);

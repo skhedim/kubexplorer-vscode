@@ -62,7 +62,8 @@ leaving the editor.
   sharing the processes of a container, and attaches it to a terminal: for distroless images without a shell.
 - **YAML as a document**: edit any object in a real editor tab. **Ctrl+S** (or **Apply to Cluster** in the editor
   title) opens the diff against the object on the cluster, under a dialog to apply it (`kubectl replace`) or cancel.
-  Conflicts surface as regular save errors.
+  Conflicts surface as regular save errors. Auto save (`files.autoSave`) never applies anything to the cluster: only
+  an explicit save does (set `files.autoSaveWorkspaceFilesOnly` to keep VS Code from trying).
 - **Secrets**: values stay hidden; the eye button reveals one value at a time, on demand, and the pencil edits it in
   place (Ctrl+Enter saves). **Edit Decoded Values** opens the whole Secret with its values in clear, under
   `stringData`: no base64 to encode or decode.
@@ -117,7 +118,7 @@ Without a cluster at hand, run **KubeXplorer: Show/Hide Demo Cluster** to explor
 | `kubexplorer.kubectlPath`           | `kubectl`                                | Path to kubectl.                                                                                               |
 | `kubexplorer.helmPath`              | `helm`                                   | Path to helm.                                                                                                  |
 | `kubexplorer.watch`                 | `true`                                   | Follow lists in real time. When disabled, lists are polled.                                                    |
-| `kubexplorer.pollInterval`          | `5`                                      | Polling interval (seconds) for lists that cannot be watched.                                                   |
+| `kubexplorer.pollInterval`          | `5`                                      | Polling interval (seconds) for lists that cannot be watched; metrics at most every 15 s, Helm every minute.    |
 | `kubexplorer.reuseTab`              | `true`                                   | Reuse the current tab when opening another resource type.                                                      |
 | `kubexplorer.appearance`            | `vscode`                                 | `vscode` follows your color theme; `freelens` uses the Freelens dark palette.                                  |
 | `kubexplorer.confirmApply`          | `true`                                   | Ask before applying a saved YAML document.                                                                     |
@@ -147,6 +148,10 @@ Level...**).
 - Secret values are never sent to the UI, except the one you reveal, and are never stored.
 - In untrusted workspaces, `kubexplorer.kubectlPath` and `kubexplorer.helmPath` are ignored if set by the
   workspace, so opening a repository cannot make KubeXplorer run an arbitrary binary.
+- `kubexplorer.protectedContexts`, `kubexplorer.protectedContextsMode` and `kubexplorer.confirmApply` are user (or
+  remote) settings: the `.vscode/settings.json` of a repository cannot turn off the protection of your production
+  contexts or the review of the changes.
+- Auto save never applies a YAML document to the cluster.
 - No telemetry.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).

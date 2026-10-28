@@ -56,11 +56,28 @@ describe("FleetController", () => {
     // Nothing is read before the tab is visible.
     expect(fake.calls).toEqual([]);
     controller.setVisible(true);
-    await vi.waitFor(() => expect(last().progress).toBeUndefined());
-    await vi.waitFor(() => expect(last().data.tables[0].rows.find((r) => r.cells.cluster === "dev-1")).toBeDefined());
+    // Every cluster checked, the unreachable one included: the view tells when.
+    await vi.waitFor(() => expect(last().updated).toMatch(/^scanned \d+s ago$/));
+    const dev1 = last().data.tables[0].rows.find((r) => r.cells.cluster === "dev-1")!;
+    expect(dev1.cells.status).toMatchObject({ tags: [{ text: "Unreachable" }] });
     expect(last()).toMatchObject({ tab: "clusters", groups: ["prod", "dev"], group: null, clusters: 3 });
-    expect(last().updated).toBeUndefined();
     void start;
+  });
+
+  it("does not scan again when shown again while the scans are fresh, even with an unreachable cluster", async () => {
+    const { controller, last, fake } = setup({ unreachable: ["dev-1"] });
+    dispose = () => controller.dispose();
+    controller.onMessage({ type: "ready" });
+    controller.setVisible(true);
+    await vi.waitFor(() => expect(last().updated).toBeDefined());
+    const calls = fake.calls.length;
+    controller.setVisible(false);
+    controller.setVisible(true);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fake.calls.length).toBe(calls);
+    // The refresh button reads everything again, the versions of the Flux controllers included.
+    controller.onMessage({ type: "refresh" });
+    await vi.waitFor(() => expect(fake.calls.filter((c) => c.namespace === "flux-system").length).toBe(4));
   });
 
   it("filters a group, switches tabs, and keeps only the problems when asked", async () => {

@@ -212,6 +212,46 @@ describe("KubeXplorer in VS Code", function () {
     }
   });
 
+  it("never applies an auto save to the cluster, only an explicit save", async () => {
+    const files = vscode.workspace.getConfiguration("files");
+    await files.update("autoSave", "afterDelay", vscode.ConfigurationTarget.Global);
+    await files.update("autoSaveDelay", 200, vscode.ConfigurationTarget.Global);
+    // Even without the review of the changes, an auto save must not reach the cluster.
+    await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", false, vscode.ConfigurationTarget.Global);
+    const appEnv = () => kubectl("-n", "frontend", "get", "configmap", "web-app-config", "-o", "jsonpath={.data.APP_ENV}");
+    let doc: vscode.TextDocument | undefined;
+    try {
+      await vscode.commands.executeCommand("kubexplorer.resource.edit", {
+        context: CONTEXT,
+        ref: { resource: "configmaps", namespace: "frontend", name: "web-app-config" },
+      });
+      const editor = await waitFor(
+        () => vscode.window.visibleTextEditors.find((e) => e.document.uri.scheme === "kubexplorer"),
+        "YAML editor",
+      );
+      doc = editor.document;
+      const stamp = `typed-${Date.now()}`;
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(doc.uri, new vscode.Range(0, 0, doc.lineCount, 0), doc.getText().replace(/APP_ENV: \S+/, `APP_ENV: ${stamp}`));
+      await vscode.workspace.applyEdit(edit);
+      // Long enough for several auto saves.
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      assert.equal(appEnv(), "production");
+      assert.equal(doc.isDirty, true, "the changes stay in the editor, not applied");
+      await vscode.commands.executeCommand("kubexplorer.applyDocument");
+      assert.equal(appEnv(), stamp);
+    } finally {
+      if (doc?.isDirty) {
+        await vscode.window.showTextDocument(doc);
+        await vscode.commands.executeCommand("workbench.action.files.revert");
+      }
+      kubectl("-n", "frontend", "patch", "configmap", "web-app-config", "-p", '{"data":{"APP_ENV":"production"}}');
+      await files.update("autoSave", undefined, vscode.ConfigurationTarget.Global);
+      await files.update("autoSaveDelay", undefined, vscode.ConfigurationTarget.Global);
+      await vscode.workspace.getConfiguration("kubexplorer").update("confirmApply", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   it("opens kubectl describe as a read-only document", async () => {
     await vscode.commands.executeCommand("kubexplorer.resource.describe", {
       context: CONTEXT,

@@ -77,6 +77,15 @@ describe("registry", () => {
     expect(items.filter((i) => i.secretKey).map((i) => i.secretKey)).toEqual(Object.keys(secret.data));
   });
 
+  it("polls the lists that cannot be watched no more often than they change", () => {
+    // metrics-server measures every 15 s; helm list decodes every release Secret.
+    expect(registry.require("podmetrics").minPollIntervalMs).toBe(15_000);
+    expect(registry.require("nodemetrics").minPollIntervalMs).toBe(15_000);
+    expect(registry.require("helmreleases").minPollIntervalMs).toBe(60_000);
+    expect(registry.require("helmcharts").minPollIntervalMs).toBe(60_000);
+    expect(registry.require("pods").minPollIntervalMs).toBeUndefined();
+  });
+
   it("offers the logs of every workload with a selector, and decoded editing of Secrets", () => {
     for (const resource of ["deployments", "statefulsets", "daemonsets", "replicasets", "jobs"]) {
       for (const o of fixture(resource)) {

@@ -53,6 +53,7 @@
   "{0} cluster(s)": "{0} cluster(s)",
   "Changes not applied": "Changes not applied",
   "{0} is read-only (kubexplorer.protectedContexts)": "{0} is read-only (kubexplorer.protectedContexts)",
+  "Auto save does not apply changes to the cluster: press Ctrl+S to review and apply them": "Auto save does not apply changes to the cluster: press Ctrl+S to review and apply them",
   "Applied": "Applied",
   "{0}: cluster ↔ your changes": "{0}: cluster ↔ your changes",
   "Apply your changes to {0}?": "Apply your changes to {0}?",

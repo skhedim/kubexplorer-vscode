@@ -103,6 +103,8 @@ export interface ResourceSpec {
   /** Usage charts at the top of the drawer. */
   metrics?(o: KubeObject, ctx: DetailContext): Promise<MetricsScope | undefined>;
   related?: string[];
+  /** See KindTarget.minPollIntervalMs. */
+  minPollIntervalMs?: number;
   defaultSort?: { col: string; desc: boolean };
   /** Replaces the Kubernetes metadata at the top of the drawer (virtual objects: Helm, port forwards). */
   header?(o: KubeObject): DetailItem[];
@@ -165,6 +167,7 @@ export function defineResource(spec: ResourceSpec): ResourceDescriptor {
     id: spec.id,
     kubectlName: spec.kubectlName ?? spec.id,
     namespaced: spec.namespaced,
+    minPollIntervalMs: spec.minPollIntervalMs,
     title: spec.title,
     kindName: spec.kindName,
     columns: all.map(toDef),

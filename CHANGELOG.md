@@ -36,8 +36,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Debug...** on pods: an ephemeral debug container (`kubectl debug`) attached to a terminal (`kubexplorer.debug.image`).
 - Bulk actions on the checked rows: restart, scale, reconcile, suspend, resume and delete.
 
+### Changed
+
+- `kubexplorer.protectedContexts`, `kubexplorer.protectedContextsMode` and `kubexplorer.confirmApply` are user (or
+  remote) settings: the settings of a workspace can no longer turn off the protection of production contexts.
+- Metrics are polled at most every 15 seconds (the resolution of metrics-server), Helm lists at most every minute.
+- Large lists sort about 20 times faster.
+
 ### Fixed
 
+- Auto save (`files.autoSave`) applied YAML documents to the cluster, half-typed, or asked for a review at every
+  pause: only an explicit save applies now (Ctrl+S, File > Save).
+- Fleet: a single unreachable cluster made the fleet look never scanned: no "scanned … ago", and a full scan every
+  time the tab was shown again.
+- Fleet: the Flux column showed the version of kustomize-controller (v1.x) as if it were the version of Flux: the
+  controller is now named ("kustomize v1.9.6").
+- Fleet: a cluster without Flux cost a request per Flux kind at every scan; the kinds a cluster does not serve are now
+  remembered for 10 minutes (the refresh button asks again).
 - The details drawer no longer blinks when its content refreshes.
 - Reopening the YAML of an object changed on the cluster since its tab was closed showed the previous version.
 - A Flux or Karpenter overview tab restored after a restart showed the cluster overview.

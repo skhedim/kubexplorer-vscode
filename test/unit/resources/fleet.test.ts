@@ -5,6 +5,7 @@ import {
   buildMatrix,
   type ClusterScan,
   fluxComponents,
+  fluxControllerVersion,
   type FluxSummary,
   groupOf,
   groupOrder,
@@ -81,6 +82,13 @@ describe("cluster summaries", () => {
       },
     });
     expect(summary.objects!.find((o) => o.kind === "Kustomization")!.behind).toBe(true);
+  });
+
+  it("names the controller whose version it shows, not to be read as the version of Flux itself", () => {
+    // Flux v2.x runs controllers in v1.x: a bare "v1.9.5" would read as Flux 1.
+    expect(fluxControllerVersion({ "source-controller": "v1.9.6", "kustomize-controller": "v1.9.5" })).toBe("kustomize v1.9.5");
+    expect(fluxControllerVersion({ "helm-controller": "v1.6.5" })).toBe("helm v1.6.5");
+    expect(fluxControllerVersion(undefined)).toBeUndefined();
   });
 
   it("reads the versions of the Flux controllers", () => {
